@@ -55,6 +55,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change the password. Signs out every other session; this one stays signed in. */
+        post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace the user's settings. */
+        put: operations["updateSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How much space grower uses, and when the last nightly backup ran. */
+        get: operations["getStorage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download everything as a zip (format in docs/export-format.md). */
+        get: operations["exportData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/locations": {
         parameters: {
             query?: never;
@@ -338,6 +406,27 @@ export interface components {
              */
             version: string;
         };
+        PasswordChange: {
+            current_password: string;
+            new_password: string;
+        };
+        Storage: {
+            photo_count: number;
+            /**
+             * Format: int64
+             * @description Size of all photo files, originals and thumbnails.
+             */
+            photo_bytes: number;
+            /** Format: int64 */
+            database_bytes: number;
+            /**
+             * Format: date-time
+             * @description When the newest nightly backup in <data>/backups was written.
+             */
+            last_backup_at: string | null;
+        };
+        /** @enum {string} */
+        PotType: "plastic" | "terracotta" | "ceramic" | "fabric" | "self_watering" | "other";
         /** @enum {string} */
         LightLevel: "low" | "medium" | "bright_indirect" | "direct";
         LocationInput: {
@@ -370,6 +459,19 @@ export interface components {
             acquired_on?: string | null;
             /** @default  */
             notes: string;
+            pot_type?: components["schemas"]["PotType"] | null;
+            /**
+             * Format: double
+             * @description Pot diameter in inches.
+             */
+            pot_size_in?: number | null;
+            /** @description Whether the pot has drainage holes; null when not recorded. */
+            drainage?: boolean | null;
+            /**
+             * @description Free text, e.g. "Aroid mix".
+             * @default
+             */
+            soil: string;
         };
         PlantUpdate: components["schemas"]["PlantInput"] & {
             archived: boolean;
@@ -387,6 +489,16 @@ export interface components {
             archived: boolean;
             /** Format: date-time */
             created_at: string;
+            pot_type: components["schemas"]["PotType"] | null;
+            /**
+             * Format: double
+             * @description Pot diameter in inches.
+             */
+            pot_size_in: number | null;
+            /** @description Whether the pot has drainage holes; null when not recorded. */
+            drainage: boolean | null;
+            /** @description Free text, e.g. "Aroid mix". */
+            soil: string;
         };
         PlantList: {
             items: components["schemas"]["Plant"][];
@@ -627,6 +739,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Me"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChange"];
+            };
+        };
+        responses: {
+            /** @description Changed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            429: components["responses"]["Problem"];
+        };
+    };
+    updateSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Settings"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Settings"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+        };
+    };
+    getStorage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Storage use. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Storage"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    exportData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A zip with export.json and the original photo files. */
+            200: {
+                headers: {
+                    /** @description attachment; filename="grower-export-YYYY-MM-DD.zip" */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
                 };
             };
             401: components["responses"]["Problem"];

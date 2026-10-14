@@ -56,6 +56,78 @@ paths:
                 $ref: "#/components/schemas/Me"
         "401":
           $ref: "#/components/responses/Problem"
+  /auth/password:
+    post:
+      operationId: changePassword
+      summary: Change the password. Signs out every other session; this one stays signed in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordChange"
+      responses:
+        "204":
+          description: Changed.
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "429":
+          $ref: "#/components/responses/Problem"
+  /settings:
+    put:
+      operationId: updateSettings
+      summary: Replace the user's settings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Settings"
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+  /storage:
+    get:
+      operationId: getStorage
+      summary: How much space grower uses, and when the last nightly backup ran.
+      responses:
+        "200":
+          description: Storage use.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Storage"
+        "401":
+          $ref: "#/components/responses/Problem"
+  /export:
+    get:
+      operationId: exportData
+      summary: Download everything as a zip (format in docs/export-format.md).
+      responses:
+        "200":
+          description: A zip with export.json and the original photo files.
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              description: attachment; filename="grower-export-YYYY-MM-DD.zip"
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Problem"
   /locations:
     get:
       operationId: listLocations
@@ -543,6 +615,39 @@ components:
           type: string
           description: Server build version.
           example: v0.1.0
+    PasswordChange:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+          minLength: 1
+          maxLength: 256
+        new_password:
+          type: string
+          minLength: 10
+          maxLength: 256
+    Storage:
+      type: object
+      required: [photo_count, photo_bytes, database_bytes, last_backup_at]
+      properties:
+        photo_count:
+          type: integer
+        photo_bytes:
+          type: integer
+          format: int64
+          description: Size of all photo files, originals and thumbnails.
+        database_bytes:
+          type: integer
+          format: int64
+        last_backup_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the newest nightly backup in <data>/backups was written.
+    PotType:
+      type: string
+      enum: [plastic, terracotta, ceramic, fabric, self_watering, other]
     LightLevel:
       type: string
       enum: [low, medium, bright_indirect, direct]
@@ -612,6 +717,26 @@ components:
           type: string
           maxLength: 4000
           default: ""
+        pot_type:
+          allOf:
+            - $ref: "#/components/schemas/PotType"
+          nullable: true
+        pot_size_in:
+          type: number
+          format: double
+          minimum: 0.5
+          maximum: 48
+          nullable: true
+          description: Pot diameter in inches.
+        drainage:
+          type: boolean
+          nullable: true
+          description: Whether the pot has drainage holes; null when not recorded.
+        soil:
+          type: string
+          maxLength: 120
+          default: ""
+          description: Free text, e.g. "Aroid mix".
     PlantUpdate:
       allOf:
         - $ref: "#/components/schemas/PlantInput"
@@ -622,7 +747,7 @@ components:
               type: boolean
     Plant:
       type: object
-      required: [id, name, species, location_id, acquired_on, notes, archived, cover, created_at]
+      required: [id, name, species, location_id, acquired_on, notes, pot_type, pot_size_in, drainage, soil, archived, cover, created_at]
       properties:
         cover:
           allOf:
@@ -649,6 +774,25 @@ components:
         created_at:
           type: string
           format: date-time
+        pot_type:
+          allOf:
+            - $ref: "#/components/schemas/PotType"
+          nullable: true
+        pot_size_in:
+          type: number
+          format: double
+          minimum: 0.5
+          maximum: 48
+          nullable: true
+          description: Pot diameter in inches.
+        drainage:
+          type: boolean
+          nullable: true
+          description: Whether the pot has drainage holes; null when not recorded.
+        soil:
+          type: string
+          maxLength: 120
+          description: Free text, e.g. "Aroid mix".
     PlantList:
       type: object
       required: [items]

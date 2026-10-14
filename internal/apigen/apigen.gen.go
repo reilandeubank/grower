@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"time"
@@ -76,6 +77,36 @@ func (e LightLevel) Valid() bool {
 	case Low:
 		return true
 	case Medium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PotType.
+const (
+	Ceramic      PotType = "ceramic"
+	Fabric       PotType = "fabric"
+	Other        PotType = "other"
+	Plastic      PotType = "plastic"
+	SelfWatering PotType = "self_watering"
+	Terracotta   PotType = "terracotta"
+)
+
+// Valid indicates whether the value is a known member of the PotType enum.
+func (e PotType) Valid() bool {
+	switch e {
+	case Ceramic:
+		return true
+	case Fabric:
+		return true
+	case Other:
+		return true
+	case Plastic:
+		return true
+	case SelfWatering:
+		return true
+	case Terracotta:
 		return true
 	default:
 		return false
@@ -246,6 +277,12 @@ type Me struct {
 	Version string `json:"version"`
 }
 
+// PasswordChange defines model for PasswordChange.
+type PasswordChange struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
 // Photo defines model for Photo.
 type Photo struct {
 	Caption string    `json:"caption"`
@@ -297,21 +334,41 @@ type Plant struct {
 	Archived   bool                `json:"archived"`
 
 	// Cover The cover photo, or null when the plant has none.
-	Cover      *Photo    `json:"cover"`
-	CreatedAt  time.Time `json:"created_at"`
-	Id         string    `json:"id"`
-	LocationId *string   `json:"location_id"`
-	Name       string    `json:"name"`
-	Notes      string    `json:"notes"`
-	Species    string    `json:"species"`
+	Cover     *Photo    `json:"cover"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// Drainage Whether the pot has drainage holes; null when not recorded.
+	Drainage   *bool   `json:"drainage"`
+	Id         string  `json:"id"`
+	LocationId *string `json:"location_id"`
+	Name       string  `json:"name"`
+	Notes      string  `json:"notes"`
+
+	// PotSizeIn Pot diameter in inches.
+	PotSizeIn *float64 `json:"pot_size_in"`
+	PotType   *PotType `json:"pot_type"`
+
+	// Soil Free text, e.g. "Aroid mix".
+	Soil    string `json:"soil"`
+	Species string `json:"species"`
 }
 
 // PlantInput defines model for PlantInput.
 type PlantInput struct {
 	AcquiredOn *openapi_types.Date `json:"acquired_on,omitempty"`
-	LocationId *string             `json:"location_id,omitempty"`
-	Name       string              `json:"name"`
-	Notes      *string             `json:"notes,omitempty"`
+
+	// Drainage Whether the pot has drainage holes; null when not recorded.
+	Drainage   *bool   `json:"drainage,omitempty"`
+	LocationId *string `json:"location_id,omitempty"`
+	Name       string  `json:"name"`
+	Notes      *string `json:"notes,omitempty"`
+
+	// PotSizeIn Pot diameter in inches.
+	PotSizeIn *float64 `json:"pot_size_in,omitempty"`
+	PotType   *PotType `json:"pot_type,omitempty"`
+
+	// Soil Free text, e.g. "Aroid mix".
+	Soil *string `json:"soil,omitempty"`
 
 	// Species Free text for now, e.g. "Monstera deliciosa".
 	Species *string `json:"species,omitempty"`
@@ -326,13 +383,26 @@ type PlantList struct {
 type PlantUpdate struct {
 	AcquiredOn *openapi_types.Date `json:"acquired_on,omitempty"`
 	Archived   bool                `json:"archived"`
-	LocationId *string             `json:"location_id,omitempty"`
-	Name       string              `json:"name"`
-	Notes      *string             `json:"notes,omitempty"`
+
+	// Drainage Whether the pot has drainage holes; null when not recorded.
+	Drainage   *bool   `json:"drainage,omitempty"`
+	LocationId *string `json:"location_id,omitempty"`
+	Name       string  `json:"name"`
+	Notes      *string `json:"notes,omitempty"`
+
+	// PotSizeIn Pot diameter in inches.
+	PotSizeIn *float64 `json:"pot_size_in,omitempty"`
+	PotType   *PotType `json:"pot_type,omitempty"`
+
+	// Soil Free text, e.g. "Aroid mix".
+	Soil *string `json:"soil,omitempty"`
 
 	// Species Free text for now, e.g. "Monstera deliciosa".
 	Species *string `json:"species,omitempty"`
 }
+
+// PotType defines model for PotType.
+type PotType string
 
 // Problem defines model for Problem.
 type Problem struct {
@@ -348,6 +418,18 @@ type Settings struct {
 	//
 	// Example: America/Chicago
 	Timezone string `json:"timezone"`
+}
+
+// Storage defines model for Storage.
+type Storage struct {
+	DatabaseBytes int64 `json:"database_bytes"`
+
+	// LastBackupAt When the newest nightly backup in <data>/backups was written.
+	LastBackupAt *time.Time `json:"last_backup_at"`
+
+	// PhotoBytes Size of all photo files, originals and thumbnails.
+	PhotoBytes int64 `json:"photo_bytes"`
+	PhotoCount int   `json:"photo_count"`
 }
 
 // TaskKind defines model for TaskKind.
@@ -400,6 +482,9 @@ type ListPlantEventsParams struct {
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
+// ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
+type ChangePasswordJSONRequestBody = PasswordChange
+
 // CreateLocationJSONRequestBody defines body for CreateLocation for application/json ContentType.
 type CreateLocationJSONRequestBody = LocationInput
 
@@ -424,6 +509,9 @@ type UploadPhotoMultipartRequestBody = PhotoUpload
 // CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
 type CreateTaskJSONRequestBody = CareTaskInput
 
+// UpdateSettingsJSONRequestBody defines body for UpdateSettings for application/json ContentType.
+type UpdateSettingsJSONRequestBody = Settings
+
 // UpdateTaskJSONRequestBody defines body for UpdateTask for application/json ContentType.
 type UpdateTaskJSONRequestBody = CareTaskInput
 
@@ -438,9 +526,15 @@ type ServerInterface interface {
 	// Logout End the current session and clear the cookie.
 	// (POST /auth/logout)
 	Logout(w http.ResponseWriter, r *http.Request)
+	// ChangePassword Change the password. Signs out every other session; this one stays signed in.
+	// (POST /auth/password)
+	ChangePassword(w http.ResponseWriter, r *http.Request)
 	// UndoEvent Undo an event. It is kept but ignored from now on.
 	// (DELETE /events/{id})
 	UndoEvent(w http.ResponseWriter, r *http.Request, id Id)
+	// ExportData Download everything as a zip (format in docs/export-format.md).
+	// (GET /export)
+	ExportData(w http.ResponseWriter, r *http.Request)
 	// ListLocations All locations, ordered by name, with how many active plants each holds.
 	// (GET /locations)
 	ListLocations(w http.ResponseWriter, r *http.Request)
@@ -495,6 +589,12 @@ type ServerInterface interface {
 
 	// (POST /plants/{id}/tasks)
 	CreateTask(w http.ResponseWriter, r *http.Request, id Id)
+	// UpdateSettings Replace the user's settings.
+	// (PUT /settings)
+	UpdateSettings(w http.ResponseWriter, r *http.Request)
+	// GetStorage How much space grower uses, and when the last nightly backup ran.
+	// (GET /storage)
+	GetStorage(w http.ResponseWriter, r *http.Request)
 	// DeleteTask Delete a task and its history.
 	// (DELETE /tasks/{id})
 	DeleteTask(w http.ResponseWriter, r *http.Request, id Id)
@@ -546,6 +646,20 @@ func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request
 	handler.ServeHTTP(w, r)
 }
 
+// ChangePassword operation middleware
+func (siw *ServerInterfaceWrapper) ChangePassword(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangePassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // UndoEvent operation middleware
 func (siw *ServerInterfaceWrapper) UndoEvent(w http.ResponseWriter, r *http.Request) {
 
@@ -563,6 +677,20 @@ func (siw *ServerInterfaceWrapper) UndoEvent(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UndoEvent(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportData operation middleware
+func (siw *ServerInterfaceWrapper) ExportData(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportData(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1015,6 +1143,34 @@ func (siw *ServerInterfaceWrapper) CreateTask(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// UpdateSettings operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetStorage operation middleware
+func (siw *ServerInterfaceWrapper) GetStorage(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetStorage(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteTask operation middleware
 func (siw *ServerInterfaceWrapper) DeleteTask(w http.ResponseWriter, r *http.Request) {
 
@@ -1230,6 +1386,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/login", wrapper.Login)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/logout", wrapper.Logout)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/me", wrapper.GetMe)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/settings", wrapper.UpdateSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/storage", wrapper.GetStorage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/export", wrapper.ExportData)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/locations", wrapper.ListLocations)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/locations", wrapper.CreateLocation)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/locations/{id}", wrapper.DeleteLocation)
@@ -1339,6 +1499,66 @@ func (response Logout204Response) VisitLogoutResponse(w http.ResponseWriter) err
 	return nil
 }
 
+type ChangePasswordRequestObject struct {
+	Body *ChangePasswordJSONRequestBody
+}
+
+type ChangePasswordResponseObject interface {
+	VisitChangePasswordResponse(w http.ResponseWriter) error
+}
+
+type ChangePassword204Response struct {
+}
+
+func (response ChangePassword204Response) VisitChangePasswordResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ChangePassword400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ChangePassword400ApplicationProblemPlusJSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangePassword401ApplicationProblemPlusJSONResponse Problem
+
+func (response ChangePassword401ApplicationProblemPlusJSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangePassword429ApplicationProblemPlusJSONResponse Problem
+
+func (response ChangePassword429ApplicationProblemPlusJSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type UndoEventRequestObject struct {
 	Id Id `json:"id"`
 }
@@ -1387,6 +1607,57 @@ func (response UndoEvent404ApplicationProblemPlusJSONResponse) VisitUndoEventRes
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExportDataRequestObject struct {
+}
+
+type ExportDataResponseObject interface {
+	VisitExportDataResponse(w http.ResponseWriter) error
+}
+
+type ExportData200ResponseHeaders struct {
+	ContentDisposition *string
+}
+
+type ExportData200ApplicationzipResponse struct {
+	Body          io.Reader
+	Headers       ExportData200ResponseHeaders
+	ContentLength int64
+}
+
+func (response ExportData200ApplicationzipResponse) VisitExportDataResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/zip")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.ContentDisposition != nil {
+		w.Header().Set("Content-Disposition", fmt.Sprint(*response.Headers.ContentDisposition))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type ExportData401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ExportData401ApplicationProblemPlusJSONResponse) VisitExportDataResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -2412,6 +2683,95 @@ func (response CreateTask404ApplicationProblemPlusJSONResponse) VisitCreateTaskR
 	return err
 }
 
+type UpdateSettingsRequestObject struct {
+	Body *UpdateSettingsJSONRequestBody
+}
+
+type UpdateSettingsResponseObject interface {
+	VisitUpdateSettingsResponse(w http.ResponseWriter) error
+}
+
+type UpdateSettings200JSONResponse Settings
+
+func (response UpdateSettings200JSONResponse) VisitUpdateSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSettings400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateSettings400ApplicationProblemPlusJSONResponse) VisitUpdateSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSettings401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSettings401ApplicationProblemPlusJSONResponse) VisitUpdateSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStorageRequestObject struct {
+}
+
+type GetStorageResponseObject interface {
+	VisitGetStorageResponse(w http.ResponseWriter) error
+}
+
+type GetStorage200JSONResponse Storage
+
+func (response GetStorage200JSONResponse) VisitGetStorageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStorage401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetStorage401ApplicationProblemPlusJSONResponse) VisitGetStorageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type DeleteTaskRequestObject struct {
 	Id Id `json:"id"`
 }
@@ -2637,9 +2997,15 @@ type StrictServerInterface interface {
 	// Logout End the current session and clear the cookie.
 	// (POST /auth/logout)
 	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
+	// ChangePassword Change the password. Signs out every other session; this one stays signed in.
+	// (POST /auth/password)
+	ChangePassword(ctx context.Context, request ChangePasswordRequestObject) (ChangePasswordResponseObject, error)
 	// UndoEvent Undo an event. It is kept but ignored from now on.
 	// (DELETE /events/{id})
 	UndoEvent(ctx context.Context, request UndoEventRequestObject) (UndoEventResponseObject, error)
+	// ExportData Download everything as a zip (format in docs/export-format.md).
+	// (GET /export)
+	ExportData(ctx context.Context, request ExportDataRequestObject) (ExportDataResponseObject, error)
 	// ListLocations All locations, ordered by name, with how many active plants each holds.
 	// (GET /locations)
 	ListLocations(ctx context.Context, request ListLocationsRequestObject) (ListLocationsResponseObject, error)
@@ -2694,6 +3060,12 @@ type StrictServerInterface interface {
 
 	// (POST /plants/{id}/tasks)
 	CreateTask(ctx context.Context, request CreateTaskRequestObject) (CreateTaskResponseObject, error)
+	// UpdateSettings Replace the user's settings.
+	// (PUT /settings)
+	UpdateSettings(ctx context.Context, request UpdateSettingsRequestObject) (UpdateSettingsResponseObject, error)
+	// GetStorage How much space grower uses, and when the last nightly backup ran.
+	// (GET /storage)
+	GetStorage(ctx context.Context, request GetStorageRequestObject) (GetStorageResponseObject, error)
 	// DeleteTask Delete a task and its history.
 	// (DELETE /tasks/{id})
 	DeleteTask(ctx context.Context, request DeleteTaskRequestObject) (DeleteTaskResponseObject, error)
@@ -2802,6 +3174,37 @@ func (sh *strictHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ChangePassword operation middleware
+func (sh *strictHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	var request ChangePasswordRequestObject
+
+	var body ChangePasswordJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ChangePassword(ctx, request.(ChangePasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ChangePassword")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ChangePasswordResponseObject); ok {
+		if err := validResponse.VisitChangePasswordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // UndoEvent operation middleware
 func (sh *strictHandler) UndoEvent(w http.ResponseWriter, r *http.Request, id Id) {
 	var request UndoEventRequestObject
@@ -2821,6 +3224,30 @@ func (sh *strictHandler) UndoEvent(w http.ResponseWriter, r *http.Request, id Id
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UndoEventResponseObject); ok {
 		if err := validResponse.VisitUndoEventResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ExportData operation middleware
+func (sh *strictHandler) ExportData(w http.ResponseWriter, r *http.Request) {
+	var request ExportDataRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ExportData(ctx, request.(ExportDataRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ExportData")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ExportDataResponseObject); ok {
+		if err := validResponse.VisitExportDataResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -3338,6 +3765,61 @@ func (sh *strictHandler) CreateTask(w http.ResponseWriter, r *http.Request, id I
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateTaskResponseObject); ok {
 		if err := validResponse.VisitCreateTaskResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateSettings operation middleware
+func (sh *strictHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+	var request UpdateSettingsRequestObject
+
+	var body UpdateSettingsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateSettings(ctx, request.(UpdateSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateSettingsResponseObject); ok {
+		if err := validResponse.VisitUpdateSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetStorage operation middleware
+func (sh *strictHandler) GetStorage(w http.ResponseWriter, r *http.Request) {
+	var request GetStorageRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetStorage(ctx, request.(GetStorageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetStorage")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetStorageResponseObject); ok {
+		if err := validResponse.VisitGetStorageResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

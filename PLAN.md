@@ -333,7 +333,7 @@ Table-driven tests plus a property test (`testing/quick` or `rapid`):
 - **Auth scope:** local accounts only for v1. Forward-auth (Authentik/Authelia header) is deferred. Auth middleware sits behind one `Authenticator` interface so a header mode can be added later without touching handlers.
 - **Second household user:** the `users` table already supports it. All data is shared, with no per-row ownership (per brief).
 - **Jobs runner:** ticker every 30 s. Claims rows with `UPDATE … SET status='running', locked_until=now+5m WHERE id=(SELECT … WHERE status='pending' AND run_after<=now LIMIT 1) RETURNING`. Producers insert with `dedupe_key` (`INSERT … ON CONFLICT DO NOTHING`), and failures back off exponentially. After a restart, expired locks are reclaimed. **Push is sent before marking done**, so a crash means at most one duplicate digest. That's the accepted trade-off, and at-least-once beats silently dropping a reminder.
-- **Backups:** ZFS dataset `tank/apps/grower` with hourly/daily snapshot tasks. A nightly `VACUUM INTO` job (keeps 14). Off-box to **Backblaze B2** via a TrueNAS Cloud Sync task (push, remote encryption on) of `backups/` + `media/`, with a B2 lifecycle rule keeping old versions for 30 days. Set up in M5 and documented in `docs/backup.md` with a quarterly restore drill. `restic` is the fallback if you later want deduplicated snapshots.
+- **Backups:** ZFS dataset `tank/apps/grower` with hourly/daily snapshot tasks. A nightly `VACUUM INTO` job (keeps 14). Off-box to **Google Drive** via a nightly TrueNAS Cloud Sync task of the whole dataset (owner set this up). The live `grower.db` in that copy may be mid-write, so restores use the consistent nightly copy in `backups/`. Documented in `docs/backup.md` with a restore drill.
 - **TrueNAS specifics:** run the container as the dataset owner's UID:GID (e.g. `568:568` apps user), mount the dataset at `/data`, and attach it to the existing proxy's network.
 - **Photo growth:** keep originals (client-downscaled to ≤2560px, which is ~0.5–1 MB each) + thumbs. Kept indefinitely. Show storage usage in Settings and revisit if it grows large.
 
@@ -366,7 +366,7 @@ Plan:
 | 4   | Auth                  | Local accounts only for v1; forward-auth deferred (no Authentik running)            |
 | 5   | HEIC                  | Convert to JPEG in the browser                                                       |
 | 6   | Photo retention       | Keep downscaled originals indefinitely                                               |
-| 7   | Off-box backup        | Backblaze B2 (not set up yet; set up in M5)                                          |
+| 7   | Off-box backup        | Google Drive via a nightly TrueNAS Cloud Sync task of the whole dataset (set up by the owner 2026-10-14; replaces B2) |
 | 8   | Species providers     | Open Plantbook (account created) + Perenual (ToS vetted, 100 calls/day, key in hand) |
 | 9   | Notifications         | Daily digest only                                                                    |
 | 10  | Image architecture    | `linux/amd64` only                                                                   |
