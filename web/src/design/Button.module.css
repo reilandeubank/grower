@@ -93,3 +93,17 @@
 .danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
+
+/* FileButton: the label is the control, so it carries the input's focus ring. */
+.file {
+  cursor: pointer;
+}
+
+.file:active {
+  transform: scale(0.98);
+}
+
+.file:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

@@ -12,8 +12,9 @@ import (
 // POSTs; this also blocks them from sibling subdomains and old browsers:
 //   - Origin, when sent, must equal the configured public origin;
 //   - without Origin, Sec-Fetch-Site must say same-origin;
-//   - bodies must be JSON, which a plain HTML form cannot send.
-func csrf(origin string) func(http.Handler) http.Handler {
+//   - bodies must be JSON, which a plain HTML form cannot send. The photo upload is
+//     multipart, which a form can send, so it relies on the two checks above.
+func csrf(origin string, isUpload func(*http.Request) bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
@@ -31,9 +32,12 @@ func csrf(origin string) func(http.Handler) http.Handler {
 				return
 			}
 			if r.ContentLength != 0 {
-				mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-				if err != nil || mt != "application/json" {
-					api.WriteProblem(w, http.StatusUnsupportedMediaType, "Request bodies must be application/json.")
+				want, detail := "application/json", "Request bodies must be application/json."
+				if isUpload(r) {
+					want, detail = "multipart/form-data", "Photo uploads must be multipart/form-data."
+				}
+				if mt, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err != nil || mt != want {
+					api.WriteProblem(w, http.StatusUnsupportedMediaType, detail)
 					return
 				}
 			}

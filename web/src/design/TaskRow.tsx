@@ -11,6 +11,8 @@ const COLLAPSE_MS = 200;
 
 export interface TaskRowProps {
   plantName: string;
+  /** The plant cover's small image URL. */
+  photo?: string | undefined;
   kind: CareKind;
   label?: string;
   /** "Due today", "Overdue 3 days", "In 3 days"… */
@@ -30,7 +32,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? true;
 }
 
-export function TaskRow({ plantName, kind, label, due, overdue = false, quiet = false, onOpen, onComplete }: TaskRowProps) {
+export function TaskRow({ plantName, photo, kind, label, due, overdue = false, quiet = false, onOpen, onComplete }: TaskRowProps) {
   const [completing, setCompleting] = useState(false);
   const name = taskName(kind, label);
 
@@ -49,7 +51,7 @@ export function TaskRow({ plantName, kind, label, due, overdue = false, quiet = 
       <div className={styles.clip}>
         <div className={`${styles.row} ${quiet ? styles.quiet : ""} ${completing ? styles.completing : ""}`}>
           <button type="button" className={styles.body} onClick={onOpen} aria-haspopup="dialog">
-            <PlantPhoto name={plantName} size="thumb" />
+            <PlantPhoto name={plantName} src={photo} size="thumb" />
             <span className={styles.text}>
               <span className={`t-body-strong ${styles.clamp}`}>{plantName}</span>
               <span className={`t-caption ${styles.meta}`}>

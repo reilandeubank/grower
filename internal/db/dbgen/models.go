@@ -55,16 +55,31 @@ type Location struct {
 	UpdatedAt string
 }
 
+type Photo struct {
+	ID        string
+	PlantID   string
+	TakenAt   string
+	Caption   string
+	Mime      string
+	Width     int64
+	Height    int64
+	Bytes     int64
+	Sha256    string
+	CreatedAt string
+	UpdatedAt string
+}
+
 type Plant struct {
-	ID         string
-	Name       string
-	Species    string
-	LocationID sql.NullString
-	AcquiredOn sql.NullString
-	Notes      string
-	ArchivedAt sql.NullString
-	CreatedAt  string
-	UpdatedAt  string
+	ID           string
+	Name         string
+	Species      string
+	LocationID   sql.NullString
+	AcquiredOn   sql.NullString
+	Notes        string
+	ArchivedAt   sql.NullString
+	CreatedAt    string
+	UpdatedAt    string
+	CoverPhotoID sql.NullString
 }
 
 type Session struct {

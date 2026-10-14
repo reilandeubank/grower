@@ -19,7 +19,7 @@ func (h *Handler) GetToday(ctx context.Context, _ apigen.GetTodayRequestObject) 
 	if err != nil {
 		return nil, err
 	}
-	// Two queries in all: tasks with their plants, and every event they need.
+	// Three queries in all: tasks with their plants, every event they need, and covers.
 	q := h.db.Reader()
 	rows, err := q.ListActiveTasks(ctx)
 	if err != nil {
@@ -28,6 +28,10 @@ func (h *Handler) GetToday(ctx context.Context, _ apigen.GetTodayRequestObject) 
 	all, err := q.ListActiveEvents(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list active events: %w", err)
+	}
+	covers, err := h.covers(ctx)
+	if err != nil {
+		return nil, err
 	}
 	events := make(map[string][]dbgen.CareEvent)
 	for _, e := range all {
@@ -41,7 +45,7 @@ func (h *Handler) GetToday(ctx context.Context, _ apigen.GetTodayRequestObject) 
 			return nil, err
 		}
 		item := apigen.TodayItem{Task: task, DaysOverdue: today.Sub(schedule.DateOf(task.NextDue.Time))}
-		if item.Plant, err = plant(r.Plant); err != nil {
+		if item.Plant, err = plant(r.Plant, covers[r.Plant.ID]); err != nil {
 			return nil, err
 		}
 		switch {

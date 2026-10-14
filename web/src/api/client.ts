@@ -41,6 +41,9 @@ export type HistoryEntry = components["schemas"]["HistoryEntry"];
 export type LoggedEvent = components["schemas"]["LoggedEvent"];
 export type Today = components["schemas"]["Today"];
 export type TodayItem = components["schemas"]["TodayItem"];
+export type Photo = components["schemas"]["Photo"];
+export type PhotoInput = components["schemas"]["PhotoInput"];
+export type PhotoUpload = components["schemas"]["PhotoUpload"];
 
 /** Unwraps an openapi-fetch result, throwing an ApiError for anything but a body-bearing success. */
 export function unwrap<T>({ data, error, response }: { data?: T; error?: Problem; response: Response }): T {

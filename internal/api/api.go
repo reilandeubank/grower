@@ -11,6 +11,7 @@ import (
 	"github.com/reilandeubank/grower/internal/apigen"
 	"github.com/reilandeubank/grower/internal/auth"
 	"github.com/reilandeubank/grower/internal/db"
+	"github.com/reilandeubank/grower/internal/media"
 )
 
 // Handler serves /api/v1.
@@ -18,14 +19,15 @@ type Handler struct {
 	auth   *auth.Service
 	db     *db.DB
 	cookie auth.CookieConfig
+	media  *media.Store
 	log    *slog.Logger
 }
 
 var _ apigen.StrictServerInterface = (*Handler)(nil)
 
 // New returns the API handler.
-func New(authSvc *auth.Service, d *db.DB, cookie auth.CookieConfig, log *slog.Logger) *Handler {
-	return &Handler{auth: authSvc, db: d, cookie: cookie, log: log}
+func New(authSvc *auth.Service, d *db.DB, store *media.Store, cookie auth.CookieConfig, log *slog.Logger) *Handler {
+	return &Handler{auth: authSvc, db: d, media: store, cookie: cookie, log: log}
 }
 
 // ServerInterface adapts the strict handlers to net/http, with problem+json errors.

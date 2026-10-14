@@ -13,7 +13,7 @@ import (
 const createPlant = `-- name: CreatePlant :one
 INSERT INTO plants (id, name, species, location_id, acquired_on, notes, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at
+RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id
 `
 
 type CreatePlantParams struct {
@@ -49,6 +49,7 @@ func (q *Queries) CreatePlant(ctx context.Context, arg CreatePlantParams) (Plant
 		&i.ArchivedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CoverPhotoID,
 	)
 	return i, err
 }
@@ -66,7 +67,7 @@ func (q *Queries) DeletePlant(ctx context.Context, id string) (int64, error) {
 }
 
 const getPlant = `-- name: GetPlant :one
-SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at FROM plants WHERE id = ?
+SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id FROM plants WHERE id = ?
 `
 
 func (q *Queries) GetPlant(ctx context.Context, id string) (Plant, error) {
@@ -82,12 +83,13 @@ func (q *Queries) GetPlant(ctx context.Context, id string) (Plant, error) {
 		&i.ArchivedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CoverPhotoID,
 	)
 	return i, err
 }
 
 const listPlants = `-- name: ListPlants :many
-SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at FROM plants
+SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id FROM plants
 WHERE (archived_at IS NOT NULL) = CAST(?1 AS BOOLEAN)
 ORDER BY name COLLATE NOCASE
 `
@@ -111,6 +113,7 @@ func (q *Queries) ListPlants(ctx context.Context, archived bool) ([]Plant, error
 			&i.ArchivedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CoverPhotoID,
 		); err != nil {
 			return nil, err
 		}
@@ -131,7 +134,7 @@ SET name = ?1, species = ?2, location_id = ?3,
     acquired_on = ?4, notes = ?5, updated_at = ?6,
     archived_at = CASE WHEN CAST(?7 AS BOOLEAN) THEN COALESCE(archived_at, ?6) END
 WHERE id = ?8
-RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at
+RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id
 `
 
 type UpdatePlantParams struct {
@@ -168,6 +171,7 @@ func (q *Queries) UpdatePlant(ctx context.Context, arg UpdatePlantParams) (Plant
 		&i.ArchivedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CoverPhotoID,
 	)
 	return i, err
 }

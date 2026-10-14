@@ -55,6 +55,7 @@ function TodayLists({ date, task_count, overdue, due, upcoming }: TodayData) {
         <TaskRow
           key={item.task.id}
           plantName={item.plant.name}
+          photo={item.plant.cover?.urls.small}
           kind={item.task.kind}
           label={item.task.label}
           due={dueLine(item.task.next_due, date)}

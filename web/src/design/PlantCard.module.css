@@ -22,7 +22,7 @@
   color: var(--brand);
 }
 
-.card .photo {
+.cardPhoto {
   aspect-ratio: 1;
 }
 
@@ -54,4 +54,18 @@
   width: var(--thumb-row);
   height: var(--thumb-row);
   border-radius: var(--radius-sm);
+}
+
+/* Out of flow, so the image's own size can't stretch the frame. */
+.photo {
+  position: relative;
+  overflow: hidden;
+}
+
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }

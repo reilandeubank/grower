@@ -1,0 +1,109 @@
+/* Full screen, on the screen's own surface in both themes. */
+.viewer {
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--surface);
+  color: var(--ink);
+  overscroll-behavior: contain;
+}
+
+.viewer[open] {
+  animation: fade-in var(--dur-enter) var(--ease-out);
+}
+
+.viewer::backdrop {
+  background: var(--surface);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--gutter) var(--space-2) var(--space-1);
+}
+
+.muted {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.nav {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  background: color-mix(in srgb, var(--surface-raised) 85%, transparent);
+  box-shadow: var(--shadow-raised);
+}
+
+.nav:hover:not(:disabled) {
+  background: var(--surface-raised);
+}
+
+.prev {
+  left: var(--space-2);
+}
+
+.next {
+  right: var(--space-2);
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--gutter) var(--space-6);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.caption {
+  white-space: pre-wrap;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+/* Two buttons side by side are narrow on a phone; let them pad less. */
+.actions > button {
+  padding: 0 var(--space-3);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}

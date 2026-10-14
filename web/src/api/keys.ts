@@ -7,6 +7,7 @@ export const todayKey = ["today"] as const;
 /** A plant's tasks and history sit under its key, so refreshing the plant refreshes them too. */
 export const plantTasksKey = (plantId: string) => [...plantsKey, plantId, "tasks"] as const;
 export const plantHistoryKey = (plantId: string) => [...plantsKey, plantId, "history"] as const;
+export const plantPhotosKey = (plantId: string) => [...plantsKey, plantId, "photos"] as const;
 
 /**
  * Plant writes change location plant counts, and location deletes change plants, so refresh both.

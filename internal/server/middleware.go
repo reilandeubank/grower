@@ -124,11 +124,16 @@ func noStore(next http.Handler) http.Handler {
 	})
 }
 
-// limitBody caps request bodies so a client cannot stream unbounded data.
-func limitBody(n int64) func(http.Handler) http.Handler {
+// limitBody caps request bodies so a client cannot stream unbounded data. Uploads get
+// the larger cap.
+func limitBody(isUpload func(*http.Request) bool, n, upload int64) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r.Body = http.MaxBytesReader(w, r.Body, n)
+			limit := n
+			if isUpload(r) {
+				limit = upload
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, limit)
 			next.ServeHTTP(w, r)
 		})
 	}

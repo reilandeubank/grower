@@ -43,7 +43,7 @@ type envOptions struct {
 
 func newEnv(t *testing.T, opts envOptions) *env {
 	t.Helper()
-	vars := map[string]string{"GROWER_BASE_URL": "http://grower.test", "GROWER_TZ": "America/Chicago"}
+	vars := map[string]string{"GROWER_BASE_URL": "http://grower.test", "GROWER_TZ": "America/Chicago", "GROWER_DATA_DIR": t.TempDir()}
 	for k, v := range opts.env {
 		vars[k] = v
 	}

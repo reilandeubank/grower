@@ -29,9 +29,13 @@ func (h *Handler) ListPlants(ctx context.Context, req apigen.ListPlantsRequestOb
 	if err != nil {
 		return nil, fmt.Errorf("list plants: %w", err)
 	}
+	covers, err := h.covers(ctx)
+	if err != nil {
+		return nil, err
+	}
 	items := make([]apigen.Plant, len(rows))
 	for i, r := range rows {
-		if items[i], err = plant(r); err != nil {
+		if items[i], err = plant(r, covers[r.ID]); err != nil {
 			return nil, err
 		}
 	}
@@ -55,7 +59,7 @@ func (h *Handler) CreatePlant(ctx context.Context, req apigen.CreatePlantRequest
 	case err != nil:
 		return nil, fmt.Errorf("create plant: %w", err)
 	}
-	p, err := plant(row)
+	p, err := plant(row, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +75,7 @@ func (h *Handler) GetPlant(ctx context.Context, req apigen.GetPlantRequestObject
 	case err != nil:
 		return nil, fmt.Errorf("get plant %s: %w", req.Id, err)
 	}
-	p, err := plant(row)
+	p, err := h.plantWithCover(ctx, row)
 	if err != nil {
 		return nil, err
 	}
@@ -99,22 +103,32 @@ func (h *Handler) UpdatePlant(ctx context.Context, req apigen.UpdatePlantRequest
 	case err != nil:
 		return nil, fmt.Errorf("update plant %s: %w", req.Id, err)
 	}
-	p, err := plant(row)
+	p, err := h.plantWithCover(ctx, row)
 	if err != nil {
 		return nil, err
 	}
 	return apigen.UpdatePlant200JSONResponse(p), nil
 }
 
-// DeletePlant removes a plant permanently.
+// DeletePlant removes a plant permanently, with its photos and their files.
 func (h *Handler) DeletePlant(ctx context.Context, req apigen.DeletePlantRequestObject) (apigen.DeletePlantResponseObject, error) {
-	n, err := h.db.Writer().DeletePlant(ctx, req.Id)
+	var photoIDs []string
+	var n int64
+	err := h.db.InTx(ctx, func(q *dbgen.Queries) error {
+		var err error
+		if photoIDs, err = q.ListPlantPhotoIDs(ctx, req.Id); err != nil {
+			return err
+		}
+		n, err = q.DeletePlant(ctx, req.Id) // photos go by ON DELETE CASCADE
+		return err
+	})
 	if err != nil {
 		return nil, fmt.Errorf("delete plant %s: %w", req.Id, err)
 	}
 	if n == 0 {
 		return apigen.DeletePlant404ApplicationProblemPlusJSONResponse(problem(http.StatusNotFound, plantNotFound)), nil
 	}
+	h.removeFiles(ctx, photoIDs...)
 	return apigen.DeletePlant204Response{}, nil
 }
 
@@ -146,7 +160,8 @@ func parsePlant(in apigen.PlantInput) (plantFields, string) {
 	return f, ""
 }
 
-func plant(r dbgen.Plant) (apigen.Plant, error) {
+// plant maps a row and its cover photo, which is nil when it has none.
+func plant(r dbgen.Plant, cover *dbgen.Photo) (apigen.Plant, error) {
 	created, err := db.ParseTime(r.CreatedAt)
 	if err != nil {
 		return apigen.Plant{}, err
@@ -164,6 +179,13 @@ func plant(r dbgen.Plant) (apigen.Plant, error) {
 			return apigen.Plant{}, fmt.Errorf("parse stored date %q: %w", r.AcquiredOn.String, err)
 		}
 		p.AcquiredOn = &openapi_types.Date{Time: d}
+	}
+	if cover != nil {
+		c, err := photo(*cover)
+		if err != nil {
+			return apigen.Plant{}, err
+		}
+		p.Cover = &c
 	}
 	return p, nil
 }

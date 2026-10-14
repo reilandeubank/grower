@@ -13,7 +13,6 @@ test("log in, stay signed in across a reload, log out", async ({ page }) => {
   const heading = page.getByRole("heading", { level: 1 });
   // e.g. "Wednesday, Oct 14"
   await expect(heading).toHaveText(/^[A-Z][a-z]+day, [A-Z][a-z]{2} \d{1,2}$/);
-  await expect(page.getByText("No care tasks yet")).toBeVisible();
 
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

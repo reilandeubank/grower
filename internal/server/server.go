@@ -16,6 +16,7 @@ import (
 	"github.com/reilandeubank/grower/internal/auth"
 	"github.com/reilandeubank/grower/internal/config"
 	"github.com/reilandeubank/grower/internal/db"
+	"github.com/reilandeubank/grower/internal/media"
 )
 
 // Deps are everything the HTTP layer needs.
@@ -34,9 +35,14 @@ const maxJSONBody = 1 << 20
 // New builds the root handler. Deps.Config must have a BaseURL.
 func New(d Deps) http.Handler {
 	cookie := auth.CookieConfig{Name: d.Config.SessionCookieName(), Secure: d.Config.SecureCookies()}
+	store := media.New(d.Config.DataDir)
+	if err := store.CleanTemp(); err != nil {
+		d.Log.Warn("clean leftover uploads", "err", err)
+	}
+	withSession := sessions(d.Auth.Sessions(), cookie, d.Auth.Now, d.Log)
 
 	apiMux := http.NewServeMux()
-	apigen.HandlerWithOptions(api.New(d.Auth, d.DB, cookie, d.Log).ServerInterface(), apigen.StdHTTPServerOptions{
+	apigen.HandlerWithOptions(api.New(d.Auth, d.DB, store, cookie, d.Log).ServerInterface(), apigen.StdHTTPServerOptions{
 		BaseURL:     "/api/v1",
 		BaseRouter:  apiMux,
 		Middlewares: []apigen.MiddlewareFunc{requireAuth},
@@ -49,16 +55,25 @@ func New(d Deps) http.Handler {
 		api.WriteProblem(w, http.StatusNotFound, "No such API endpoint.")
 	})
 
+	// The photo upload is the one route with a multipart body and a larger size cap.
+	isUpload := func(r *http.Request) bool {
+		_, pattern := apiMux.Handler(r)
+		return pattern == "POST /api/v1/plants/{id}/photos"
+	}
 	apiHandler := chain(apiMux,
 		noStore,
-		limitBody(maxJSONBody),
-		csrf(d.Config.Origin()),
-		sessions(d.Auth.Sessions(), cookie, d.Auth.Now, d.Log),
+		limitBody(isUpload, maxJSONBody, api.MaxUploadBytes),
+		csrf(d.Config.Origin(), isUpload),
+		withSession,
 	)
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/", apiHandler)
 	mux.Handle("GET /healthz", healthz(d.DB, d.Log))
+	mux.Handle("GET /media/photos/{id}/{size}", chain(mediaHandler(store, d.Log), withSession, requireAuth))
+	mux.HandleFunc("/media/", func(w http.ResponseWriter, r *http.Request) { // never the SPA
+		api.WriteProblem(w, http.StatusNotFound, photoNotFound)
+	})
 	mux.Handle("/", spaHandler(d.SPA))
 
 	return chain(mux,

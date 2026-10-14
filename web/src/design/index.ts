@@ -8,6 +8,7 @@ export { DoneCheck, type DoneCheckProps } from "./DoneCheck";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { ErrorText } from "./ErrorText";
 export { Fab, type FabProps } from "./Fab";
+export { FileButton, type FileButtonProps } from "./FileButton";
 export { FilterChips, type FilterChipsProps } from "./FilterChips";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { Logo, type LogoProps } from "./Logo";

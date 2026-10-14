@@ -10,7 +10,7 @@ Milestone definitions live in `PLAN.md` §2.
 | M1 Deployed skeleton + auth | done (deployed 2026-10-14) |
 | M2 Plants and locations | done |
 | M3 Care tasks + scheduling + Today | done (v0.2.0) |
-| M4 Photos | not started |
+| M4 Photos | done (v0.3.0) |
 | M5 MVP hardening, v1.0 | not started |
 
 ### M1 checklist
@@ -24,9 +24,31 @@ Milestone definitions live in `PLAN.md` §2.
 - [x] Deployed on TrueNAS behind NPM; logged in from the installed PWA
 
 ## Owner action items
-- Update the TrueNAS app to v0.2.0 (or Edit → Save on `:main` with `pull_policy: always`), add care tasks to your plants, and use Today for a few days. Report anything that feels off.
+- Snapshot the dataset, then update to v0.3.0 (or Edit → Save on `:main`). Try adding photos from the phone camera and gallery; tell me if any photo is rejected as unsupported (that would be HEIC).
+- Raise NPM `client_max_body_size` to 20m if you haven't (docs/deploy.md §4).
 
 ## Checkpoints
+
+### 2026-10-14 · CP5: M4 integrated, v0.3.0
+- Photos end to end: client-side resize + JPEG re-encode (strips EXIF/GPS), upload with dedupe, server thumbnails (small 256 / medium 1024, EXIF orientation), auth-checked `/media` with immutable caching, covers on cards/rows/hero, month timeline, viewer (cover, caption, delete).
+- Lead fixes: duplicate-upload race returns the existing photo; leftover `.upload-*` temp dirs are cleaned at startup; e2e no longer depends on spec order.
+- Owner feature backlog captured in PLAN §10.
+- Verified: no codegen drift, golangci-lint 0 issues, Go tests, 56 Vitest, 5 Playwright e2e.
+- Follow-ups: Android back should close the photo viewer (and sheets); swipe between photos; HEIC only if it shows up in practice.
+- Next: M5 hardening (export, nightly backup + B2, settings, offline Today, a11y/perf pass), and pot/soil fields from §10 if cheap.
+
+### 2026-10-14 · Frontend M4
+- Done: `src/photos/`: `prepare.ts` (createImageBitmap with EXIF orientation, ≤2560 px, JPEG 0.85 via OffscreenCanvas or canvas; re-encoding strips EXIF/GPS; `UnsupportedImageError` for HEIC and other undecodable files), `queries.ts` (list, upload as multipart through openapi-fetch with the JSON Content-Type dropped, update, delete, set cover; writes refresh plants, photos and Today), `copy.ts` (month grouping, "Oct 12, 2026", upload error copy), PhotosTab (Add photo picker, multiple files uploaded one at a time with spinner tiles, month timeline in a 3-column grid, empty state, toasts), PhotoViewer (full-screen native `<dialog>`, medium image, date, caption, newer/older buttons and arrow keys, Set as cover / Cover photo, Edit caption sheet with caption + date, Delete with confirm). Design: `FileButton`; `PlantPhoto` takes `src` (cards, Today rows, detail hero show covers). Fixed: the card photo had the link's `.card` class through `styles[size]`.
+- Checks: lint, typecheck, 56 Vitest, build, `make e2e` (5 tests, incl. upload → grid cover → viewer → delete).
+- Notes: cover alt text is the plant name only on the hero; cards and rows use `alt=""` because the name is printed beside them. The viewer follows the theme (no forced dark). Android back leaves the plant page while the viewer is open.
+- Follow-ups: swipe between photos; "View original"; a back-button history entry for the viewer if it feels wrong on the phone.
+
+### 2026-10-14 · Backend M4
+- Done: `internal/media` (store under `<data>/media/photos/<id>/`: untouched `original.jpg|png`, `small.jpg` 256 px, `medium.jpg` 1024 px, JPEG q80; EXIF orientation reader and the 8 transforms; Catmull-Rom scaling, never upscaling; 50 MP bomb guard via `DecodeConfig`; temp dir + rename). Queries `internal/db/queries/photos.sql`; handlers `internal/api/photos_handlers.go`; `GET /media/photos/{id}/{size}` in `internal/server/media.go`. New dependency: `golang.org/x/image`.
+- Every Plant (list, get, create, update, archived, Today, set cover) carries `cover`; lists load all covers with one extra query. Upload: plant 404, 15 MB body cap (413), sha256 dedupe per plant (200 with the existing photo), first photo becomes cover in the insert's transaction, files removed if the insert fails. Deleting a cover hands it to the newest remaining photo in one transaction; deleting a plant removes its photo directories after commit.
+- CSRF: multipart/form-data is accepted only on `POST /api/v1/plants/{id}/photos` (Origin/Sec-Fetch-Site still checked); that route requires multipart.
+- Checks: gen reproducible, build, vet, golangci-lint 0 issues, Go tests.
+- Follow-ups: leftover `media/.upload-*` dirs after a crash are not swept; two identical uploads racing get a 500 for the loser (UNIQUE), not a 200.
 
 ### 2026-10-14 · CP4: M3 integrated, v0.2.0
 - The core loop works end to end: tasks per plant, `internal/schedule` (pure, table-tested incl. DST), Today with overdue/due/coming up, done with undo, snooze, skip, history.

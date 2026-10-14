@@ -13,6 +13,7 @@ export function PlantGrid({ plants, locations = [] }: { plants: Plant[]; locatio
             name={p.name}
             species={p.species}
             location={p.location_id ? locationNames.get(p.location_id) : undefined}
+            photo={p.cover?.urls.small}
           />
         </li>
       ))}

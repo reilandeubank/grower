@@ -1,11 +1,12 @@
 import { useNavigate, useParams } from "react-router";
-import { Archive, ArrowLeft, Camera, SearchX } from "lucide-react";
+import { Archive, ArrowLeft, SearchX } from "lucide-react";
 import { ApiError, problemMessage } from "../api/client";
 import { CareTab } from "../care/CareTab";
 import { AppShell, Button, EmptyState, ErrorText, IconButton, PlantPhoto, Tabs, TopBar } from "../design";
 import { formatMonthYear } from "../lib/dates";
 import { useBack } from "../lib/useBack";
 import { useLocations } from "../locations/queries";
+import { PhotosTab } from "../photos/PhotosTab";
 import { plantUpdate, usePlant, useSavePlant } from "../plants/queries";
 import { LoadError } from "./LoadError";
 import { Pending } from "./Pending";
@@ -68,7 +69,7 @@ export function PlantDetail() {
       }
     >
       <div className={styles.page}>
-        <PlantPhoto name={p.name} size="hero" />
+        <PlantPhoto name={p.name} src={p.cover?.urls.medium} size="hero" />
         <div className={styles.heading}>
           <h1 className="t-title">{p.name}</h1>
           {p.species && <p className={`t-caption ${styles.muted}`}>{p.species}</p>}
@@ -108,14 +109,7 @@ export function PlantDetail() {
             },
             {
               label: "Photos",
-              panel: (
-                <EmptyState
-                  as="h3"
-                  icon={<Camera size={28} strokeWidth={1.75} />}
-                  title="No photos yet"
-                  body="Photos arrive in a later update."
-                />
-              ),
+              panel: <PhotosTab plant={p} />,
             },
             {
               label: "Notes",
