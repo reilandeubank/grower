@@ -1,0 +1,59 @@
+.check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--target-min);
+  height: var(--target-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--ink-muted);
+}
+
+.circle {
+  display: grid;
+  place-items: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius-full);
+  transition:
+    background-color var(--dur-press) var(--ease-out),
+    border-color var(--dur-press) var(--ease-out),
+    transform var(--dur-press) var(--ease-out);
+}
+
+/* The check mark only shows as a hint on hover, and fully once done. */
+.circle svg {
+  opacity: 0;
+  transition: opacity var(--dur-press) var(--ease-out);
+}
+
+.check:hover:not(:disabled) .circle svg {
+  opacity: 0.5;
+}
+
+.check:active:not(:disabled) .circle {
+  transform: scale(0.92);
+}
+
+.check:active:not(:disabled) .circle,
+.check[data-checked] .circle {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+.check:active:not(:disabled) .circle svg,
+.check[data-checked] .circle svg {
+  opacity: 1;
+}
+
+.check:disabled {
+  cursor: default;
+}
+
+.check:disabled:not([data-checked]) {
+  opacity: 0.5;
+}

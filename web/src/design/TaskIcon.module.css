@@ -1,0 +1,30 @@
+.water,
+.fertilize,
+.mist,
+.repot,
+.rotate,
+.custom {
+  flex: none;
+}
+
+.water {
+  color: var(--water);
+}
+
+.fertilize {
+  color: var(--fertilize);
+}
+
+.mist {
+  color: var(--mist);
+}
+
+.repot {
+  color: var(--repot);
+}
+
+/* Rotate shares the custom accent, per the design README. */
+.rotate,
+.custom {
+  color: var(--custom);
+}

@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from "react-router";
-import { Archive, ArrowLeft, CalendarClock, Camera, SearchX } from "lucide-react";
+import { Archive, ArrowLeft, Camera, SearchX } from "lucide-react";
 import { ApiError, problemMessage } from "../api/client";
+import { CareTab } from "../care/CareTab";
 import { AppShell, Button, EmptyState, ErrorText, IconButton, PlantPhoto, Tabs, TopBar } from "../design";
 import { formatMonthYear } from "../lib/dates";
 import { useBack } from "../lib/useBack";
@@ -103,14 +104,7 @@ export function PlantDetail() {
           tabs={[
             {
               label: "Care",
-              panel: (
-                <EmptyState
-                  as="h3"
-                  icon={<CalendarClock size={28} strokeWidth={1.75} />}
-                  title="No care schedule yet"
-                  body="Care schedules arrive in the next update."
-                />
-              ),
+              panel: <CareTab plant={p} />,
             },
             {
               label: "Photos",

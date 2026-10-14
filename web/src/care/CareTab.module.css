@@ -1,0 +1,92 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.tasks,
+.events {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tasks {
+  gap: var(--space-2);
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  padding-right: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+}
+
+.taskBody {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: var(--target-min);
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+}
+
+/* Line the icon up with the task name. */
+.taskBody > svg {
+  margin-top: 2px;
+}
+
+.taskBody:focus-visible {
+  outline-offset: -2px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.overdue {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  vertical-align: bottom;
+  color: var(--overdue);
+  font-weight: 700;
+}
+
+.add {
+  display: flex;
+}
+
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.event {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target-min);
+  border-bottom: 1px solid var(--line);
+}
+
+.event:last-child {
+  border-bottom: 0;
+}

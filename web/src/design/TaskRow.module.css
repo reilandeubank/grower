@@ -1,0 +1,101 @@
+/* Rows sit in a list with no gap; each item's padding is the gap, so a collapse closes it too. */
+.item {
+  display: grid;
+  grid-template-rows: 1fr;
+  list-style: none;
+}
+
+.clip {
+  min-height: 0;
+  padding-bottom: var(--space-2);
+}
+
+.collapsing {
+  animation: collapse 200ms var(--ease-in) 120ms forwards;
+}
+
+.collapsing .clip {
+  overflow: hidden;
+}
+
+@keyframes collapse {
+  to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--thumb-row) + var(--space-4));
+  padding-right: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+  transition: background-color var(--dur-press) var(--ease-out);
+}
+
+.completing {
+  background: var(--brand-soft);
+}
+
+.quiet {
+  background: transparent;
+  box-shadow: none;
+  border: 1px solid var(--line);
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+}
+
+.body:focus-visible {
+  outline-offset: -2px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  color: var(--ink-muted);
+}
+
+.due {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
+.overdue {
+  color: var(--overdue);
+  font-weight: 700;
+}
+
+.clamp {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item:last-child .clip {
+  padding-bottom: 0;
+}

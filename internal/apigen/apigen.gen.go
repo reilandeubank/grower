@@ -308,6 +308,9 @@ type Today struct {
 	// Overdue Most overdue first.
 	Overdue []TodayItem `json:"overdue"`
 
+	// TaskCount Care tasks on active plants, due or not. 0 means none have been set up.
+	TaskCount int `json:"task_count"`
+
 	// Upcoming Due within the next 7 days, soonest first.
 	Upcoming []TodayItem `json:"upcoming"`
 }

@@ -2,6 +2,7 @@ import { render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { vi } from "vitest";
+import { ToastProvider } from "../design";
 import { routes } from "../router";
 
 /** Renders the whole app at `path` with a fresh query cache. */
@@ -10,7 +11,9 @@ export function renderApp(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const utils = render(
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
     </QueryClientProvider>,
   );
   return { ...utils, router, queryClient };

@@ -48,3 +48,10 @@
 .muted {
   color: var(--ink-muted);
 }
+
+.thumb {
+  flex: none;
+  width: var(--thumb-row);
+  height: var(--thumb-row);
+  border-radius: var(--radius-sm);
+}

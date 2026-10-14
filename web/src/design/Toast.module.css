@@ -1,0 +1,62 @@
+.region {
+  position: fixed;
+  right: calc(var(--gutter) + var(--safe-right));
+  bottom: calc(var(--tab-bar) + var(--safe-bottom) + var(--space-4));
+  left: calc(var(--gutter) + var(--safe-left));
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Inverted (ink on surface) so it reads as transient, in both themes. */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: calc(var(--content-max) - var(--gutter) * 2);
+  min-height: var(--target-min);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--ink);
+  color: var(--surface);
+  box-shadow: var(--shadow-sheet);
+  pointer-events: auto;
+  animation: toast-in var(--dur-enter) var(--ease-out);
+}
+
+.message {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) 0;
+}
+
+.action {
+  flex: none;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--brand-soft);
+}
+
+.action:hover {
+  background: color-mix(in srgb, var(--surface) 12%, transparent);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-4));
+  }
+}
+
+@media (min-width: 900px) {
+  .region {
+    bottom: calc(var(--safe-bottom) + var(--space-8));
+    left: calc(var(--rail-width) + var(--safe-left) + var(--gutter));
+  }
+}

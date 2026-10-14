@@ -67,6 +67,8 @@ describe("Login", () => {
     mockApi({
       "GET /api/v1/me": () => json(401, { title: "Unauthorized", status: 401 }),
       "POST /api/v1/auth/login": () => json(200, me),
+      "GET /api/v1/today": () => json(200, { date: "2026-10-14", overdue: [], due: [], upcoming: [] }),
+      "GET /api/v1/plants": () => json(200, { items: [] }),
     });
     const { router } = renderApp("/login");
     await fillAndSubmit("fern", "correct-horse");

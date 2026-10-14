@@ -3,15 +3,18 @@ import styles from "./PlantCard.module.css";
 
 export interface PlantPhotoProps {
   name: string;
-  size?: "card" | "hero";
+  /** `thumb` is the small square in task rows. */
+  size?: "card" | "hero" | "thumb";
 }
+
+const INITIAL_TYPE = { card: "t-title", hero: "t-display", thumb: "t-body-strong" } as const;
 
 /** The photo slot. Until photos arrive it is a calm brand-soft tile with the plant's initial. */
 export function PlantPhoto({ name, size = "card" }: PlantPhotoProps) {
   const initial = Array.from(name.trim())[0]?.toUpperCase() ?? "";
   return (
     <div className={`${styles.photo} ${styles[size]}`} aria-hidden="true">
-      <span className={size === "hero" ? "t-display" : "t-title"}>{initial}</span>
+      <span className={INITIAL_TYPE[size]}>{initial}</span>
     </div>
   );
 }

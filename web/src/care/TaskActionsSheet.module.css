@@ -1,0 +1,57 @@
+.due {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: calc(var(--space-2) * -1);
+  color: var(--ink-muted);
+}
+
+.overdue {
+  color: var(--overdue);
+  font-weight: 700;
+}
+
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.withNote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.note {
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+/* The label on the left, its date on the right. */
+.preset {
+  justify-content: space-between;
+}
+
+.preset > span {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.presetDate {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+.pick {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.heading {
+  color: var(--ink-muted);
+  font-weight: 700;
+}

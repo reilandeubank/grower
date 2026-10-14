@@ -32,6 +32,15 @@ export type LightLevel = components["schemas"]["LightLevel"];
 export type Plant = components["schemas"]["Plant"];
 export type PlantInput = components["schemas"]["PlantInput"];
 export type PlantUpdate = components["schemas"]["PlantUpdate"];
+export type TaskKind = components["schemas"]["TaskKind"];
+export type Anchor = components["schemas"]["Anchor"];
+export type CareTask = components["schemas"]["CareTask"];
+export type CareTaskInput = components["schemas"]["CareTaskInput"];
+export type EventKind = components["schemas"]["EventKind"];
+export type HistoryEntry = components["schemas"]["HistoryEntry"];
+export type LoggedEvent = components["schemas"]["LoggedEvent"];
+export type Today = components["schemas"]["Today"];
+export type TodayItem = components["schemas"]["TodayItem"];
 
 /** Unwraps an openapi-fetch result, throwing an ApiError for anything but a body-bearing success. */
 export function unwrap<T>({ data, error, response }: { data?: T; error?: Problem; response: Response }): T {

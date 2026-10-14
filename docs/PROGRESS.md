@@ -8,8 +8,8 @@ Milestone definitions live in `PLAN.md` §2.
 | Milestone | Status |
 |---|---|
 | M1 Deployed skeleton + auth | done (deployed 2026-10-14) |
-| M2 Plants and locations | done (pending deploy) |
-| M3 Care tasks + scheduling + Today | not started |
+| M2 Plants and locations | done |
+| M3 Care tasks + scheduling + Today | done (v0.2.0) |
 | M4 Photos | not started |
 | M5 MVP hardening, v1.0 | not started |
 
@@ -24,9 +24,30 @@ Milestone definitions live in `PLAN.md` §2.
 - [x] Deployed on TrueNAS behind NPM; logged in from the installed PWA
 
 ## Owner action items
-- After M2 is released: update the TrueNAS app (image `:main`, or tag a version) and try adding plants on the phone.
+- Update the TrueNAS app to v0.2.0 (or Edit → Save on `:main` with `pull_policy: always`), add care tasks to your plants, and use Today for a few days. Report anything that feels off.
 
 ## Checkpoints
+
+### 2026-10-14 · CP4: M3 integrated, v0.2.0
+- The core loop works end to end: tasks per plant, `internal/schedule` (pure, table-tested incl. DST), Today with overdue/due/coming up, done with undo, snooze, skip, history.
+- Lead fix: Today returns `task_count`, so "No care tasks yet" vs "All caught up" is correct for plants without tasks.
+- Verified: no codegen drift, golangci-lint 0 issues, Go tests, 44 Vitest, 4 Playwright e2e.
+- Follow-ups (not blocking): swipe/long-press on task rows; group Today by location; Back after deleting a plant shows "Plant not found"; plant task list loads events per task (fine at this scale).
+- Next: M4 photos (upload with client-side resize + HEIC→JPEG, thumbnails, timeline, cover photo).
+
+### 2026-10-14 · Frontend M3
+- Done: design components TaskIcon (+ `taskName`), DoneCheck, TaskRow (brand-soft flash, then a 200ms collapse; reduced motion removes the row at once), Toast (`ToastProvider`/`useToast`, one toast, Undo, 5s); PlantPhoto `thumb` size; FilterChips option icons and `wrap`. `src/care/`: hooks (`queries.ts`: today, tasks, history, save/delete task, log event with optimistic removal from Today plus rollback, Undo), copy helpers (`copy.ts`: due lines, verbs, toasts, history), TaskActionsSheet (Done, Snooze presets or a picked date, Skip, Open plant), TaskSheet (kind chips, custom name, interval with presets, first due, anchor), CareTab (tasks, done check, History). Today (`/`) shows Overdue, Due today and a collapsible Coming up, with the heading taken from the server's date. Events send the device's `local_date`. `todayKey` is refreshed on plant and location writes.
+- Checks: lint, typecheck, 44 Vitest, build and `make e2e` all pass (4 tests, including the core loop: add task, done, undo, snooze, done from Coming up, history).
+- Notes: Today can't tell "no tasks at all" from "nothing due this week". With no plants it shows "No care tasks yet"; otherwise "All caught up / Nothing is due in the next week". Snooze presets that fall on or before the due date are hidden.
+- Follow-ups: have Today return the next task beyond the week (or a task count) for the empty state; group Today by location; swipe or long-press on rows (rows open the sheet on tap for now).
+
+### 2026-10-14 · Backend M3
+- Done: `internal/schedule` (pure: civil `Date`, `Today`, `NextDue`, `LastDone`; table tests, a seeded property test, `Today` across DST in Chicago, London and Sydney). Queries `internal/db/queries/care.sql`; handlers `internal/api/{tasks,events}_handlers.go` and `today_handler.go`; integration tests `internal/server/{care,today}_test.go`. Checks pass: gen (no drift), build, vet, golangci-lint (0 issues), tests.
+- Scope: no seasonal factor (M7) and no paused tasks yet. Every task response computes `next_due`/`last_done` from its non-voided events; nothing is stored.
+- Today uses two queries (active tasks with plants, and all their non-voided events grouped in Go), so no N+1. The plant task list loads events per task (a handful).
+- Behaviour: undoing an already-undone event returns the task (idempotent). `limit` on history is clamped to 1–200. Plant 404 on create task comes from the foreign key; validation runs before the task 404 on logging an event.
+- Problem details: 400 "Kind must be water, fertilize, mist, repot, rotate or custom.", "Label is required for a custom task.", "Label must be 40 characters or fewer.", "Interval must be 1 to 365 days.", "Anchor must be from_completion or fixed.", "Kind must be done, skipped or snoozed.", "That date is too far from today.", "Pick a snooze date after today.", "Only a snooze takes a snooze date.", "Note must be 500 characters or fewer."; 404 "Plant not found.", "Task not found.", "Event not found."
+- Next: frontend Today and Care tab against these endpoints; the M3 Playwright exit test.
 
 ### 2026-10-14 · CP3: M2 integrated
 - Verified: no codegen drift, golangci-lint 0 issues, eslint + tsc clean, Go tests + 23 Vitest, 3 Playwright e2e (incl. the full locations/plants flow).

@@ -8,6 +8,30 @@ import (
 	"database/sql"
 )
 
+type CareEvent struct {
+	ID          string
+	TaskID      string
+	Kind        string
+	LocalDate   string
+	SnoozeUntil sql.NullString
+	Note        string
+	OccurredAt  string
+	VoidedAt    sql.NullString
+	CreatedAt   string
+}
+
+type CareTask struct {
+	ID           string
+	PlantID      string
+	Kind         string
+	Label        string
+	IntervalDays int64
+	Anchor       string
+	StartOn      string
+	CreatedAt    string
+	UpdatedAt    string
+}
+
 type Job struct {
 	ID          string
 	Kind        string

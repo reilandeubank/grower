@@ -418,6 +418,8 @@ export interface components {
             days_overdue: number;
         };
         Today: {
+            /** @description Care tasks on active plants, due or not. 0 means none have been set up. */
+            task_count: number;
             /**
              * Format: date
              * @description Today in the user's time zone.

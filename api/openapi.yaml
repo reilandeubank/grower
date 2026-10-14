@@ -692,8 +692,11 @@ components:
           description: Days past task.next_due; 0 when due today, negative when upcoming.
     Today:
       type: object
-      required: [date, overdue, due, upcoming]
+      required: [date, task_count, overdue, due, upcoming]
       properties:
+        task_count:
+          type: integer
+          description: Care tasks on active plants, due or not. 0 means none have been set up.
         date:
           type: string
           format: date

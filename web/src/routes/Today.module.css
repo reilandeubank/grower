@@ -8,3 +8,75 @@
 .greeting {
   color: var(--ink-muted);
 }
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.overdueTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--overdue);
+}
+
+.count {
+  display: inline-grid;
+  place-items: center;
+  min-width: calc(var(--space-6) + var(--space-1));
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+}
+
+/* The whole heading is the tap target; it stays left-aligned like the other headings. */
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--target-min);
+  margin: calc(var(--space-3) * -1) 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+.chevron {
+  margin-left: auto;
+  color: var(--ink-muted);
+  transition: transform var(--dur-enter) var(--ease-out);
+}
+
+.toggle[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+
+.countOverdue {
+  background: var(--overdue-soft);
+  color: var(--overdue);
+}
