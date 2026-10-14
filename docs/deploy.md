@@ -6,7 +6,7 @@ Assumes TrueNAS SCALE 24.10 or newer (Docker-based apps) and NPM already running
 
 ## 1. Create the dataset
 
-1. **Datasets → Add Dataset** under your apps pool, e.g. `tank/apps/grower`. Preset: *Apps*.
+1. **Datasets → Add Dataset** under your apps pool, e.g. `tank/apps/grower`. Preset: _Apps_.
 2. Set the owner to the `apps` user and group (UID/GID 568). The container runs as `568:568` and needs write access.
 3. **Data Protection → Periodic Snapshot Tasks:** add hourly snapshots kept for 2 days and daily snapshots kept for 30 days on this dataset.
 
@@ -27,10 +27,10 @@ The repo is private, so its GHCR package is private by default. Pick one:
    - `GROWER_TZ`: your IANA time zone, e.g. `America/Chicago`.
    - The volume's host path: the dataset's mount path, e.g. `/mnt/tank/apps/grower`.
 2. **Apps → Discover Apps → ⋮ → Install via YAML**, name it `grower`, paste the file, save.
-3. Create your account (once). In **Apps → grower → Shell** (or `docker exec -it <container> ...` from a TrueNAS shell):
+3. Create your account (once). From a TrueNAS shell:
 
    ```sh
-   grower user create --username <you>
+   sudo docker exec -it ix-grower-grower-1 /usr/local/bin/grower user create --username <you>
    ```
 
    You'll be asked for a password twice (10 characters minimum). There is no signup page.
@@ -39,11 +39,11 @@ The repo is private, so its GHCR package is private by default. Pick one:
 
 Add a **Proxy Host**:
 
-| Tab | Setting |
-|---|---|
-| Details | Domain: `grower.example.com`. Scheme `http`. Forward host: the TrueNAS IP, port `8080` (or, on a shared Docker network, the container name and port `8080`). Enable *Block Common Exploits*. Websockets not needed. |
-| SSL | Request a Let's Encrypt certificate. Enable *Force SSL*, *HTTP/2* and *HSTS*. |
-| Advanced | `client_max_body_size 20m;` (photo uploads arrive in M4) |
+| Tab      | Setting                                                                                                                                                                                                              |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Details  | Domain: `grower.example.com`. Scheme `http`. Forward host: the TrueNAS IP, port `18080` (or, on a shared Docker network, the container name and port `8080`). Enable _Block Common Exploits_. Websockets not needed. |
+| SSL      | Request a Let's Encrypt certificate. Enable _Force SSL_, _HTTP/2_ and _HSTS_.                                                                                                                                        |
+| Advanced | `client_max_body_size 20m;` (photo uploads arrive in M4)                                                                                                                                                             |
 
 NPM already sends `X-Forwarded-For` and `X-Forwarded-Proto`. grower trusts those headers **only** from addresses in `GROWER_TRUSTED_PROXIES`. To find the right value:
 
