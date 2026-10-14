@@ -1,0 +1,22 @@
+# build output
+/bin/
+/web/dist/*
+!/web/dist/.gitkeep
+/web/node_modules/
+/web/test-results/
+/web/playwright-report/
+/web/tsconfig.tsbuildinfo
+/web/*.tsbuildinfo
+
+# local data and env
+/data/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+
+# editors / OS
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,125 @@
+openapi: 3.0.3
+info:
+  title: grower API
+  version: 0.1.0
+  description: |
+    API for grower, a self-hosted plant care app. All paths are relative to /api/v1.
+    Authentication is a session cookie set by POST /auth/login. Mutating requests
+    must send `Content-Type: application/json` and an Origin matching GROWER_BASE_URL.
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+paths:
+  /auth/login:
+    post:
+      operationId: login
+      summary: Log in with username and password; sets the session cookie.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in. The session cookie is set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "429":
+          $ref: "#/components/responses/Problem"
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: End the current session and clear the cookie.
+      security: []
+      responses:
+        "204":
+          description: Logged out (also returned when there was no session).
+  /me:
+    get:
+      operationId: getMe
+      summary: The signed-in user, their settings and the server version.
+      responses:
+        "200":
+          description: The current user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          $ref: "#/components/responses/Problem"
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: grower_session
+      description: The cookie is named `__Host-grower_session` when GROWER_BASE_URL is https.
+  responses:
+    Problem:
+      description: An error, as RFC 9457 problem details.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 1
+          maxLength: 256
+    User:
+      type: object
+      required: [id, username]
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+    Settings:
+      type: object
+      required: [timezone]
+      properties:
+        timezone:
+          type: string
+          description: IANA time zone used to decide what "today" is.
+          example: America/Chicago
+    Me:
+      type: object
+      required: [user, settings, version]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        settings:
+          $ref: "#/components/schemas/Settings"
+        version:
+          type: string
+          description: Server build version.
+          example: v0.1.0
+    Problem:
+      type: object
+      required: [title, status]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
