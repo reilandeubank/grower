@@ -1,7 +1,9 @@
 /// <reference lib="dom" />
 // The DOM lib is for the code that runs in the page via evaluate().
 import { expect, test, type Page } from "@playwright/test";
-import { E2E_USER } from "../playwright.config";
+import { clientIP, E2E_USER } from "../playwright.config";
+
+test.use(clientIP(1));
 
 /** A small JPEG drawn in the browser, so no binary fixture lives in the repo. */
 async function makeJpeg(page: Page): Promise<Buffer> {
@@ -51,6 +53,13 @@ test("photos: upload, cover on the grid, view, delete", async ({ page }) => {
   // View, then delete.
   await page.getByRole("link", { name: /^Pothos/ }).click();
   await page.getByRole("tab", { name: "Photos" }).click();
+  // Android back closes the viewer and stays on the plant.
+  await thumb.click();
+  await expect(page.getByRole("dialog", { name: "Photo" })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("dialog", { name: "Photo" })).toBeHidden();
+  await expect(page.getByRole("heading", { level: 1, name: "Pothos" })).toBeVisible();
+
   await thumb.click();
   const viewer = page.getByRole("dialog", { name: "Photo" });
   await expect(viewer.getByRole("button", { name: "Cover photo" })).toBeDisabled();

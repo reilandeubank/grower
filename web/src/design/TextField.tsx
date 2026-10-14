@@ -8,9 +8,11 @@ export interface TextFieldProps extends Omit<ComponentPropsWithRef<"input">, "id
   /** Shown under the field with an icon; also marks the input invalid. */
   error?: string | undefined;
   id?: string;
+  /** A unit shown inside the end of the input, like "in". Say the unit in the label or hint too. */
+  suffix?: string;
 }
 
-export function TextField({ label, hint, error, id, type = "text", className, ...rest }: TextFieldProps) {
+export function TextField({ label, hint, error, id, type = "text", suffix, className, ...rest }: TextFieldProps) {
   const [revealed, setRevealed] = useState(false);
   const isPassword = type === "password";
 
@@ -22,8 +24,13 @@ export function TextField({ label, hint, error, id, type = "text", className, ..
             {...rest}
             {...control}
             type={isPassword && revealed ? "text" : type}
-            className={`t-body ${styles.input} ${isPassword ? styles.withToggle : ""}`}
+            className={`t-body ${styles.input} ${isPassword || suffix ? styles.withToggle : ""}`}
           />
+          {suffix && (
+            <span className={`t-body ${styles.suffix}`} aria-hidden="true">
+              {suffix}
+            </span>
+          )}
           {isPassword && (
             <button
               type="button"

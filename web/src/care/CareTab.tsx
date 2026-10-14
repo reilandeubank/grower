@@ -32,7 +32,7 @@ export function CareTab({ plant }: { plant: Plant }) {
     <div className={styles.tab}>
       {tasks.data.length === 0 ? (
         <EmptyState
-          as="h3"
+          as="h2"
           icon={<CalendarClock size={28} strokeWidth={1.75} />}
           title="No care schedule yet"
           body="Add a care task, like watering every 7 days, and it shows up on Today when it's due."
@@ -75,7 +75,7 @@ export function CareTab({ plant }: { plant: Plant }) {
       )}
 
       <section className={styles.history}>
-        <h3 className="t-heading">History</h3>
+        <h2 className="t-heading">History</h2>
         {history.isPending ? (
           <Pending inline />
         ) : history.isError ? (

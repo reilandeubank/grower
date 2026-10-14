@@ -19,3 +19,7 @@ DELETE FROM sessions WHERE user_id = ?;
 
 -- name: DeleteExpiredSessions :execrows
 DELETE FROM sessions WHERE expires_at <= ?;
+
+-- An empty keep signs the user out everywhere.
+-- name: DeleteOtherUserSessions :exec
+DELETE FROM sessions WHERE user_id = sqlc.arg(user_id) AND id_hash <> sqlc.arg(keep);

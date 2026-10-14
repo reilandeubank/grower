@@ -41,6 +41,10 @@ describe("Plant form", () => {
       acquired_on: null,
       notes: "",
       archived: false,
+      pot_type: null,
+      pot_size_in: null,
+      drainage: null,
+      soil: "",
       created_at: "2026-10-14T12:00:00Z",
     };
     mockApi({
@@ -56,7 +60,67 @@ describe("Plant form", () => {
     await userEvent.selectOptions(screen.getByLabelText("Location"), "Kitchen");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/plants/p1"));
-    expect(body).toEqual({ name: "Monstera", species: "", location_id: "l1", acquired_on: null, notes: "" });
+    expect(body).toEqual({
+      name: "Monstera",
+      species: "",
+      location_id: "l1",
+      acquired_on: null,
+      notes: "",
+      pot_type: null,
+      pot_size_in: null,
+      drainage: null,
+      soil: "",
+    });
     expect(await screen.findByRole("heading", { level: 1, name: "Monstera" })).toBeTruthy();
+  });
+
+  it("saves the pot and soil, and the detail page sums them up", async () => {
+    let body: Record<string, unknown> = {};
+    const plant = {
+      id: "p2",
+      name: "Calathea",
+      species: "",
+      location_id: null,
+      acquired_on: null,
+      notes: "",
+      archived: false,
+      cover: null,
+      created_at: "2026-10-14T12:00:00Z",
+      pot_type: "terracotta",
+      pot_size_in: 6.5,
+      drainage: true,
+      soil: "Aroid mix",
+    };
+    mockApi({
+      ...base,
+      "POST /api/v1/plants": async (req) => {
+        body = (await req.json()) as Record<string, unknown>;
+        return json(201, plant);
+      },
+      "GET /api/v1/plants/p2": () => json(200, plant),
+      "GET /api/v1/plants/p2/tasks": () => json(200, { items: [] }),
+      "GET /api/v1/plants/p2/events": () => json(200, { items: [] }),
+    });
+    renderApp("/plants/new");
+    await userEvent.type(await screen.findByLabelText("Name"), "Calathea");
+    await userEvent.selectOptions(screen.getByLabelText("Pot type"), "Terracotta");
+    await userEvent.type(screen.getByLabelText("Pot size"), "6.5");
+    await userEvent.selectOptions(screen.getByLabelText("Drainage holes"), "Yes");
+    await userEvent.type(screen.getByLabelText("Soil"), " Aroid mix ");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("heading", { level: 1, name: "Calathea" });
+    expect(body).toMatchObject({ pot_type: "terracotta", pot_size_in: 6.5, drainage: true, soil: "Aroid mix" });
+    expect(screen.getByText("6.5 in terracotta pot · drains · Aroid mix")).toBeTruthy();
+  });
+
+  it("checks the pot size range", async () => {
+    const fetchMock = mockApi(base);
+    renderApp("/plants/new");
+    await userEvent.type(await screen.findByLabelText("Name"), "Fern");
+    await userEvent.type(screen.getByLabelText("Pot size"), "60");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByText("Use a size from 0.5 to 48 inches.")).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByLabelText("Pot size"));
+    expect(fetchMock.mock.calls.some(([req]) => (req as Request).method === "POST")).toBe(false);
   });
 });

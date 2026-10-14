@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, type Me } from "../api/client";
+import { API_CACHE, MEDIA_CACHE } from "../lib/cacheNames";
 
 export const meKey = ["me"] as const;
 
@@ -43,8 +44,15 @@ export function useLogout() {
     },
     onSuccess: () => {
       // Drop everything cached for this user, then record "signed out" so guards don't refetch.
+      void clearOfflineCaches();
       queryClient.clear();
       queryClient.setQueryData(meKey, null);
     },
   });
+}
+
+/** Deletes the service worker's copies of API answers and photos (see vite.config.ts). */
+export async function clearOfflineCaches() {
+  if (!("caches" in window)) return;
+  await Promise.all([API_CACHE, MEDIA_CACHE].map((name) => caches.delete(name)));
 }

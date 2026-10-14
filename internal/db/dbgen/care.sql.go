@@ -174,7 +174,7 @@ func (q *Queries) ListActiveEvents(ctx context.Context) ([]CareEvent, error) {
 }
 
 const listActiveTasks = `-- name: ListActiveTasks :many
-SELECT care_tasks.id, care_tasks.plant_id, care_tasks.kind, care_tasks.label, care_tasks.interval_days, care_tasks.anchor, care_tasks.start_on, care_tasks.created_at, care_tasks.updated_at, plants.id, plants.name, plants.species, plants.location_id, plants.acquired_on, plants.notes, plants.archived_at, plants.created_at, plants.updated_at, plants.cover_photo_id
+SELECT care_tasks.id, care_tasks.plant_id, care_tasks.kind, care_tasks.label, care_tasks.interval_days, care_tasks.anchor, care_tasks.start_on, care_tasks.created_at, care_tasks.updated_at, plants.id, plants.name, plants.species, plants.location_id, plants.acquired_on, plants.notes, plants.archived_at, plants.created_at, plants.updated_at, plants.cover_photo_id, plants.pot_type, plants.pot_size_in, plants.drainage, plants.soil
 FROM care_tasks JOIN plants ON plants.id = care_tasks.plant_id
 WHERE plants.archived_at IS NULL
 ORDER BY plants.name COLLATE NOCASE, care_tasks.kind, care_tasks.label, care_tasks.id
@@ -215,6 +215,10 @@ func (q *Queries) ListActiveTasks(ctx context.Context) ([]ListActiveTasksRow, er
 			&i.Plant.CreatedAt,
 			&i.Plant.UpdatedAt,
 			&i.Plant.CoverPhotoID,
+			&i.Plant.PotType,
+			&i.Plant.PotSizeIn,
+			&i.Plant.Drainage,
+			&i.Plant.Soil,
 		); err != nil {
 			return nil, err
 		}

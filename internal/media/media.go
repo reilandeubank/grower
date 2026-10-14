@@ -11,6 +11,7 @@ import (
 	"image/draw"
 	"image/jpeg"
 	_ "image/png" // registers the PNG decoder with image.Decode
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -217,4 +218,30 @@ func validID(id string) bool {
 		}
 	}
 	return true
+}
+
+// Size is the total bytes of all stored photo files, originals and thumbnails.
+func (s *Store) Size() (int64, error) {
+	var total int64
+	err := filepath.WalkDir(filepath.Join(s.dir, "photos"), func(_ string, e fs.DirEntry, err error) error {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil // no photos yet, or one deleted mid-walk
+		}
+		if err != nil || e.IsDir() {
+			return err
+		}
+		fi, err := e.Info()
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		total += fi.Size()
+		return nil
+	})
+	if err != nil {
+		return 0, fmt.Errorf("media size: %w", err)
+	}
+	return total, nil
 }

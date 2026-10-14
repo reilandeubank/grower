@@ -47,6 +47,21 @@ func (q *Queries) DeleteExpiredSessions(ctx context.Context, expiresAt string) (
 	return result.RowsAffected()
 }
 
+const deleteOtherUserSessions = `-- name: DeleteOtherUserSessions :exec
+DELETE FROM sessions WHERE user_id = ?1 AND id_hash <> ?2
+`
+
+type DeleteOtherUserSessionsParams struct {
+	UserID string
+	Keep   string
+}
+
+// An empty keep signs the user out everywhere.
+func (q *Queries) DeleteOtherUserSessions(ctx context.Context, arg DeleteOtherUserSessionsParams) error {
+	_, err := q.db.ExecContext(ctx, deleteOtherUserSessions, arg.UserID, arg.Keep)
+	return err
+}
+
 const deleteSession = `-- name: DeleteSession :exec
 DELETE FROM sessions WHERE id_hash = ?
 `

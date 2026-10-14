@@ -14,6 +14,7 @@ export function usePlant(id: string) {
   return useQuery({
     queryKey: [...plantsKey, id],
     queryFn: async () => unwrap(await api.GET("/plants/{id}", { params: { path: { id } } })),
+    enabled: !wasDeleted(id),
     // A missing plant is an answer; don't retry it.
     retry: (count, error) => !(error instanceof ApiError && error.status === 404) && count < 1,
   });
@@ -21,8 +22,8 @@ export function usePlant(id: string) {
 
 /** A plant's writable fields with some replaced, for a PUT (which replaces them all). */
 export function plantUpdate(plant: Plant, changes: Partial<PlantUpdate> = {}): PlantUpdate {
-  const { name, species, location_id, acquired_on, notes, archived } = plant;
-  return { name, species, location_id, acquired_on, notes, archived, ...changes };
+  const { name, species, location_id, acquired_on, notes, archived, pot_type, pot_size_in, drainage, soil } = plant;
+  return { name, species, location_id, acquired_on, notes, archived, pot_type, pot_size_in, drainage, soil, ...changes };
 }
 
 type SavePlant = { id: string; body: PlantUpdate } | { id?: undefined; body: PlantInput };
@@ -44,6 +45,14 @@ export function useSavePlant() {
   });
 }
 
+// Plants deleted during this visit. History still holds their pages, and Back to one should
+// skip it rather than show "Plant not found".
+const deleted = new Set<string>();
+
+export function wasDeleted(id: string): boolean {
+  return deleted.has(id);
+}
+
 export function useDeletePlant() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({
@@ -51,6 +60,9 @@ export function useDeletePlant() {
       const { response, error } = await api.DELETE("/plants/{id}", { params: { path: { id } } });
       if (!response.ok) throw new ApiError(response.status, error);
     },
-    onSuccess: () => invalidatePlantsAndLocations(queryClient, "none"),
+    onSuccess: (_data, id) => {
+      deleted.add(id);
+      return invalidatePlantsAndLocations(queryClient, "none");
+    },
   });
 }

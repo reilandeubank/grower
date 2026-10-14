@@ -11,9 +11,9 @@ import (
 )
 
 const createPlant = `-- name: CreatePlant :one
-INSERT INTO plants (id, name, species, location_id, acquired_on, notes, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id
+INSERT INTO plants (id, name, species, location_id, acquired_on, notes, pot_type, pot_size_in, drainage, soil, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil
 `
 
 type CreatePlantParams struct {
@@ -23,6 +23,10 @@ type CreatePlantParams struct {
 	LocationID sql.NullString
 	AcquiredOn sql.NullString
 	Notes      string
+	PotType    sql.NullString
+	PotSizeIn  sql.NullFloat64
+	Drainage   sql.NullInt64
+	Soil       string
 	CreatedAt  string
 	UpdatedAt  string
 }
@@ -35,6 +39,10 @@ func (q *Queries) CreatePlant(ctx context.Context, arg CreatePlantParams) (Plant
 		arg.LocationID,
 		arg.AcquiredOn,
 		arg.Notes,
+		arg.PotType,
+		arg.PotSizeIn,
+		arg.Drainage,
+		arg.Soil,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -50,6 +58,10 @@ func (q *Queries) CreatePlant(ctx context.Context, arg CreatePlantParams) (Plant
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CoverPhotoID,
+		&i.PotType,
+		&i.PotSizeIn,
+		&i.Drainage,
+		&i.Soil,
 	)
 	return i, err
 }
@@ -67,7 +79,7 @@ func (q *Queries) DeletePlant(ctx context.Context, id string) (int64, error) {
 }
 
 const getPlant = `-- name: GetPlant :one
-SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id FROM plants WHERE id = ?
+SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil FROM plants WHERE id = ?
 `
 
 func (q *Queries) GetPlant(ctx context.Context, id string) (Plant, error) {
@@ -84,12 +96,16 @@ func (q *Queries) GetPlant(ctx context.Context, id string) (Plant, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CoverPhotoID,
+		&i.PotType,
+		&i.PotSizeIn,
+		&i.Drainage,
+		&i.Soil,
 	)
 	return i, err
 }
 
 const listPlants = `-- name: ListPlants :many
-SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id FROM plants
+SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil FROM plants
 WHERE (archived_at IS NOT NULL) = CAST(?1 AS BOOLEAN)
 ORDER BY name COLLATE NOCASE
 `
@@ -114,6 +130,10 @@ func (q *Queries) ListPlants(ctx context.Context, archived bool) ([]Plant, error
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CoverPhotoID,
+			&i.PotType,
+			&i.PotSizeIn,
+			&i.Drainage,
+			&i.Soil,
 		); err != nil {
 			return nil, err
 		}
@@ -131,10 +151,12 @@ func (q *Queries) ListPlants(ctx context.Context, archived bool) ([]Plant, error
 const updatePlant = `-- name: UpdatePlant :one
 UPDATE plants
 SET name = ?1, species = ?2, location_id = ?3,
-    acquired_on = ?4, notes = ?5, updated_at = ?6,
-    archived_at = CASE WHEN CAST(?7 AS BOOLEAN) THEN COALESCE(archived_at, ?6) END
-WHERE id = ?8
-RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id
+    acquired_on = ?4, notes = ?5, pot_type = ?6,
+    pot_size_in = ?7, drainage = ?8, soil = ?9,
+    updated_at = ?10,
+    archived_at = CASE WHEN CAST(?11 AS BOOLEAN) THEN COALESCE(archived_at, ?10) END
+WHERE id = ?12
+RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil
 `
 
 type UpdatePlantParams struct {
@@ -143,6 +165,10 @@ type UpdatePlantParams struct {
 	LocationID sql.NullString
 	AcquiredOn sql.NullString
 	Notes      string
+	PotType    sql.NullString
+	PotSizeIn  sql.NullFloat64
+	Drainage   sql.NullInt64
+	Soil       string
 	UpdatedAt  string
 	Archived   bool
 	ID         string
@@ -156,6 +182,10 @@ func (q *Queries) UpdatePlant(ctx context.Context, arg UpdatePlantParams) (Plant
 		arg.LocationID,
 		arg.AcquiredOn,
 		arg.Notes,
+		arg.PotType,
+		arg.PotSizeIn,
+		arg.Drainage,
+		arg.Soil,
 		arg.UpdatedAt,
 		arg.Archived,
 		arg.ID,
@@ -172,6 +202,10 @@ func (q *Queries) UpdatePlant(ctx context.Context, arg UpdatePlantParams) (Plant
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CoverPhotoID,
+		&i.PotType,
+		&i.PotSizeIn,
+		&i.Drainage,
+		&i.Soil,
 	)
 	return i, err
 }

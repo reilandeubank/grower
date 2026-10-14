@@ -20,14 +20,16 @@ type Handler struct {
 	db     *db.DB
 	cookie auth.CookieConfig
 	media  *media.Store
-	log    *slog.Logger
+	// dataDir is GROWER_DATA_DIR, where the nightly backups live.
+	dataDir string
+	log     *slog.Logger
 }
 
 var _ apigen.StrictServerInterface = (*Handler)(nil)
 
 // New returns the API handler.
-func New(authSvc *auth.Service, d *db.DB, store *media.Store, cookie auth.CookieConfig, log *slog.Logger) *Handler {
-	return &Handler{auth: authSvc, db: d, media: store, cookie: cookie, log: log}
+func New(authSvc *auth.Service, d *db.DB, store *media.Store, cookie auth.CookieConfig, dataDir string, log *slog.Logger) *Handler {
+	return &Handler{auth: authSvc, db: d, media: store, cookie: cookie, dataDir: dataDir, log: log}
 }
 
 // ServerInterface adapts the strict handlers to net/http, with problem+json errors.

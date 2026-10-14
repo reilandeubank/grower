@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { useCloseOnBack } from "../lib/useCloseOnBack";
 import { IconButton } from "./IconButton";
 import styles from "./BottomSheet.module.css";
 
@@ -12,11 +13,15 @@ export interface BottomSheetProps {
   children: ReactNode;
 }
 
-/** A short form or choice over a scrim, on a native modal <dialog> (focus trap and Esc for free). */
+/**
+ * A short form or choice over a scrim, on a native modal <dialog> (focus trap and Esc for free).
+ * Android back closes it; to leave the page from inside it, navigate with `replace: true`.
+ */
 export function BottomSheet({ open, onClose, title, children }: BottomSheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  useCloseOnBack(open, onClose);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -24,7 +29,7 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialog.showModal();
     // Land on the first field rather than the close button.
-    bodyRef.current?.querySelector<HTMLElement>("input, select, textarea, button")?.focus();
+    bodyRef.current?.querySelector<HTMLElement>("input:not([hidden]), select, textarea, button")?.focus();
     return () => {
       dialog.close();
       opener?.focus();

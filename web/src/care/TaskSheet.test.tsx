@@ -11,6 +11,10 @@ const plant = {
   acquired_on: null,
   notes: "",
   archived: false,
+  pot_type: null,
+  pot_size_in: null,
+  drainage: null,
+  soil: "",
   cover: null,
   created_at: "2026-10-01T12:00:00Z",
 };

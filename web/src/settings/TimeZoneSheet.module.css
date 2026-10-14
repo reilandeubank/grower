@@ -1,0 +1,58 @@
+/* The label can be long ("Use this device's time zone (America/Argentina/Buenos_Aires)"). */
+.device {
+  height: auto;
+  padding-block: var(--space-2);
+  white-space: normal;
+  text-align: left;
+}
+
+.device span {
+  white-space: normal;
+}
+
+/* The list scrolls inside the sheet, so the search field stays in view. */
+.list {
+  max-height: min(50dvh, 420px);
+  margin: 0 calc(var(--space-2) * -1);
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  overscroll-behavior: contain;
+}
+
+.zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--target-min);
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.zone:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-raised) 94%, var(--ink));
+}
+
+.zone[aria-current="true"] {
+  background: var(--brand-soft);
+  font-weight: 700;
+}
+
+.zone:focus-visible {
+  outline-offset: -2px;
+}
+
+.check {
+  flex: none;
+  color: var(--brand);
+}
+
+.muted {
+  color: var(--ink-muted);
+}

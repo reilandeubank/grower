@@ -10,6 +10,17 @@ import (
 	"database/sql"
 )
 
+const countPhotos = `-- name: CountPhotos :one
+SELECT COUNT(*) FROM photos
+`
+
+func (q *Queries) CountPhotos(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPhotos)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createPhoto = `-- name: CreatePhoto :one
 INSERT INTO photos (id, plant_id, taken_at, caption, mime, width, height, bytes, sha256, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -266,7 +277,7 @@ func (q *Queries) SetCoverIfNone(ctx context.Context, arg SetCoverIfNoneParams) 
 const setPlantCover = `-- name: SetPlantCover :one
 UPDATE plants SET cover_photo_id = ?1, updated_at = ?2
 WHERE id = ?3
-RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id
+RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil
 `
 
 type SetPlantCoverParams struct {
@@ -289,6 +300,10 @@ func (q *Queries) SetPlantCover(ctx context.Context, arg SetPlantCoverParams) (P
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CoverPhotoID,
+		&i.PotType,
+		&i.PotSizeIn,
+		&i.Drainage,
+		&i.Soil,
 	)
 	return i, err
 }

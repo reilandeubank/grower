@@ -16,6 +16,8 @@ var (
 	ErrInvalidCredentials = errors.New("invalid username or password")
 	// ErrRateLimited means too many login attempts; try again later.
 	ErrRateLimited = errors.New("too many login attempts")
+	// ErrWrongPassword means the current password given to ChangePassword is wrong.
+	ErrWrongPassword = errors.New("wrong current password")
 )
 
 // maxConcurrentHashes caps memory: each argon2id run allocates HashParams.MemoryKiB.

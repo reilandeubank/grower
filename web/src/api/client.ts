@@ -2,6 +2,9 @@ import createClient from "openapi-fetch";
 import type { components, paths } from "./schema";
 
 export type Me = components["schemas"]["Me"];
+export type Settings = components["schemas"]["Settings"];
+export type StorageUse = components["schemas"]["Storage"];
+export type PotType = components["schemas"]["PotType"];
 export type Problem = components["schemas"]["Problem"];
 
 /** Typed client for the grower API. The session cookie rides along automatically. */
@@ -51,6 +54,13 @@ export function unwrap<T>({ data, error, response }: { data?: T; error?: Problem
   return data;
 }
 
+export const OFFLINE_MESSAGE = "You're offline. Try again when you're connected.";
+
+/** A request that never reached the server because the device is offline. */
+export function isOfflineError(error: unknown): boolean {
+  return !(error instanceof ApiError) && !navigator.onLine;
+}
+
 /** Copy for a failed save: the server's own detail for validation errors, plain words otherwise. */
 export function problemMessage(error: Error): string {
   if (error instanceof ApiError) {
@@ -58,5 +68,6 @@ export function problemMessage(error: Error): string {
     if (error.status === 404) return "This was deleted somewhere else.";
     return "Something went wrong on the server. Try again in a moment.";
   }
+  if (isOfflineError(error)) return OFFLINE_MESSAGE;
   return "Can't reach grower. Check your connection, then try again.";
 }

@@ -133,7 +133,7 @@ func (s *Sessions) Revoke(ctx context.Context, sessionHash string) error {
 	return nil
 }
 
-// RevokeAllForUser signs the user out everywhere (used after a password change).
+// RevokeAllForUser signs the user out everywhere.
 func (s *Sessions) RevokeAllForUser(ctx context.Context, userID string) error {
 	if err := s.db.Writer().DeleteUserSessions(ctx, userID); err != nil {
 		return fmt.Errorf("delete user sessions: %w", err)

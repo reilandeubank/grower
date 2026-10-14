@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Check, ChevronLeft, ChevronRight, ImageIcon, Pencil, X } from "lucide-react";
 import { problemMessage, type Photo, type Plant } from "../api/client";
+import { useCloseOnBack } from "../lib/useCloseOnBack";
 import { Button, ConfirmButton, ErrorText, IconButton, useToast } from "../design";
 import { formatPhotoDate } from "./copy";
 import { EditPhotoSheet } from "./EditPhotoSheet";
@@ -17,12 +18,13 @@ export interface PhotoViewerProps {
   onClose: () => void;
 }
 
-/** A full-screen photo on a native modal <dialog>: Esc and the close button leave it. */
+/** A full-screen photo on a native modal <dialog>: Esc, Android back and the close button leave it. */
 export function PhotoViewer({ plant, photos, photoId, onSelect, onClose }: PhotoViewerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const index = photos.findIndex((p) => p.id === photoId);
   const photo = photos[index];
   const open = photo !== undefined;
+  useCloseOnBack(open, onClose);
 
   useEffect(() => {
     const dialog = dialogRef.current;

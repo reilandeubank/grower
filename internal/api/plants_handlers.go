@@ -50,8 +50,9 @@ func (h *Handler) CreatePlant(ctx context.Context, req apigen.CreatePlantRequest
 	}
 	now := db.FormatTime(h.auth.Now())
 	row, err := h.db.Writer().CreatePlant(ctx, dbgen.CreatePlantParams{
-		ID: db.NewID(), Name: in.name, Species: in.species, LocationID: in.locationID,
-		AcquiredOn: in.acquiredOn, Notes: in.notes, CreatedAt: now, UpdatedAt: now,
+		ID: db.NewID(), Name: in.name, Species: in.species, LocationID: in.locationID, AcquiredOn: in.acquiredOn,
+		Notes: in.notes, PotType: in.potType, PotSizeIn: in.potSizeIn, Drainage: in.drainage, Soil: in.soil,
+		CreatedAt: now, UpdatedAt: now,
 	})
 	switch {
 	case db.IsForeignKeyViolation(err):
@@ -87,12 +88,14 @@ func (h *Handler) UpdatePlant(ctx context.Context, req apigen.UpdatePlantRequest
 	b := req.Body
 	in, detail := parsePlant(apigen.PlantInput{
 		Name: b.Name, Species: b.Species, LocationId: b.LocationId, AcquiredOn: b.AcquiredOn, Notes: b.Notes,
+		PotType: b.PotType, PotSizeIn: b.PotSizeIn, Drainage: b.Drainage, Soil: b.Soil,
 	})
 	if detail != "" {
 		return apigen.UpdatePlant400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest(detail)}, nil
 	}
 	row, err := h.db.Writer().UpdatePlant(ctx, dbgen.UpdatePlantParams{
 		Name: in.name, Species: in.species, LocationID: in.locationID, AcquiredOn: in.acquiredOn, Notes: in.notes,
+		PotType: in.potType, PotSizeIn: in.potSizeIn, Drainage: in.drainage, Soil: in.soil,
 		UpdatedAt: db.FormatTime(h.auth.Now()), Archived: b.Archived, ID: req.Id,
 	})
 	switch {
@@ -133,14 +136,19 @@ func (h *Handler) DeletePlant(ctx context.Context, req apigen.DeletePlantRequest
 }
 
 type plantFields struct {
-	name, species, notes   string
-	locationID, acquiredOn sql.NullString
+	name, species, notes, soil      string
+	locationID, acquiredOn, potType sql.NullString
+	potSizeIn                       sql.NullFloat64
+	drainage                        sql.NullInt64
 }
 
 // parsePlant validates input, returning a user-facing detail when it is invalid.
 // Whether location_id exists is left to the foreign key.
 func parsePlant(in apigen.PlantInput) (plantFields, string) {
-	f := plantFields{name: strings.TrimSpace(in.Name), species: deref(in.Species), notes: deref(in.Notes)}
+	f := plantFields{
+		name: strings.TrimSpace(in.Name), species: deref(in.Species), notes: deref(in.Notes),
+		soil: strings.TrimSpace(deref(in.Soil)),
+	}
 	switch {
 	case f.name == "":
 		return f, "Name is required."
@@ -150,12 +158,27 @@ func parsePlant(in apigen.PlantInput) (plantFields, string) {
 		return f, "Species must be 120 characters or fewer."
 	case utf8.RuneCountInString(f.notes) > 4000:
 		return f, "Notes must be 4000 characters or fewer."
+	case in.PotType != nil && !in.PotType.Valid():
+		return f, "Pot type must be plastic, terracotta, ceramic, fabric, self_watering or other."
+	case in.PotSizeIn != nil && (*in.PotSizeIn < 0.5 || *in.PotSizeIn > 48):
+		return f, "Pot size must be 0.5 to 48 inches."
+	case utf8.RuneCountInString(f.soil) > 120:
+		return f, "Soil must be 120 characters or fewer."
 	}
 	if in.LocationId != nil {
 		f.locationID = sql.NullString{String: *in.LocationId, Valid: true}
 	}
 	if in.AcquiredOn != nil {
 		f.acquiredOn = sql.NullString{String: in.AcquiredOn.String(), Valid: true}
+	}
+	if in.PotType != nil {
+		f.potType = sql.NullString{String: string(*in.PotType), Valid: true}
+	}
+	if in.PotSizeIn != nil {
+		f.potSizeIn = sql.NullFloat64{Float64: *in.PotSizeIn, Valid: true}
+	}
+	if in.Drainage != nil {
+		f.drainage = sql.NullInt64{Int64: boolInt(*in.Drainage), Valid: true}
 	}
 	return f, ""
 }
@@ -168,7 +191,18 @@ func plant(r dbgen.Plant, cover *dbgen.Photo) (apigen.Plant, error) {
 	}
 	p := apigen.Plant{
 		Id: r.ID, Name: r.Name, Species: r.Species, Notes: r.Notes,
-		Archived: r.ArchivedAt.Valid, CreatedAt: created,
+		Archived: r.ArchivedAt.Valid, CreatedAt: created, Soil: r.Soil,
+	}
+	if r.PotType.Valid {
+		t := apigen.PotType(r.PotType.String)
+		p.PotType = &t
+	}
+	if r.PotSizeIn.Valid {
+		p.PotSizeIn = &r.PotSizeIn.Float64
+	}
+	if r.Drainage.Valid {
+		d := r.Drainage.Int64 == 1
+		p.Drainage = &d
 	}
 	if r.LocationID.Valid {
 		p.LocationId = &r.LocationID.String
@@ -188,6 +222,13 @@ func plant(r dbgen.Plant, cover *dbgen.Photo) (apigen.Plant, error) {
 		p.Cover = &c
 	}
 	return p, nil
+}
+
+func boolInt(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 func deref(s *string) string {

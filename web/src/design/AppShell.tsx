@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { BottomTabBar } from "./BottomTabBar";
+import { OfflineBanner } from "./OfflineBanner";
 import styles from "./AppShell.module.css";
 
 export interface AppShellProps {
@@ -16,7 +17,10 @@ export function AppShell({ topBar, tabBar = true, children }: AppShellProps) {
     <div className={styles.shell}>
       <div className={`${styles.main} ${tabBar ? styles.withTabBar : ""}`}>
         {topBar}
-        <main className={contentClasses.join(" ")}>{children}</main>
+        <main className={contentClasses.join(" ")}>
+          <OfflineBanner />
+          {children}
+        </main>
       </div>
       {tabBar && <BottomTabBar />}
     </div>

@@ -113,6 +113,11 @@ func TestPlantValidation(t *testing.T) {
 		{"notes too long", http.MethodPost, "", `{"name":"x","notes":"` + strings.Repeat("a", 4001) + `"}`, http.StatusBadRequest, "Notes must be 4000 characters or fewer."},
 		{"unknown location on create", http.MethodPost, "", `{"name":"x","location_id":"nope"}`, http.StatusBadRequest, "That location does not exist."},
 		{"unknown location on update", http.MethodPut, "/" + p.Id, `{"name":"x","location_id":"nope","archived":false}`, http.StatusBadRequest, "That location does not exist."},
+		{"unknown pot type", http.MethodPost, "", `{"name":"x","pot_type":"glass"}`, http.StatusBadRequest, "Pot type must be plastic, terracotta, ceramic, fabric, self_watering or other."},
+		{"pot too small", http.MethodPost, "", `{"name":"x","pot_size_in":0.4}`, http.StatusBadRequest, "Pot size must be 0.5 to 48 inches."},
+		{"pot too large", http.MethodPut, "/" + p.Id, `{"name":"x","pot_size_in":48.5,"archived":false}`, http.StatusBadRequest, "Pot size must be 0.5 to 48 inches."},
+		{"soil too long", http.MethodPost, "", `{"name":"x","soil":"` + strings.Repeat("a", 121) + `"}`, http.StatusBadRequest, "Soil must be 120 characters or fewer."},
+		{"drainage not a bool", http.MethodPost, "", `{"name":"x","drainage":"yes"}`, http.StatusBadRequest, "The request body is not valid JSON for this endpoint."},
 		{"bad date", http.MethodPost, "", `{"name":"x","acquired_on":"2026-02-30"}`, http.StatusBadRequest, "The request body is not valid JSON for this endpoint."},
 		{"empty update name", http.MethodPut, "/" + p.Id, `{"name":"","archived":false}`, http.StatusBadRequest, "Name is required."},
 		{"get unknown id", http.MethodGet, "/nope", "", http.StatusNotFound, "Plant not found."},
@@ -140,5 +145,42 @@ func TestPlantMutationsNeedSameOrigin(t *testing.T) {
 		resp := e.do(request{method: method, path: "/api/v1/plants/" + p.Id, body: `{"name":"x","archived":true}`,
 			cookie: c, headers: map[string]string{"Origin": "https://evil.example"}})
 		expectProblem(t, resp, http.StatusForbidden)
+	}
+}
+
+func TestPlantPotAndSoil(t *testing.T) {
+	e := newEnv(t, envOptions{})
+	c := e.loginCookie()
+
+	bare := e.newPlant(c, "Aloe")
+	if bare.PotType != nil || bare.PotSizeIn != nil || bare.Drainage != nil || bare.Soil != "" {
+		t.Errorf("unrecorded pot = %+v", bare)
+	}
+
+	p := expectJSON[apigen.Plant](t, e.call(c, http.MethodPost, "/api/v1/plants",
+		`{"name":"Monty","pot_type":"self_watering","pot_size_in":0.5,"drainage":false,"soil":"  Aroid mix  "}`), http.StatusCreated)
+	if p.PotType == nil || *p.PotType != apigen.SelfWatering || p.PotSizeIn == nil || *p.PotSizeIn != 0.5 ||
+		p.Drainage == nil || *p.Drainage || p.Soil != "Aroid mix" {
+		t.Errorf("created = %+v", p)
+	}
+	path := "/api/v1/plants/" + p.Id
+	if got := expectJSON[apigen.Plant](t, e.call(c, http.MethodGet, path, ""), http.StatusOK); !reflect.DeepEqual(got, p) {
+		t.Errorf("get = %+v", got)
+	}
+
+	got := expectJSON[apigen.Plant](t, e.call(c, http.MethodPut, path,
+		`{"name":"Monty","pot_type":"terracotta","pot_size_in":48,"drainage":true,"soil":"Cactus mix","archived":false}`), http.StatusOK)
+	if *got.PotType != apigen.Terracotta || *got.PotSizeIn != 48 || !*got.Drainage || got.Soil != "Cactus mix" {
+		t.Errorf("updated = %+v", got)
+	}
+	list := expectJSON[apigen.PlantList](t, e.call(c, http.MethodGet, "/api/v1/plants", ""), http.StatusOK)
+	if len(list.Items) != 2 || !reflect.DeepEqual(list.Items[1], got) {
+		t.Errorf("list = %+v", list.Items)
+	}
+
+	// PUT replaces: omitted pot fields go back to "not recorded".
+	cleared := expectJSON[apigen.Plant](t, e.call(c, http.MethodPut, path, `{"name":"Monty","archived":false}`), http.StatusOK)
+	if cleared.PotType != nil || cleared.PotSizeIn != nil || cleared.Drainage != nil || cleared.Soil != "" {
+		t.Errorf("cleared = %+v", cleared)
 	}
 }

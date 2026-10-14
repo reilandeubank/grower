@@ -77,29 +77,63 @@ func (s *Service) CreateUser(ctx context.Context, username, password, timezone s
 	return user, nil
 }
 
-// SetPassword replaces a user's password and signs them out everywhere.
+// SetPassword replaces a user's password and signs them out everywhere (the CLI's
+// reset, so no current password is needed).
 func (s *Service) SetPassword(ctx context.Context, username, password string) error {
 	if err := ValidatePassword(password); err != nil {
 		return err
 	}
+	user, err := s.db.Reader().GetUserByUsername(ctx, username)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrUserNotFound
+	} else if err != nil {
+		return fmt.Errorf("load user: %w", err)
+	}
+	return s.replacePassword(ctx, user.ID, password, "")
+}
+
+// ChangePassword checks the signed-in user's current password like a login does
+// (rate limited per client IP, constant-time compare), sets the new one and signs out
+// every session except the current one.
+func (s *Service) ChangePassword(ctx context.Context, p Principal, current, password, clientIP string) error {
+	if err := ValidatePassword(password); err != nil {
+		return err
+	}
+	if !s.limiter.Allow(clientIP) {
+		return ErrRateLimited
+	}
+	user, err := s.db.Reader().GetUserByID(ctx, p.UserID)
+	if err != nil {
+		return fmt.Errorf("load user %s: %w", p.UserID, err)
+	}
+	ok, err := s.verify(ctx, current, user.PasswordHash)
+	if err != nil {
+		return fmt.Errorf("verify password for user %s: %w", user.ID, err)
+	}
+	if !ok {
+		return ErrWrongPassword
+	}
+	return s.replacePassword(ctx, user.ID, password, p.SessionHash)
+}
+
+// replacePassword stores a new hash and deletes the user's sessions except keepSession
+// ("" deletes all), in one transaction. The password is already validated.
+func (s *Service) replacePassword(ctx context.Context, userID, password, keepSession string) error {
 	hash, err := HashPassword(password, s.hashParams)
 	if err != nil {
 		return err
 	}
 	return s.db.InTx(ctx, func(q *dbgen.Queries) error {
-		user, err := q.GetUserByUsername(ctx, username)
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrUserNotFound
-		} else if err != nil {
-			return fmt.Errorf("load user: %w", err)
-		}
-		_, err = q.UpdateUserPassword(ctx, dbgen.UpdateUserPasswordParams{
-			PasswordHash: hash, UpdatedAt: db.FormatTime(s.now()), ID: user.ID,
+		n, err := q.UpdateUserPassword(ctx, dbgen.UpdateUserPasswordParams{
+			PasswordHash: hash, UpdatedAt: db.FormatTime(s.now()), ID: userID,
 		})
 		if err != nil {
 			return fmt.Errorf("update password: %w", err)
 		}
-		if err := q.DeleteUserSessions(ctx, user.ID); err != nil {
+		if n == 0 {
+			return ErrUserNotFound
+		}
+		if err := q.DeleteOtherUserSessions(ctx, dbgen.DeleteOtherUserSessionsParams{UserID: userID, Keep: keepSession}); err != nil {
 			return fmt.Errorf("revoke sessions: %w", err)
 		}
 		return nil

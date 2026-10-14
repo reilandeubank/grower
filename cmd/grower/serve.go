@@ -7,8 +7,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/reilandeubank/grower/internal/auth"
+	"github.com/reilandeubank/grower/internal/backup"
 	"github.com/reilandeubank/grower/internal/buildinfo"
 	"github.com/reilandeubank/grower/internal/server"
 	"github.com/reilandeubank/grower/web"
@@ -41,6 +43,18 @@ func cmdServe(args []string) error {
 	if err != nil {
 		return err
 	}
+
+	// The backup runner stops with ctx and must finish before the database closes.
+	backups := &backup.Runner{DB: d, DataDir: cfg.DataDir, Loc: cfg.Location, Now: time.Now, Log: log}
+	backupsDone := make(chan struct{})
+	go func() {
+		defer close(backupsDone)
+		backups.Run(ctx)
+	}()
+	defer func() {
+		stop()
+		<-backupsDone
+	}()
 
 	log.Info("starting grower", "version", buildinfo.Version, "data_dir", cfg.DataDir,
 		"base_url", cfg.BaseURL.String(), "trusted_proxies", len(cfg.TrustedProxies))

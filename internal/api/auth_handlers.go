@@ -77,11 +77,7 @@ func (l logoutResponse) VisitLogoutResponse(w http.ResponseWriter) error {
 func (h *Handler) GetMe(ctx context.Context, _ apigen.GetMeRequestObject) (apigen.GetMeResponseObject, error) {
 	p, ok := auth.PrincipalFrom(ctx)
 	if !ok {
-		// The server's auth middleware normally answers first; this is a backstop.
-		return apigen.GetMe401ApplicationProblemPlusJSONResponse{
-			ProblemApplicationProblemPlusJSONResponse: apigen.ProblemApplicationProblemPlusJSONResponse(
-				problem(http.StatusUnauthorized, "Sign in to continue.")),
-		}, nil
+		return apigen.GetMe401ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: unauthorized()}, nil
 	}
 	me, err := h.me(ctx, p)
 	if err != nil {

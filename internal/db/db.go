@@ -29,6 +29,8 @@ const readPoolSize = 4
 type DB struct {
 	Write *sql.DB
 	Read  *sql.DB
+	// Path is the database file.
+	Path string
 }
 
 // Open opens (creating if needed) <dataDir>/grower.db. It does not run migrations.
@@ -51,7 +53,7 @@ func Open(dataDir string) (*DB, error) {
 	}
 	read.SetMaxOpenConns(readPoolSize)
 
-	return &DB{Write: write, Read: read}, nil
+	return &DB{Write: write, Read: read, Path: path}, nil
 }
 
 func openPool(path string, readOnly bool) (*sql.DB, error) {
@@ -120,4 +122,21 @@ func IsForeignKeyViolation(err error) bool { return hasCode(err, sqlite3.SQLITE_
 func hasCode(err error, code int) bool {
 	var e *sqlite.Error
 	return errors.As(err, &e) && e.Code() == code
+}
+
+// Size is the bytes on disk of the database file plus its write-ahead log, which
+// holds recent writes until the next checkpoint.
+func (d *DB) Size() (int64, error) {
+	var total int64
+	for _, p := range []string{d.Path, d.Path + "-wal"} {
+		fi, err := os.Stat(p)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return 0, err
+		}
+		total += fi.Size()
+	}
+	return total, nil
 }

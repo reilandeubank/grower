@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 import {
   api,
   ApiError,
+  isOfflineError,
   unwrap,
   type CareTask,
   type CareTaskInput,
@@ -123,9 +124,10 @@ export function useLogEvent() {
       queryClient.setQueryData<Today>(todayKey, (t) => removeFromToday(t, task.id));
       return { previous };
     },
-    onError: (_error, _vars, context) => {
+    onError: (error, _vars, context) => {
       if (context?.previous) queryClient.setQueryData(todayKey, context.previous);
-      toast({ message: "Couldn't save that. Check your connection, then try again." });
+      // Offline failures get the app-wide offline toast (OfflineToast).
+      if (!isOfflineError(error)) toast({ message: "Couldn't save that. Check your connection, then try again." });
     },
     onSuccess: ({ event }, { task, plantName, kind, snoozeUntil, today }) => {
       const message =

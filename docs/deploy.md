@@ -10,7 +10,7 @@ Assumes TrueNAS SCALE 24.10 or newer (Docker-based apps) and NPM already running
 2. Set the owner to the `apps` user and group (UID/GID 568). The container runs as `568:568` and needs write access.
 3. **Data Protection → Periodic Snapshot Tasks:** add hourly snapshots kept for 2 days and daily snapshots kept for 30 days on this dataset.
 
-Everything grower stores lives here: `grower.db` (+ `-wal`/`-shm`), and later `media/` and `backups/`.
+Everything grower stores lives here: `grower.db` (+ `-wal`/`-shm`), `media/` and `backups/`. For what is backed up and how to restore, see [backup.md](backup.md).
 
 ## 2. Let TrueNAS pull the image
 

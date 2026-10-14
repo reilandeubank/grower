@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Archive, ArchiveRestore, ArrowLeft, Plus, X } from "lucide-react";
-import { problemMessage, type Plant, type PlantInput } from "../api/client";
+import { problemMessage, type Plant } from "../api/client";
 import {
   AppShell,
   Button,
@@ -16,22 +16,31 @@ import {
 import { useBack } from "../lib/useBack";
 import { LocationSheet } from "../locations/LocationSheet";
 import { useLocations } from "../locations/queries";
+import { POT_LABELS } from "../plants/copy";
+import {
+  plantInput,
+  plantValues,
+  POT_SIZE_MAX,
+  POT_SIZE_MIN,
+  validatePlant,
+  type PlantErrors,
+  type PlantValues,
+} from "../plants/form";
 import { plantUpdate, useDeletePlant, usePlant, useSavePlant } from "../plants/queries";
 import { LoadError } from "./LoadError";
 import { Pending } from "./Pending";
 import styles from "./PlantForm.module.css";
 
-interface Values {
-  name: string;
-  species: string;
-  locationId: string;
-  acquiredOn: string;
-  notes: string;
-}
+const POT_OPTIONS = [
+  { value: "", label: "Not set" },
+  ...Object.entries(POT_LABELS).map(([value, label]) => ({ value, label })),
+];
 
-export function validatePlant(values: Values): { name?: string } {
-  return values.name.trim() ? {} : { name: "Give your plant a name." };
-}
+const DRAINAGE_OPTIONS = [
+  { value: "", label: "Not set" },
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+];
 
 export function NewPlant() {
   return <PlantForm />;
@@ -59,16 +68,11 @@ export function EditPlant() {
 
 /** Full-screen add/edit page: Close at the top left, Save at the bottom. */
 function PlantForm({ plant }: { plant?: Plant }) {
-  const [values, setValues] = useState<Values>({
-    name: plant?.name ?? "",
-    species: plant?.species ?? "",
-    locationId: plant?.location_id ?? "",
-    acquiredOn: plant?.acquired_on ?? "",
-    notes: plant?.notes ?? "",
-  });
-  const [errors, setErrors] = useState<{ name?: string }>({});
+  const [values, setValues] = useState<PlantValues>(() => plantValues(plant));
+  const [errors, setErrors] = useState<PlantErrors>({});
   const [sheetOpen, setSheetOpen] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+  const potSizeRef = useRef<HTMLInputElement>(null);
   const locations = useLocations();
   const save = useSavePlant();
   const archive = useSavePlant();
@@ -76,24 +80,17 @@ function PlantForm({ plant }: { plant?: Plant }) {
   const navigate = useNavigate();
   const close = useBack(plant ? `/plants/${plant.id}` : "/plants");
 
-  const set = (key: keyof Values) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+  const set = (key: keyof PlantValues) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setValues((v) => ({ ...v, [key]: e.target.value }));
 
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const found = validatePlant(values);
     setErrors(found);
-    if (found.name) {
-      nameRef.current?.focus();
-      return;
-    }
-    const body: PlantInput = {
-      name: values.name.trim(),
-      species: values.species.trim(),
-      location_id: values.locationId || null,
-      acquired_on: values.acquiredOn || null,
-      notes: values.notes,
-    };
+    if (found.name) nameRef.current?.focus();
+    else if (found.potSize) potSizeRef.current?.focus();
+    if (Object.keys(found).length > 0) return;
+    const body = plantInput(values);
     if (plant) save.mutate({ id: plant.id, body: { ...body, archived: plant.archived } }, { onSuccess: close });
     else save.mutate({ body }, { onSuccess: (p) => navigate(`/plants/${p.id}`, { replace: true }) });
   };
@@ -152,6 +149,41 @@ function PlantForm({ plant }: { plant?: Plant }) {
           </div>
           <TextField label="Acquired" type="date" value={values.acquiredOn} onChange={set("acquiredOn")} />
           <TextAreaField label="Notes" value={values.notes} onChange={set("notes")} maxLength={4000} />
+
+          <fieldset className={styles.group}>
+            <legend className={`t-heading ${styles.legend}`}>Pot and soil</legend>
+            <SelectField label="Pot type" value={values.potType} options={POT_OPTIONS} onChange={set("potType")} />
+            <div className={styles.pair}>
+              <TextField
+                ref={potSizeRef}
+                label="Pot size"
+                hint="Inches across the top"
+                suffix="in"
+                type="number"
+                inputMode="decimal"
+                step={0.5}
+                min={POT_SIZE_MIN}
+                max={POT_SIZE_MAX}
+                value={values.potSize}
+                onChange={set("potSize")}
+                error={errors.potSize}
+              />
+              <SelectField
+                label="Drainage holes"
+                value={values.drainage}
+                options={DRAINAGE_OPTIONS}
+                onChange={set("drainage")}
+              />
+            </div>
+            <TextField
+              label="Soil"
+              placeholder="e.g. Aroid mix"
+              value={values.soil}
+              onChange={set("soil")}
+              maxLength={120}
+              autoComplete="off"
+            />
+          </fieldset>
         </div>
 
         {plant && (

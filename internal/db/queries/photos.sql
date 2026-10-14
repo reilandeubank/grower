@@ -47,3 +47,6 @@ UPDATE plants SET cover_photo_id = (
     LIMIT 1
 )
 WHERE cover_photo_id = sqlc.arg(photo_id);
+
+-- name: CountPhotos :one
+SELECT COUNT(*) FROM photos;

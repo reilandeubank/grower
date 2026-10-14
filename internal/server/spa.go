@@ -27,6 +27,7 @@ const frontendMissing = "grower: the frontend was not built into this binary.\n"
 // back to index.html; missing files with an extension or under /assets/ are real 404s
 // so a broken asset reference fails loudly instead of returning HTML.
 func spaHandler(dist fs.FS) http.Handler {
+	gz := &gzipCache{}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
@@ -37,14 +38,14 @@ func spaHandler(dist fs.FS) http.Handler {
 		if name == "" {
 			name = "index.html"
 		}
-		if !hiddenPath(name) && serveFile(w, r, dist, name) {
+		if !hiddenPath(name) && serveFile(w, r, dist, gz, name) {
 			return
 		}
 		if name != "index.html" && (strings.HasPrefix(name, "assets/") || path.Ext(name) != "") {
 			http.NotFound(w, r)
 			return
 		}
-		if !serveFile(w, r, dist, "index.html") {
+		if !serveFile(w, r, dist, gz, "index.html") {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-store")
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -64,7 +65,7 @@ func hiddenPath(name string) bool {
 }
 
 // serveFile writes name from dist and reports whether it was a regular file.
-func serveFile(w http.ResponseWriter, r *http.Request, dist fs.FS, name string) bool {
+func serveFile(w http.ResponseWriter, r *http.Request, dist fs.FS, gz *gzipCache, name string) bool {
 	f, err := dist.Open(name)
 	if err != nil {
 		return false
@@ -96,6 +97,14 @@ func serveFile(w http.ResponseWriter, r *http.Request, dist fs.FS, name string) 
 	}
 	if path.Ext(name) == ".webmanifest" {
 		h.Set("Content-Type", "application/manifest+json")
+	}
+	if shouldGzip(w, r, name) {
+		zipped, err := gz.get(name, func() ([]byte, error) { return io.ReadAll(content) })
+		if err != nil {
+			return false
+		}
+		h.Set("Content-Encoding", "gzip")
+		content = bytes.NewReader(zipped)
 	}
 	// embed.FS has no modification times; zero disables Last-Modified handling.
 	http.ServeContent(w, r, name, time.Time{}, content)

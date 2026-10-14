@@ -66,10 +66,8 @@ function Actions({ item, today, onClose, onAction }: TaskActionsSheetProps & { i
           variant="ghost"
           fullWidth
           icon={icon(Sprout)}
-          onClick={() => {
-            onClose();
-            navigate(`/plants/${item.plant.id}`);
-          }}
+          // Takes the sheet's history entry, so Back from the plant returns to Today.
+          onClick={() => navigate(`/plants/${item.plant.id}`, { replace: true })}
         >
           Open plant
         </Button>

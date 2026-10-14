@@ -47,7 +47,7 @@ export function PhotosTab({ plant }: { plant: Plant }) {
   if (photos.data.length === 0 && uploading === 0) {
     return (
       <EmptyState
-        as="h3"
+        as="h2"
         icon={<Images size={28} strokeWidth={1.75} />}
         title="No photos yet"
         body="Add a photo now and then to see how your plant grows."
@@ -71,7 +71,7 @@ export function PhotosTab({ plant }: { plant: Plant }) {
       )}
       {groupByMonth(photos.data).map((month) => (
         <section key={month.key} className={styles.month}>
-          <h3 className="t-heading">{month.label}</h3>
+          <h2 className="t-heading">{month.label}</h2>
           <ul className={styles.grid}>
             {month.photos.map((photo) => (
               <li key={photo.id}>

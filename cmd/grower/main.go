@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	_ "time/tzdata" // embeds the zone database, so GROWER_TZ and user zones work on any base image
 )
 
 const usage = `usage: grower <command> [flags]

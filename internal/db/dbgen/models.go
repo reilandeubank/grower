@@ -80,6 +80,10 @@ type Plant struct {
 	CreatedAt    string
 	UpdatedAt    string
 	CoverPhotoID sql.NullString
+	PotType      sql.NullString
+	PotSizeIn    sql.NullFloat64
+	Drainage     sql.NullInt64
+	Soil         string
 }
 
 type Session struct {

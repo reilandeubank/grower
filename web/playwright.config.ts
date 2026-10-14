@@ -12,6 +12,9 @@ const port = 8099;
 const baseURL = `http://localhost:${port}`;
 export const E2E_USER = { username: "e2e", password: "e2e-password-123" };
 
+/** Headers that make a spec look like its own visitor (n = 1–254), with its own login rate limit. */
+export const clientIP = (n: number) => ({ extraHTTPHeaders: { "X-Forwarded-For": `198.51.100.${n}` } });
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
@@ -47,6 +50,9 @@ export default defineConfig({
       GROWER_LISTEN: `:${port}`,
       GROWER_BASE_URL: baseURL,
       GROWER_LOG_FORMAT: "text",
+      // Trust loopback as a proxy so each spec can send its own X-Forwarded-For (see clientIP):
+      // specs get separate login rate-limit buckets, as distinct visitors would.
+      GROWER_TRUSTED_PROXIES: "127.0.0.1/32,::1/128",
       E2E_PASSWORD: E2E_USER.password,
     },
   },

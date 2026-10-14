@@ -48,3 +48,28 @@ func (q *Queries) GetSettings(ctx context.Context, userID string) (Setting, erro
 	)
 	return i, err
 }
+
+const updateTimezone = `-- name: UpdateTimezone :one
+UPDATE settings SET timezone = ?, updated_at = ? WHERE user_id = ?
+RETURNING user_id, timezone, hemisphere, digest_local_time, created_at, updated_at
+`
+
+type UpdateTimezoneParams struct {
+	Timezone  string
+	UpdatedAt string
+	UserID    string
+}
+
+func (q *Queries) UpdateTimezone(ctx context.Context, arg UpdateTimezoneParams) (Setting, error) {
+	row := q.db.QueryRowContext(ctx, updateTimezone, arg.Timezone, arg.UpdatedAt, arg.UserID)
+	var i Setting
+	err := row.Scan(
+		&i.UserID,
+		&i.Timezone,
+		&i.Hemisphere,
+		&i.DigestLocalTime,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

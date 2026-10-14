@@ -11,7 +11,7 @@ Milestone definitions live in `PLAN.md` §2.
 | M2 Plants and locations | done |
 | M3 Care tasks + scheduling + Today | done (v0.2.0) |
 | M4 Photos | done (v0.3.0) |
-| M5 MVP hardening, v1.0 | not started |
+| M5 MVP hardening, v1.0 | done (v1.0.0) |
 
 ### M1 checklist
 - [x] Repo, conventions (`AGENTS.md`), API contract for auth (`api/openapi.yaml`), logo (`assets/brand/`)
@@ -24,10 +24,35 @@ Milestone definitions live in `PLAN.md` §2.
 - [x] Deployed on TrueNAS behind NPM; logged in from the installed PWA
 
 ## Owner action items
-- Snapshot the dataset, then update to v0.3.0 (or Edit → Save on `:main`). Try adding photos from the phone camera and gallery; tell me if any photo is rejected as unsupported (that would be HEIC).
-- Raise NPM `client_max_body_size` to 20m if you haven't (docs/deploy.md §4).
+- Snapshot, then update to v1.0.0. The first nightly backup is written at startup: check that `backups/grower-YYYY-MM-DD.db` appears in the dataset and in Google Drive.
+- Try Settings → Export data once and open the zip.
+- Do one restore drill from `backups/` into a scratch copy (docs/backup.md), then quarterly.
 
 ## Checkpoints
+
+### 2026-10-14 · CP6: M5 integrated, v1.0.0 (MVP complete)
+- Export zip (format v1, docs/export-format.md), nightly `VACUUM INTO` backups (keep 14), settings (theme, time zone, password, storage, export), pot/soil fields, read-only offline, Android back closes sheets/viewer, embedded tzdata.
+- Lead fixes: gzip for embedded text assets (Lighthouse flagged ~330 KiB uncompressed); e2e specs each get their own client IP through the trusted-proxy path, so the suite no longer runs against the login rate limit.
+- Lighthouse: accessibility 100 (light + dark), best practices 100, SEO 100; performance measured before gzip at 73–82 mobile.
+- Verified: no codegen drift, golangci-lint 0 issues, Go tests, 78 Vitest, 6 Playwright e2e.
+- Off-box backups: Google Drive via TrueNAS Cloud Sync (owner), restoring from `backups/`.
+- Next (phase 2, PLAN §2): M6 web push (switch the SW to injectManifest, daily digest via the jobs table). Then M7 seasonal, M8 species, M9 import + quick-add. Owner backlog in PLAN §10. Optional: publish the web/src/design components to the Claude Design system.
+
+### 2026-10-14 · Frontend M5
+- Done: `lib/useCloseOnBack` (opening an overlay pushes a same-URL history entry that carries the router's state plus a depth; Back closes only the top overlay; a UI close pops the entry a task later). It's used by BottomSheet and PhotoViewer. "Open plant" navigates with `replace` so it takes over the sheet's entry. Theme override (`lib/theme.ts`, plus `public/theme.js` before first paint because the CSP blocks inline scripts; theme-color metas follow the choice). Settings is now Appearance (System/Light/Dark `SegmentedControl`), General (Time zone sheet with search and a device suggestion, Locations), Account (log out, Change password sheet), Data (export link, storage, last backup) and About. Plant form has a "Pot and soil" group (`plants/form.ts` maps values to and from the API); the detail page shows a pot line. Offline: workbox NetworkFirst (3 s) for the screens' GETs into `api`, CacheFirst for small/medium photos into `media` (300 entries, 30 days); logout deletes both. `OfflineBanner` sits in AppShell; `OfflineToast` watches the mutation cache. Queries use `networkMode: offlineFirst` so the SW can answer them, and mutations use `always` so they fail at once instead of queueing.
+- Fixed: after a plant is deleted, Back to its page redirects (replace) to /plants (`wasDeleted`, a per-visit set in `plants/queries.ts`). Plant tab headings go h3 → h2 to fix heading order.
+- Checks: lint, typecheck, 78 Vitest, build, `make e2e` 6/6 (new: theme persists across reload, Back closes a sheet, a UI close leaves history clean, export zip, password change and back, viewer Back, Open plant then Back, delete then Back).
+- Lighthouse 12 (built binary, logged in): mobile perf 73–82, a11y 100 (98 → 100 after the heading fix), best practices 100, SEO 100. Desktop /settings scores 100 in all four. The a11y score is also 100 in dark.
+- Follow-ups: the server doesn't compress text (330 KiB could be saved on first load; the SW precache covers repeat loads). The e2e suite makes 10 login/password attempts against a per-IP burst of 10. A session-reuse fixture or a test-only limit would remove that margin risk. Route-level code splitting if first load matters.
+
+### 2026-10-14 · Backend M5
+- Done: pot/soil fields on plants (create/update/get/list/Today); `PUT /settings` (Today follows the new zone at once); `POST /auth/password` (`auth.ChangePassword`: login's rate limiter and constant-time verify; keeps this session, signs out the rest; the CLI's `set-password` shares `replacePassword`); `GET /storage`; `GET /export` (`internal/api/export_handler.go`); `internal/backup` (nightly `VACUUM INTO backups/grower-YYYY-MM-DD.db` on the writer, temp file + fsync + rename, keeps 14, checked at start and hourly, started and stopped by `serve`); `time/tzdata` embedded; `docs/backup.md` (linked from README and deploy.md).
+- Export streams the zip from a custom strict response (`VisitExportDataResponse` writes straight to the client, like `loginSuccess`): no pipe or goroutine, and errors surface normally. Rows come from one read-only transaction; photos are stored (not deflated); a missing photo file is skipped with a warning. The write deadline is lifted for this response only.
+- Rate limit: every password-change attempt (not only wrong ones) takes a token from the shared per-IP login bucket, like login. Short new passwords are rejected first and cost nothing.
+- Problem details: 400 "Pick a time zone from the list.", "Your current password is wrong.", "Use at least 10 characters.", "Passwords must be 256 characters or fewer.", "Pot type must be plastic, terracotta, ceramic, fabric, self_watering or other.", "Pot size must be 0.5 to 48 inches.", "Soil must be 120 characters or fewer."; 429 "Too many attempts. Wait a minute and try again."
+- The `jobs` table is still unused: the backup is a plain ticker because it needs no queue or retry state (the file name makes it idempotent). M6 push is the first `jobs` user.
+- Checks: gen reproducible, build, vet, golangci-lint 0 issues, Go tests (export round trip, settings, password, storage, backup schedule/retention/restore, pot/soil validation). Smoke: `serve` writes the first backup on start and shuts down cleanly.
+- Next: the owner runs the restore drill in docs/backup.md once deployed.
 
 ### 2026-10-14 · CP5: M4 integrated, v0.3.0
 - Photos end to end: client-side resize + JPEG re-encode (strips EXIF/GPS), upload with dedupe, server thumbnails (small 256 / medium 1024, EXIF orientation), auth-checked `/media` with immutable caching, covers on cards/rows/hero, month timeline, viewer (cover, caption, delete).

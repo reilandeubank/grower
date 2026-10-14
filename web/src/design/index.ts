@@ -13,6 +13,8 @@ export { FilterChips, type FilterChipsProps } from "./FilterChips";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { Logo, type LogoProps } from "./Logo";
 export { PlantCard, PlantPhoto, type PlantCardProps, type PlantPhotoProps } from "./PlantCard";
+export { OfflineBanner } from "./OfflineBanner";
+export { SegmentedControl, type SegmentedControlProps } from "./SegmentedControl";
 export { SelectField, type SelectFieldProps } from "./SelectField";
 export { Tabs, type TabsProps } from "./Tabs";
 export { TaskIcon, taskName, type CareKind, type TaskIconProps } from "./TaskIcon";

@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { E2E_USER } from "../playwright.config";
+import { clientIP, E2E_USER } from "../playwright.config";
+
+test.use(clientIP(3));
 
 test("log in, stay signed in across a reload, log out", async ({ page }) => {
   await page.goto("/");
@@ -93,4 +95,16 @@ test("locations and plants: add, filter, edit, archive", async ({ page }) => {
   await expect(monstera).toBeHidden();
   await page.getByRole("link", { name: "Archived (1)" }).click();
   await expect(page.getByRole("link", { name: /^Monstera/ })).toBeVisible();
+
+  // Delete the fern. Back then skips its page instead of showing "Plant not found".
+  await nav.getByRole("link", { name: "Plants" }).click();
+  await fern.click();
+  await page.getByRole("button", { name: "Edit" }).click();
+  await page.getByRole("button", { name: "Delete plant" }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page).toHaveURL(/\/plants$/);
+  await expect(fern).toBeHidden();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/plants$/);
+  await expect(page.getByText("Plant not found")).toBeHidden();
 });

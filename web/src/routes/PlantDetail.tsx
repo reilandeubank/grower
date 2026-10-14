@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router";
+import { Navigate, useNavigate, useParams } from "react-router";
 import { Archive, ArrowLeft, SearchX } from "lucide-react";
 import { ApiError, problemMessage } from "../api/client";
 import { CareTab } from "../care/CareTab";
@@ -7,7 +7,8 @@ import { formatMonthYear } from "../lib/dates";
 import { useBack } from "../lib/useBack";
 import { useLocations } from "../locations/queries";
 import { PhotosTab } from "../photos/PhotosTab";
-import { plantUpdate, usePlant, useSavePlant } from "../plants/queries";
+import { potLine } from "../plants/copy";
+import { plantUpdate, usePlant, useSavePlant, wasDeleted } from "../plants/queries";
 import { LoadError } from "./LoadError";
 import { Pending } from "./Pending";
 import styles from "./PlantDetail.module.css";
@@ -21,6 +22,9 @@ export function PlantDetail() {
   const back = useBack("/plants");
 
   const backButton = <IconButton aria-label="Back" icon={<ArrowLeft size={20} strokeWidth={1.75} />} onClick={back} />;
+
+  // Back from the page that deleted this plant lands here; go on to the list instead.
+  if (wasDeleted(id)) return <Navigate to="/plants" replace />;
 
   if (plant.isPending) {
     return (
@@ -54,6 +58,7 @@ export function PlantDetail() {
 
   const p = plant.data;
   const location = locations.data?.find((l) => l.id === p.location_id);
+  const pot = potLine(p);
 
   return (
     <AppShell
@@ -79,6 +84,7 @@ export function PlantDetail() {
               {p.acquired_on && <span className="t-caption">Since {formatMonthYear(p.acquired_on)}</span>}
             </p>
           )}
+          {pot && <p className={`t-caption ${styles.muted}`}>{pot}</p>}
         </div>
 
         {p.archived && (

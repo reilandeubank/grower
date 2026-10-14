@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { E2E_USER } from "../playwright.config";
+import { clientIP, E2E_USER } from "../playwright.config";
+
+test.use(clientIP(4));
 
 // Runs after smoke.spec.ts (which expects a fresh, empty Today), in the same data dir.
 test("the core loop: add a task, do it, undo, snooze, see history", async ({ page }) => {
@@ -41,14 +43,14 @@ test("the core loop: add a task, do it, undo, snooze, see history", async ({ pag
   const actions = page.getByRole("dialog", { name: "Water · Calathea" });
   await actions.getByRole("button", { name: "Snooze" }).click();
   await actions.getByRole("button", { name: /^Tomorrow/ }).click();
-  await expect(page.getByRole("status")).toContainText("Snoozed until");
+  await expect(page.getByRole("status").filter({ hasText: "Snoozed until" })).toBeVisible();
   await expect(page.getByText("Next: Water Calathea tomorrow.")).toBeVisible();
 
   // Done from Coming up: the next one is a week out.
   await page.getByRole("button", { name: /^Coming up/ }).click();
   await expect(page.getByRole("button", { name: /^Calathea.*Tomorrow/ })).toBeVisible();
   await check.click();
-  await expect(page.getByRole("status")).toContainText("Watered Calathea.");
+  await expect(page.getByRole("status").filter({ hasText: "Watered Calathea." })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Calathea.*In 7 days/ })).toBeVisible();
 
   // The plant's history has it in words.
@@ -58,4 +60,8 @@ test("the core loop: add a task, do it, undo, snooze, see history", async ({ pag
   const history = page.locator("section", { has: page.getByRole("heading", { name: "History" }) });
   await expect(history.getByText(/^Watered/)).toBeVisible();
   await expect(history.getByText(/^Snoozed Water until/)).toBeVisible();
+
+  // "Open plant" took the sheet's history entry, so Back returns to Today.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
 });
