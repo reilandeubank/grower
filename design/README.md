@@ -19,6 +19,7 @@ grower is a self-hosted plant care PWA used mostly one-handed on an Android phon
 - Each care type has its own accent: `water`, `fertilize`, `mist`, `repot` and `custom` (custom also covers rotate). Use them only for the task-type icon and its small accent. Never use them as a row or card background.
 - `overdue` is reserved for overdue state. It always comes with the clock icon and the word "Overdue" or a day count, because `brand` and `overdue` have similar lightness and would otherwise be told apart by hue alone. Overdue chips use `overdue` text on `overdue-soft`.
 - Show selected chips and the moment a task is completed on `brand-soft`.
+- `danger` marks form errors and destructive actions such as Delete. It always comes with the alert icon and words, and destructive actions ask for confirmation in place (no browser dialogs).
 - `line` is decorative only. Control borders use `line-strong`.
 - Focus is a 2px solid `focus` ring at a 2px offset on every interactive element, in both themes.
 - Both themes are first-class. The app follows the system setting and offers a manual override in Settings.
@@ -43,7 +44,7 @@ grower is a self-hosted plant care PWA used mostly one-handed on an Android phon
 - Mobile first at 360–430px wide. Primary actions sit in the bottom third, within thumb reach: the FAB, the sheet buttons and the tab bar.
 - Bottom tab bar: Today, Plants, Settings. It is `tab-bar` tall plus the safe-area inset.
 - A task row shows the plant thumbnail (`thumb-row`), the plant name, the task-type icon and its due line, and a done check on the right. Tap the check to complete with an undo toast. Swipe or long-press the row for snooze and skip.
-- Snooze and skip, and all create and edit forms, open in a bottom sheet over `scrim`, never a centred dialog.
+- Short forms (snooze, skip, a location, a care task) open in a bottom sheet over `scrim`, never a centred dialog. Long forms (add or edit a plant) are full-screen pages with Close at the top left and Save at the bottom, so the Android back button simply leaves them.
 - On laptop widths, content centres in a column up to 720px wide and the tab bar becomes a left rail.
 
 ## Motion

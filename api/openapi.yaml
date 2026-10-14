@@ -56,7 +56,172 @@ paths:
                 $ref: "#/components/schemas/Me"
         "401":
           $ref: "#/components/responses/Problem"
+  /locations:
+    get:
+      operationId: listLocations
+      summary: All locations, ordered by name, with how many active plants each holds.
+      responses:
+        "200":
+          description: Locations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationList"
+        "401":
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createLocation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocationInput"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Location"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+  /locations/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      operationId: updateLocation
+      summary: Replace a location's fields.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocationInput"
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Location"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deleteLocation
+      summary: Delete a location. Its plants keep existing with no location.
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+  /plants:
+    get:
+      operationId: listPlants
+      summary: Plants ordered by name. Archived plants are excluded unless archived=true.
+      parameters:
+        - name: archived
+          in: query
+          description: true lists only archived plants; false (default) only active ones.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Plants.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlantList"
+        "401":
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createPlant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlantInput"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plant"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+  /plants/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      operationId: getPlant
+      responses:
+        "200":
+          description: The plant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plant"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: updatePlant
+      summary: Replace a plant's fields, including whether it is archived.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlantUpdate"
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plant"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deletePlant
+      summary: Permanently delete a plant. Archiving is the reversible option.
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
 components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
   securitySchemes:
     sessionCookie:
       type: apiKey
@@ -111,6 +276,115 @@ components:
           type: string
           description: Server build version.
           example: v0.1.0
+    LightLevel:
+      type: string
+      enum: [low, medium, bright_indirect, direct]
+    LocationInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: Unique, case-insensitive. Leading and trailing spaces are trimmed.
+        light:
+          allOf:
+            - $ref: "#/components/schemas/LightLevel"
+          nullable: true
+        notes:
+          type: string
+          maxLength: 2000
+          default: ""
+    Location:
+      type: object
+      required: [id, name, light, notes, plant_count]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        light:
+          allOf:
+            - $ref: "#/components/schemas/LightLevel"
+          nullable: true
+        notes:
+          type: string
+        plant_count:
+          type: integer
+          description: Active (not archived) plants in this location.
+    LocationList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Location"
+    PlantInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        species:
+          type: string
+          maxLength: 120
+          default: ""
+          description: Free text for now, e.g. "Monstera deliciosa".
+        location_id:
+          type: string
+          nullable: true
+        acquired_on:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          maxLength: 4000
+          default: ""
+    PlantUpdate:
+      allOf:
+        - $ref: "#/components/schemas/PlantInput"
+        - type: object
+          required: [archived]
+          properties:
+            archived:
+              type: boolean
+    Plant:
+      type: object
+      required: [id, name, species, location_id, acquired_on, notes, archived, created_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        species:
+          type: string
+        location_id:
+          type: string
+          nullable: true
+        acquired_on:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+        archived:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    PlantList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Plant"
     Problem:
       type: object
       required: [title, status]

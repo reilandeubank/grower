@@ -9,9 +9,66 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+// Defines values for LightLevel.
+const (
+	BrightIndirect LightLevel = "bright_indirect"
+	Direct         LightLevel = "direct"
+	Low            LightLevel = "low"
+	Medium         LightLevel = "medium"
+)
+
+// Valid indicates whether the value is a known member of the LightLevel enum.
+func (e LightLevel) Valid() bool {
+	switch e {
+	case BrightIndirect:
+		return true
+	case Direct:
+		return true
+	case Low:
+		return true
+	case Medium:
+		return true
+	default:
+		return false
+	}
+}
+
+// LightLevel defines model for LightLevel.
+type LightLevel string
+
+// Location defines model for Location.
+type Location struct {
+	Id    string      `json:"id"`
+	Light *LightLevel `json:"light"`
+	Name  string      `json:"name"`
+	Notes string      `json:"notes"`
+
+	// PlantCount Active (not archived) plants in this location.
+	PlantCount int `json:"plant_count"`
+}
+
+// LocationInput defines model for LocationInput.
+type LocationInput struct {
+	Light *LightLevel `json:"light,omitempty"`
+
+	// Name Unique, case-insensitive. Leading and trailing spaces are trimmed.
+	Name  string  `json:"name"`
+	Notes *string `json:"notes,omitempty"`
+}
+
+// LocationList defines model for LocationList.
+type LocationList struct {
+	Items []Location `json:"items"`
+}
 
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
@@ -28,6 +85,46 @@ type Me struct {
 	//
 	// Example: v0.1.0
 	Version string `json:"version"`
+}
+
+// Plant defines model for Plant.
+type Plant struct {
+	AcquiredOn *openapi_types.Date `json:"acquired_on"`
+	Archived   bool                `json:"archived"`
+	CreatedAt  time.Time           `json:"created_at"`
+	Id         string              `json:"id"`
+	LocationId *string             `json:"location_id"`
+	Name       string              `json:"name"`
+	Notes      string              `json:"notes"`
+	Species    string              `json:"species"`
+}
+
+// PlantInput defines model for PlantInput.
+type PlantInput struct {
+	AcquiredOn *openapi_types.Date `json:"acquired_on,omitempty"`
+	LocationId *string             `json:"location_id,omitempty"`
+	Name       string              `json:"name"`
+	Notes      *string             `json:"notes,omitempty"`
+
+	// Species Free text for now, e.g. "Monstera deliciosa".
+	Species *string `json:"species,omitempty"`
+}
+
+// PlantList defines model for PlantList.
+type PlantList struct {
+	Items []Plant `json:"items"`
+}
+
+// PlantUpdate defines model for PlantUpdate.
+type PlantUpdate struct {
+	AcquiredOn *openapi_types.Date `json:"acquired_on,omitempty"`
+	Archived   bool                `json:"archived"`
+	LocationId *string             `json:"location_id,omitempty"`
+	Name       string              `json:"name"`
+	Notes      *string             `json:"notes,omitempty"`
+
+	// Species Free text for now, e.g. "Monstera deliciosa".
+	Species *string `json:"species,omitempty"`
 }
 
 // Problem defines model for Problem.
@@ -52,8 +149,29 @@ type User struct {
 	Username string `json:"username"`
 }
 
+// Id defines model for Id.
+type Id = string
+
+// ListPlantsParams defines parameters for ListPlants.
+type ListPlantsParams struct {
+	// Archived true lists only archived plants; false (default) only active ones.
+	Archived *bool `form:"archived,omitempty" json:"archived,omitempty"`
+}
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
+
+// CreateLocationJSONRequestBody defines body for CreateLocation for application/json ContentType.
+type CreateLocationJSONRequestBody = LocationInput
+
+// UpdateLocationJSONRequestBody defines body for UpdateLocation for application/json ContentType.
+type UpdateLocationJSONRequestBody = LocationInput
+
+// CreatePlantJSONRequestBody defines body for CreatePlant for application/json ContentType.
+type CreatePlantJSONRequestBody = PlantInput
+
+// UpdatePlantJSONRequestBody defines body for UpdatePlant for application/json ContentType.
+type UpdatePlantJSONRequestBody = PlantUpdate
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -63,9 +181,36 @@ type ServerInterface interface {
 	// Logout End the current session and clear the cookie.
 	// (POST /auth/logout)
 	Logout(w http.ResponseWriter, r *http.Request)
+	// ListLocations All locations, ordered by name, with how many active plants each holds.
+	// (GET /locations)
+	ListLocations(w http.ResponseWriter, r *http.Request)
+
+	// (POST /locations)
+	CreateLocation(w http.ResponseWriter, r *http.Request)
+	// DeleteLocation Delete a location. Its plants keep existing with no location.
+	// (DELETE /locations/{id})
+	DeleteLocation(w http.ResponseWriter, r *http.Request, id Id)
+	// UpdateLocation Replace a location's fields.
+	// (PUT /locations/{id})
+	UpdateLocation(w http.ResponseWriter, r *http.Request, id Id)
 	// GetMe The signed-in user, their settings and the server version.
 	// (GET /me)
 	GetMe(w http.ResponseWriter, r *http.Request)
+	// ListPlants Plants ordered by name. Archived plants are excluded unless archived=true.
+	// (GET /plants)
+	ListPlants(w http.ResponseWriter, r *http.Request, params ListPlantsParams)
+
+	// (POST /plants)
+	CreatePlant(w http.ResponseWriter, r *http.Request)
+	// DeletePlant Permanently delete a plant. Archiving is the reversible option.
+	// (DELETE /plants/{id})
+	DeletePlant(w http.ResponseWriter, r *http.Request, id Id)
+
+	// (GET /plants/{id})
+	GetPlant(w http.ResponseWriter, r *http.Request, id Id)
+	// UpdatePlant Replace a plant's fields, including whether it is archived.
+	// (PUT /plants/{id})
+	UpdatePlant(w http.ResponseWriter, r *http.Request, id Id)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -105,11 +250,216 @@ func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request
 	handler.ServeHTTP(w, r)
 }
 
+// ListLocations operation middleware
+func (siw *ServerInterfaceWrapper) ListLocations(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListLocations(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateLocation operation middleware
+func (siw *ServerInterfaceWrapper) CreateLocation(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateLocation(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteLocation operation middleware
+func (siw *ServerInterfaceWrapper) DeleteLocation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteLocation(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateLocation operation middleware
+func (siw *ServerInterfaceWrapper) UpdateLocation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateLocation(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetMe operation middleware
 func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPlants operation middleware
+func (siw *ServerInterfaceWrapper) ListPlants(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPlantsParams
+
+	// ------------- Optional query parameter "archived" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "archived", r.URL.Query(), &params.Archived, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "archived"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "archived", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlants(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePlant operation middleware
+func (siw *ServerInterfaceWrapper) CreatePlant(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePlant(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePlant operation middleware
+func (siw *ServerInterfaceWrapper) DeletePlant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePlant(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPlant operation middleware
+func (siw *ServerInterfaceWrapper) GetPlant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPlant(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdatePlant operation middleware
+func (siw *ServerInterfaceWrapper) UpdatePlant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdatePlant(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -242,6 +592,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/login", wrapper.Login)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/logout", wrapper.Logout)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/me", wrapper.GetMe)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/locations", wrapper.ListLocations)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/locations", wrapper.CreateLocation)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/locations/{id}", wrapper.DeleteLocation)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/locations/{id}", wrapper.UpdateLocation)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plants", wrapper.ListPlants)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plants", wrapper.CreatePlant)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/plants/{id}", wrapper.DeletePlant)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plants/{id}", wrapper.GetPlant)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/plants/{id}", wrapper.UpdatePlant)
 
 	return m
 }
@@ -329,6 +688,236 @@ func (response Logout204Response) VisitLogoutResponse(w http.ResponseWriter) err
 	return nil
 }
 
+type ListLocationsRequestObject struct {
+}
+
+type ListLocationsResponseObject interface {
+	VisitListLocationsResponse(w http.ResponseWriter) error
+}
+
+type ListLocations200JSONResponse LocationList
+
+func (response ListLocations200JSONResponse) VisitListLocationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLocations401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListLocations401ApplicationProblemPlusJSONResponse) VisitListLocationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLocationRequestObject struct {
+	Body *CreateLocationJSONRequestBody
+}
+
+type CreateLocationResponseObject interface {
+	VisitCreateLocationResponse(w http.ResponseWriter) error
+}
+
+type CreateLocation201JSONResponse Location
+
+func (response CreateLocation201JSONResponse) VisitCreateLocationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLocation400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateLocation400ApplicationProblemPlusJSONResponse) VisitCreateLocationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLocation401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateLocation401ApplicationProblemPlusJSONResponse) VisitCreateLocationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLocation409ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateLocation409ApplicationProblemPlusJSONResponse) VisitCreateLocationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteLocationRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type DeleteLocationResponseObject interface {
+	VisitDeleteLocationResponse(w http.ResponseWriter) error
+}
+
+type DeleteLocation204Response struct {
+}
+
+func (response DeleteLocation204Response) VisitDeleteLocationResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteLocation401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DeleteLocation401ApplicationProblemPlusJSONResponse) VisitDeleteLocationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteLocation404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteLocation404ApplicationProblemPlusJSONResponse) VisitDeleteLocationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLocationRequestObject struct {
+	Id   Id `json:"id"`
+	Body *UpdateLocationJSONRequestBody
+}
+
+type UpdateLocationResponseObject interface {
+	VisitUpdateLocationResponse(w http.ResponseWriter) error
+}
+
+type UpdateLocation200JSONResponse Location
+
+func (response UpdateLocation200JSONResponse) VisitUpdateLocationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLocation400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateLocation400ApplicationProblemPlusJSONResponse) VisitUpdateLocationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLocation401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateLocation401ApplicationProblemPlusJSONResponse) VisitUpdateLocationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLocation404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateLocation404ApplicationProblemPlusJSONResponse) VisitUpdateLocationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateLocation409ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateLocation409ApplicationProblemPlusJSONResponse) VisitUpdateLocationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetMeRequestObject struct {
 }
 
@@ -366,6 +955,261 @@ func (response GetMe401ApplicationProblemPlusJSONResponse) VisitGetMeResponse(w 
 	return err
 }
 
+type ListPlantsRequestObject struct {
+	Params ListPlantsParams
+}
+
+type ListPlantsResponseObject interface {
+	VisitListPlantsResponse(w http.ResponseWriter) error
+}
+
+type ListPlants200JSONResponse PlantList
+
+func (response ListPlants200JSONResponse) VisitListPlantsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlants401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListPlants401ApplicationProblemPlusJSONResponse) VisitListPlantsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlantRequestObject struct {
+	Body *CreatePlantJSONRequestBody
+}
+
+type CreatePlantResponseObject interface {
+	VisitCreatePlantResponse(w http.ResponseWriter) error
+}
+
+type CreatePlant201JSONResponse Plant
+
+func (response CreatePlant201JSONResponse) VisitCreatePlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlant400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreatePlant400ApplicationProblemPlusJSONResponse) VisitCreatePlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlant401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreatePlant401ApplicationProblemPlusJSONResponse) VisitCreatePlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeletePlantRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type DeletePlantResponseObject interface {
+	VisitDeletePlantResponse(w http.ResponseWriter) error
+}
+
+type DeletePlant204Response struct {
+}
+
+func (response DeletePlant204Response) VisitDeletePlantResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeletePlant401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DeletePlant401ApplicationProblemPlusJSONResponse) VisitDeletePlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeletePlant404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeletePlant404ApplicationProblemPlusJSONResponse) VisitDeletePlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPlantRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type GetPlantResponseObject interface {
+	VisitGetPlantResponse(w http.ResponseWriter) error
+}
+
+type GetPlant200JSONResponse Plant
+
+func (response GetPlant200JSONResponse) VisitGetPlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPlant401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetPlant401ApplicationProblemPlusJSONResponse) VisitGetPlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPlant404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetPlant404ApplicationProblemPlusJSONResponse) VisitGetPlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePlantRequestObject struct {
+	Id   Id `json:"id"`
+	Body *UpdatePlantJSONRequestBody
+}
+
+type UpdatePlantResponseObject interface {
+	VisitUpdatePlantResponse(w http.ResponseWriter) error
+}
+
+type UpdatePlant200JSONResponse Plant
+
+func (response UpdatePlant200JSONResponse) VisitUpdatePlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePlant400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdatePlant400ApplicationProblemPlusJSONResponse) VisitUpdatePlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePlant401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdatePlant401ApplicationProblemPlusJSONResponse) VisitUpdatePlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePlant404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdatePlant404ApplicationProblemPlusJSONResponse) VisitUpdatePlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Login Log in with username and password; sets the session cookie.
@@ -374,9 +1218,36 @@ type StrictServerInterface interface {
 	// Logout End the current session and clear the cookie.
 	// (POST /auth/logout)
 	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
+	// ListLocations All locations, ordered by name, with how many active plants each holds.
+	// (GET /locations)
+	ListLocations(ctx context.Context, request ListLocationsRequestObject) (ListLocationsResponseObject, error)
+
+	// (POST /locations)
+	CreateLocation(ctx context.Context, request CreateLocationRequestObject) (CreateLocationResponseObject, error)
+	// DeleteLocation Delete a location. Its plants keep existing with no location.
+	// (DELETE /locations/{id})
+	DeleteLocation(ctx context.Context, request DeleteLocationRequestObject) (DeleteLocationResponseObject, error)
+	// UpdateLocation Replace a location's fields.
+	// (PUT /locations/{id})
+	UpdateLocation(ctx context.Context, request UpdateLocationRequestObject) (UpdateLocationResponseObject, error)
 	// GetMe The signed-in user, their settings and the server version.
 	// (GET /me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
+	// ListPlants Plants ordered by name. Archived plants are excluded unless archived=true.
+	// (GET /plants)
+	ListPlants(ctx context.Context, request ListPlantsRequestObject) (ListPlantsResponseObject, error)
+
+	// (POST /plants)
+	CreatePlant(ctx context.Context, request CreatePlantRequestObject) (CreatePlantResponseObject, error)
+	// DeletePlant Permanently delete a plant. Archiving is the reversible option.
+	// (DELETE /plants/{id})
+	DeletePlant(ctx context.Context, request DeletePlantRequestObject) (DeletePlantResponseObject, error)
+
+	// (GET /plants/{id})
+	GetPlant(ctx context.Context, request GetPlantRequestObject) (GetPlantResponseObject, error)
+	// UpdatePlant Replace a plant's fields, including whether it is archived.
+	// (PUT /plants/{id})
+	UpdatePlant(ctx context.Context, request UpdatePlantRequestObject) (UpdatePlantResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -473,6 +1344,120 @@ func (sh *strictHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ListLocations operation middleware
+func (sh *strictHandler) ListLocations(w http.ResponseWriter, r *http.Request) {
+	var request ListLocationsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListLocations(ctx, request.(ListLocationsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListLocations")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListLocationsResponseObject); ok {
+		if err := validResponse.VisitListLocationsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateLocation operation middleware
+func (sh *strictHandler) CreateLocation(w http.ResponseWriter, r *http.Request) {
+	var request CreateLocationRequestObject
+
+	var body CreateLocationJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateLocation(ctx, request.(CreateLocationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateLocation")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateLocationResponseObject); ok {
+		if err := validResponse.VisitCreateLocationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteLocation operation middleware
+func (sh *strictHandler) DeleteLocation(w http.ResponseWriter, r *http.Request, id Id) {
+	var request DeleteLocationRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteLocation(ctx, request.(DeleteLocationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteLocation")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteLocationResponseObject); ok {
+		if err := validResponse.VisitDeleteLocationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateLocation operation middleware
+func (sh *strictHandler) UpdateLocation(w http.ResponseWriter, r *http.Request, id Id) {
+	var request UpdateLocationRequestObject
+
+	request.Id = id
+
+	var body UpdateLocationJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateLocation(ctx, request.(UpdateLocationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateLocation")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateLocationResponseObject); ok {
+		if err := validResponse.VisitUpdateLocationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetMe operation middleware
 func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	var request GetMeRequestObject
@@ -490,6 +1475,148 @@ func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetMeResponseObject); ok {
 		if err := validResponse.VisitGetMeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPlants operation middleware
+func (sh *strictHandler) ListPlants(w http.ResponseWriter, r *http.Request, params ListPlantsParams) {
+	var request ListPlantsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPlants(ctx, request.(ListPlantsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPlants")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPlantsResponseObject); ok {
+		if err := validResponse.VisitListPlantsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreatePlant operation middleware
+func (sh *strictHandler) CreatePlant(w http.ResponseWriter, r *http.Request) {
+	var request CreatePlantRequestObject
+
+	var body CreatePlantJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreatePlant(ctx, request.(CreatePlantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreatePlant")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreatePlantResponseObject); ok {
+		if err := validResponse.VisitCreatePlantResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeletePlant operation middleware
+func (sh *strictHandler) DeletePlant(w http.ResponseWriter, r *http.Request, id Id) {
+	var request DeletePlantRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeletePlant(ctx, request.(DeletePlantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeletePlant")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeletePlantResponseObject); ok {
+		if err := validResponse.VisitDeletePlantResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPlant operation middleware
+func (sh *strictHandler) GetPlant(w http.ResponseWriter, r *http.Request, id Id) {
+	var request GetPlantRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPlant(ctx, request.(GetPlantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPlant")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPlantResponseObject); ok {
+		if err := validResponse.VisitGetPlantResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdatePlant operation middleware
+func (sh *strictHandler) UpdatePlant(w http.ResponseWriter, r *http.Request, id Id) {
+	var request UpdatePlantRequestObject
+
+	request.Id = id
+
+	var body UpdatePlantJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdatePlant(ctx, request.(UpdatePlantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdatePlant")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdatePlantResponseObject); ok {
+		if err := validResponse.VisitUpdatePlantResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
