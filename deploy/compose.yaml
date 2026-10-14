@@ -2,7 +2,8 @@
 # Replace every value marked CHANGE. See docs/deploy.md for the full walkthrough.
 services:
   grower:
-    image: ghcr.io/reilandeubank/grower:main # CHANGE on each update (docs/update.md)
+    image: ghcr.io/reilandeubank/grower:main # or a pinned vX.Y.Z (docs/update.md)
+    pull_policy: always # Edit → Save in TrueNAS then fetches the newest image for this tag
     restart: unless-stopped
     user: "568:568" # TrueNAS "apps" user; must own the dataset
     environment:
