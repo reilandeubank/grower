@@ -20,7 +20,7 @@ Milestone definitions live in `PLAN.md` §2.
 - [x] Frontend: Vite app, tokens.css, M1 components, login, app shell, Today empty state, PWA manifest + icons
 - [x] Dockerfile, compose file, CI (test) and release (GHCR) workflows; Nix devshell
 - [x] Docs: deploy (TrueNAS + Nginx Proxy Manager), update, local dev
-- [ ] First image published to GHCR
+- [x] First image published to GHCR (`ghcr.io/reilandeubank/grower:v0.1.0`, `:main`)
 - [ ] Deployed on TrueNAS behind NPM; logged in from the installed PWA (needs owner)
 
 ## Owner action items
@@ -35,7 +35,8 @@ Milestone definitions live in `PLAN.md` §2.
 - Verified in the devshell: `make gen` (no drift), `make lint` (golangci-lint 0 issues, eslint, tsc), `make test` (Go + 16 Vitest), `make e2e` (2 Playwright tests vs the real binary), `make docker` (24 MB image; container user create, login and HEALTHCHECK all OK).
 - CI needs golangci-lint ≥ 2.14 (built with Go 1.26); the workflow uses `latest`.
 - Follow-ups: add a `danger` colour token for form errors (design system + `design/tokens.json`); switch the SW to injectManifest before M6; theme override in Settings (M5).
-- Next: push, confirm CI + first GHCR image, then the owner deploys to TrueNAS (see Owner action items). Then M2.
+- Pushed: CI green on all jobs (go, web, e2e, docker); release workflow published the image; tagged v0.1.0.
+- Next: the owner deploys to TrueNAS (see Owner action items). Then M2.
 
 ### 2026-10-14 · Backend M1
 - Done: `internal/{buildinfo,config,db,auth,api,server}`, `cmd/grower` (`serve`, `migrate`, `user create|set-password [--password-stdin]`, `healthcheck`, `version`), `web/embed.go`, `.golangci.yml`. Migration 0001 (users, sessions, settings, jobs). Codegen is pinned as Go tool deps (`go tool oapi-codegen` v2.8.0, `go tool sqlc` v1.31.1 built with CGO off) and runs through `go generate ./...`. Argon2id hashing (m=64MiB, t=3, p=2, about 50 ms), SHA-256-hashed session tokens, a 90-day sliding expiry that refreshes daily, and per-IP plus global login rate limits. The CSRF check covers Origin, Sec-Fetch-Site and JSON content type. Also: a trusted-proxy XFF walk, security headers, SPA embed with cache headers and fallback, `/healthz`, and graceful shutdown. Tests are table-driven and run in under 3 s.
