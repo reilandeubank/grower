@@ -6,6 +6,7 @@ import { useCurrentUser } from "../auth/useCurrentUser";
 import { AppShell, Button, SegmentedControl, TopBar } from "../design";
 import { readTheme, saveTheme, type Theme } from "../lib/theme";
 import { DataSection } from "../settings/DataSection";
+import { NotificationsSection } from "../settings/NotificationsSection";
 import { PasswordSheet } from "../settings/PasswordSheet";
 import { TimeZoneSheet } from "../settings/TimeZoneSheet";
 import { zoneLabel } from "../settings/timeZones";
@@ -53,6 +54,10 @@ export function Settings() {
               <ChevronRight size={20} strokeWidth={1.75} aria-hidden="true" className={styles.muted} />
             </Link>
           </div>
+        </Section>
+
+        <Section id="settings-notifications" title="Notifications">
+          <NotificationsSection />
         </Section>
 
         <Section id="settings-account" title="Account">

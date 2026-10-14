@@ -6,7 +6,10 @@ Everything grower stores lives in its data directory: the dataset from [deploy.m
 grower.db (+ -wal, -shm)       the live database
 media/photos/<id>/             original photos and their thumbnails
 backups/grower-YYYY-MM-DD.db   nightly consistent copies of the database
+vapid.json                     the push notification key pair (keep it private)
 ```
+
+`vapid.json` is covered by the snapshots and the Drive copy like everything else, but not by `backups/`. Keep it when restoring: devices subscribed to the daily reminder are tied to its key, so losing it means each phone must turn Daily reminder off and on again in Settings.
 
 ## What protects it
 

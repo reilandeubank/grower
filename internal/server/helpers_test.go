@@ -16,6 +16,8 @@ import (
 	"github.com/reilandeubank/grower/internal/config"
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/db/dbtest"
+	"github.com/reilandeubank/grower/internal/push"
+	"github.com/reilandeubank/grower/internal/push/pushtest"
 )
 
 const (
@@ -33,6 +35,8 @@ type env struct {
 	db      *db.DB
 	clock   *fakeClock
 	cfg     config.Config
+	// pushService receives every notification the server sends.
+	pushService *pushtest.Service
 }
 
 type envOptions struct {
@@ -68,8 +72,15 @@ func newEnv(t *testing.T, opts envOptions) *env {
 	if spa == nil {
 		spa = fstest.MapFS{}
 	}
-	h := New(Deps{Config: cfg, DB: d, Auth: svc, SPA: spa, Log: slog.New(slog.DiscardHandler)})
-	return &env{t: t, handler: h, db: d, clock: clock, cfg: cfg}
+	log := slog.New(slog.DiscardHandler)
+	keys, err := push.LoadKeys(cfg.DataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := pushtest.New(t)
+	pusher := &push.Sender{DB: d, Keys: keys, Subject: "http://grower.test", Client: fake.Client(), Now: clock.Now, Log: log}
+	h := New(Deps{Config: cfg, DB: d, Auth: svc, Push: pusher, SPA: spa, Log: log})
+	return &env{t: t, handler: h, db: d, clock: clock, cfg: cfg, pushService: fake}
 }
 
 // request describes one call; zero values give a same-origin JSON request.

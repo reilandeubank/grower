@@ -12,11 +12,19 @@ export function useStorage() {
   });
 }
 
-/** Saves settings; a new time zone moves "today", so Today refreshes too. */
+/**
+ * Saves a change to the settings, keeping the rest as they are. Saves run one at a time, in
+ * order. A new time zone moves "today", so Today refreshes too.
+ */
 export function useUpdateSettings() {
   const queryClient = useQueryClient();
-  return useMutation<Settings, Error, Settings>({
-    mutationFn: async (body) => unwrap(await api.PUT("/settings", { body })),
+  return useMutation<Settings, Error, Partial<Settings>>({
+    scope: { id: "settings" },
+    mutationFn: async (change) => {
+      const current = queryClient.getQueryData<Me | null>(meKey)?.settings;
+      if (!current) throw new Error("Settings are not loaded");
+      return unwrap(await api.PUT("/settings", { body: { ...current, ...change } }));
+    },
     onSuccess: (settings) => {
       queryClient.setQueryData<Me | null>(meKey, (me) => (me ? { ...me, settings } : me));
       return queryClient.invalidateQueries({ queryKey: todayKey });

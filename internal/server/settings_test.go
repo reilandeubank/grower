@@ -19,24 +19,33 @@ func TestUpdateSettings(t *testing.T) {
 		t.Fatalf("today in Chicago = %s", got)
 	}
 
+	if me := expectJSON[apigen.Me](t, e.call(c, http.MethodGet, "/api/v1/me", ""), http.StatusOK); me.Settings.DigestTime != "08:00" {
+		t.Errorf("default digest time = %q", me.Settings.DigestTime)
+	}
+	for _, clock := range []string{"", "8:00", "24:00", "08:60", "08:00:00", "noon"} {
+		resp := e.call(c, http.MethodPut, "/api/v1/settings", `{"timezone":"UTC","digest_time":"`+clock+`"}`)
+		if got := expectProblem(t, resp, http.StatusBadRequest); got != "Pick a time like 08:00." {
+			t.Errorf("%q: detail = %q", clock, got)
+		}
+	}
 	for _, tz := range []string{"", "Local", "Mars/Olympus_Mons", "../../etc/passwd", "/etc/localtime"} {
-		resp := e.call(c, http.MethodPut, "/api/v1/settings", `{"timezone":"`+tz+`"}`)
+		resp := e.call(c, http.MethodPut, "/api/v1/settings", `{"timezone":"`+tz+`","digest_time":"08:00"}`)
 		if got := expectProblem(t, resp, http.StatusBadRequest); got != "Pick a time zone from the list." {
 			t.Errorf("%q: detail = %q", tz, got)
 		}
 	}
 
-	got := expectJSON[apigen.Settings](t, e.call(c, http.MethodPut, "/api/v1/settings", `{"timezone":"Europe/London"}`), http.StatusOK)
-	if got.Timezone != "Europe/London" {
+	got := expectJSON[apigen.Settings](t, e.call(c, http.MethodPut, "/api/v1/settings", `{"timezone":"Europe/London","digest_time":"07:30"}`), http.StatusOK)
+	if got.Timezone != "Europe/London" || got.DigestTime != "07:30" {
 		t.Errorf("settings = %+v", got)
 	}
-	if me := expectJSON[apigen.Me](t, e.call(c, http.MethodGet, "/api/v1/me", ""), http.StatusOK); me.Settings.Timezone != "Europe/London" {
+	if me := expectJSON[apigen.Me](t, e.call(c, http.MethodGet, "/api/v1/me", ""), http.StatusOK); me.Settings != got {
 		t.Errorf("me settings = %+v", me.Settings)
 	}
 	if got := e.today(c).Date.String(); got != "2026-05-01" {
 		t.Errorf("today after switching to London = %s", got)
 	}
-	expectProblem(t, e.call(nil, http.MethodPut, "/api/v1/settings", `{"timezone":"UTC"}`), http.StatusUnauthorized)
+	expectProblem(t, e.call(nil, http.MethodPut, "/api/v1/settings", `{"timezone":"UTC","digest_time":"08:00"}`), http.StatusUnauthorized)
 }
 
 func TestChangePassword(t *testing.T) {

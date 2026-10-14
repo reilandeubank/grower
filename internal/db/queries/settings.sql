@@ -5,6 +5,10 @@ VALUES (?, ?, ?, ?);
 -- name: GetSettings :one
 SELECT * FROM settings WHERE user_id = ?;
 
--- name: UpdateTimezone :one
-UPDATE settings SET timezone = ?, updated_at = ? WHERE user_id = ?
+-- Every user's settings, for the daily reminder.
+-- name: ListSettings :many
+SELECT * FROM settings ORDER BY user_id;
+
+-- name: UpdateSettings :one
+UPDATE settings SET timezone = ?, digest_local_time = ?, updated_at = ? WHERE user_id = ?
 RETURNING *;

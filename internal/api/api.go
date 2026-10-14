@@ -12,6 +12,7 @@ import (
 	"github.com/reilandeubank/grower/internal/auth"
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/media"
+	"github.com/reilandeubank/grower/internal/push"
 )
 
 // Handler serves /api/v1.
@@ -23,13 +24,14 @@ type Handler struct {
 	// dataDir is GROWER_DATA_DIR, where the nightly backups live.
 	dataDir string
 	log     *slog.Logger
+	push    *push.Sender
 }
 
 var _ apigen.StrictServerInterface = (*Handler)(nil)
 
 // New returns the API handler.
-func New(authSvc *auth.Service, d *db.DB, store *media.Store, cookie auth.CookieConfig, dataDir string, log *slog.Logger) *Handler {
-	return &Handler{auth: authSvc, db: d, media: store, cookie: cookie, dataDir: dataDir, log: log}
+func New(authSvc *auth.Service, d *db.DB, store *media.Store, pusher *push.Sender, cookie auth.CookieConfig, dataDir string, log *slog.Logger) *Handler {
+	return &Handler{auth: authSvc, db: d, media: store, push: pusher, cookie: cookie, dataDir: dataDir, log: log}
 }
 
 // ServerInterface adapts the strict handlers to net/http, with problem+json errors.

@@ -84,7 +84,7 @@ func TestExport(t *testing.T) {
 		t.Fatal(err)
 	}
 	if x.Format != "grower-export" || x.Version != 1 || x.ExportedAt != "2026-05-01T03:00:00Z" || x.AppVersion == "" ||
-		x.Settings["timezone"] != "America/Chicago" {
+		x.Settings["timezone"] != "America/Chicago" || x.Settings["digest_time"] != "08:00" {
 		t.Errorf("header = %+v", x)
 	}
 	if len(x.Locations) != 1 || len(x.Plants) != 2 || len(x.Tasks) != 1 || len(x.Events) != 2 || len(x.Photos) != 2 {

@@ -49,19 +49,60 @@ func (q *Queries) GetSettings(ctx context.Context, userID string) (Setting, erro
 	return i, err
 }
 
-const updateTimezone = `-- name: UpdateTimezone :one
-UPDATE settings SET timezone = ?, updated_at = ? WHERE user_id = ?
+const listSettings = `-- name: ListSettings :many
+SELECT user_id, timezone, hemisphere, digest_local_time, created_at, updated_at FROM settings ORDER BY user_id
+`
+
+// Every user's settings, for the daily reminder.
+func (q *Queries) ListSettings(ctx context.Context) ([]Setting, error) {
+	rows, err := q.db.QueryContext(ctx, listSettings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Setting{}
+	for rows.Next() {
+		var i Setting
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Timezone,
+			&i.Hemisphere,
+			&i.DigestLocalTime,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateSettings = `-- name: UpdateSettings :one
+UPDATE settings SET timezone = ?, digest_local_time = ?, updated_at = ? WHERE user_id = ?
 RETURNING user_id, timezone, hemisphere, digest_local_time, created_at, updated_at
 `
 
-type UpdateTimezoneParams struct {
-	Timezone  string
-	UpdatedAt string
-	UserID    string
+type UpdateSettingsParams struct {
+	Timezone        string
+	DigestLocalTime string
+	UpdatedAt       string
+	UserID          string
 }
 
-func (q *Queries) UpdateTimezone(ctx context.Context, arg UpdateTimezoneParams) (Setting, error) {
-	row := q.db.QueryRowContext(ctx, updateTimezone, arg.Timezone, arg.UpdatedAt, arg.UserID)
+func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) (Setting, error) {
+	row := q.db.QueryRowContext(ctx, updateSettings,
+		arg.Timezone,
+		arg.DigestLocalTime,
+		arg.UpdatedAt,
+		arg.UserID,
+	)
 	var i Setting
 	err := row.Scan(
 		&i.UserID,

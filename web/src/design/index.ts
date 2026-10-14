@@ -16,6 +16,7 @@ export { PlantCard, PlantPhoto, type PlantCardProps, type PlantPhotoProps } from
 export { OfflineBanner } from "./OfflineBanner";
 export { SegmentedControl, type SegmentedControlProps } from "./SegmentedControl";
 export { SelectField, type SelectFieldProps } from "./SelectField";
+export { Switch, type SwitchProps } from "./Switch";
 export { Tabs, type TabsProps } from "./Tabs";
 export { TaskIcon, taskName, type CareKind, type TaskIconProps } from "./TaskIcon";
 export { TaskRow, type TaskRowProps } from "./TaskRow";

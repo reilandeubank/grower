@@ -12,6 +12,10 @@ Milestone definitions live in `PLAN.md` §2.
 | M3 Care tasks + scheduling + Today | done (v0.2.0) |
 | M4 Photos | done (v0.3.0) |
 | M5 MVP hardening, v1.0 | done (v1.0.0) |
+| M6 Web push (daily reminder) | done (not yet released) |
+| M7 Seasonal adjustment | not started |
+| M8 Species | not started |
+| M9 Import + quick-add via photo | not started |
 
 ### M1 checklist
 - [x] Repo, conventions (`AGENTS.md`), API contract for auth (`api/openapi.yaml`), logo (`assets/brand/`)
@@ -24,11 +28,20 @@ Milestone definitions live in `PLAN.md` §2.
 - [x] Deployed on TrueNAS behind NPM; logged in from the installed PWA
 
 ## Owner action items
-- Snapshot, then update to v1.0.0. The first nightly backup is written at startup: check that `backups/grower-YYYY-MM-DD.db` appears in the dataset and in Google Drive.
-- Try Settings → Export data once and open the zip.
-- Do one restore drill from `backups/` into a scratch copy (docs/backup.md), then quarterly.
+- Update to v1.1.0, then on the phone: Settings → Notifications → turn on Daily reminder → Allow → Send test notification; set the reminder time.
 
 ## Checkpoints
+
+### 2026-10-14 · M6: web push daily reminder (backend + frontend)
+- Lead fix: logging out turns off push on that device first (best effort), so a signed-out phone stops getting reminders. Released as v1.1.0.
+- Backend: `internal/push` (VAPID keys generated once into `<data>/vapid.json`, 0600; `Sender` posts to every device of a user via webpush-go, TTL 12 h, urgency normal, Topic = tag; 404/410 deletes the subscription, other failures bump `failed_count`, success sets `last_ok_at`; it errors only when no device got the message, so a retry never repeats a delivery). `Digest` runner (ticks every minute, injected clock, started/stopped by `serve` with the backup runner): once a user's local time passes `digest_time`, `INSERT … ON CONFLICT DO NOTHING` a `digest:<user>:<local date>` job; claims due/expired-lock jobs (lock 5 min), skips a day that has ended ("skipped: the day ended before it was sent") or nothing due ("nothing due"), sends, then marks done; failures back off 1/2/4/8 min, `failed` after 5 attempts. Today's sorting moved to `internal/care` (`care.Today`, `care.Schedule`), shared by GET /today and the reminder. New queries `jobs.sql`, `push.sql`; `UpdateSettings` replaces `UpdateTimezone`. Handlers `internal/api/push_handlers.go`; settings/me/export carry `digest_time`. New dependency: `github.com/SherClockHolmes/webpush-go` v1.4.0 (+ `golang-jwt/jwt/v5`).
+- Wording: "1 plant needs care" / "3 plants need care" (distinct plants); body lists up to 3 tasks, overdue first: "Water Monstera, Mist Fern, Prune for Pothos and 1 more" (custom tasks read "<label> for <plant>").
+- DST: Go puts a spring-forward-gap time an hour early, so `FireTime` shifts it forward by the gap (02:30 → 03:30, as PLAN §5.3 intended); a fall-back time fires at its first occurrence and the dedupe key stops the second.
+- Problem details: 400 "Pick a time like 08:00.", "Endpoint must be an https URL.", "Subscription keys are required."; a failed test push is a 500.
+- Frontend: SW is now `src/sw.ts` (injectManifest; precache + navigation fallback with the same denylist, the M5 `api`/`media` runtime caches, skipWaiting + clientsClaim, `push` → notification with icon and the new monochrome `icons/badge-96.png` from `scripts/icons.sh`, `notificationclick` focuses and navigates an open window or opens one). The payload mapping is pure (`lib/notification.ts`, same-site paths only). `tsconfig.sw.json` (WebWorker lib); the app tsconfig excludes `sw.ts`. New pinned devDeps: workbox-precaching/routing/strategies/expiration 7.4.1. Design: `Switch`. Settings → Notifications: Daily reminder switch (unsupported / blocked / off / on from `pushManager.getSubscription()`), native time input saved on change (settings saves now merge with the cached settings and run in order), Send test notification when on, Android note. Undoes the browser subscription if the server refuses it.
+- Checks: gen reproducible, golangci-lint 0 issues, Go tests (DST, tz, dedupe across restarts, stale skip, backoff, 410/404 cleanup, expired lock, wording, settings and push endpoints against an httptest TLS push service in `internal/push/pushtest`), eslint + tsc, 87 Vitest, build, `make e2e` 6/6 (Settings asserts the section and that the time saves).
+- Follow-ups: logout leaves this device subscribed (fine for one user; a household second user would get the first's reminders on a shared phone); subscriptions with a high `failed_count` are never pruned; changing the time after today's reminder went out takes effect tomorrow.
+- Owner: release, update, then on the phone open the installed app → Settings → Notifications → Daily reminder → Allow → Send test notification.
 
 ### 2026-10-14 · CP6: M5 integrated, v1.0.0 (MVP complete)
 - Export zip (format v1, docs/export-format.md), nightly `VACUUM INTO` backups (keep 14), settings (theme, time zone, password, storage, export), pot/soil fields, read-only offline, Android back closes sheets/viewer, embedded tzdata.

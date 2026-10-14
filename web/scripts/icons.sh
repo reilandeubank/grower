@@ -17,5 +17,9 @@ render "$brand/leaf.svg" 512 "$out/icon-512.png"
 # Maskable and Apple icons must be full-bleed (the OS applies its own mask/rounding).
 render "$brand/leaf-maskable.svg" 512 "$out/maskable-512.png"
 render "$brand/leaf-maskable.svg" 180 "$out/apple-touch-icon-180.png"
+# Notification badge: Android uses only its alpha, so the light leaf becomes opaque white
+# and the dark tile (and the midrib) transparent.
+magick -background none -density 384 "$brand/leaf.svg" -resize 96x96 -colorspace gray -level 40%,80% \
+  -alpha copy -fill white -colorize 100% -depth 8 -strip "$out/badge-96.png"
 cp "$brand/leaf.svg" public/favicon.svg
 echo "icons written to $out"

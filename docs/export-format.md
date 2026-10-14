@@ -17,7 +17,7 @@ grower-export-2026-10-14.zip
   "version": 1,
   "exported_at": "2026-10-14T18:30:00Z",
   "app_version": "v0.4.0",
-  "settings": { "timezone": "America/Chicago" },
+  "settings": { "timezone": "America/Chicago", "digest_time": "08:00" },
   "locations": [ ... ],
   "plants": [ ... ],
   "tasks": [ ... ],
@@ -40,5 +40,5 @@ Rules:
 
 - IDs are the app's own ULIDs and are stable across exports, so references (`plant_id`, `task_id`, `location_id`, `cover_photo_id`) resolve within the file.
 - Dates are `YYYY-MM-DD` civil dates, and timestamps are RFC 3339 in UTC.
-- Accounts, password hashes and sessions are never exported.
+- Accounts, password hashes, sessions and push subscriptions are never exported.
 - A breaking change bumps `version`. Additive fields don't, so readers must ignore unknown keys.

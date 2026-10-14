@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, type Me } from "../api/client";
 import { API_CACHE, MEDIA_CACHE } from "../lib/cacheNames";
+import { disable as disablePush } from "../settings/push";
 
 export const meKey = ["me"] as const;
 
@@ -39,6 +40,9 @@ export function useLogout() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, void>({
     mutationFn: async () => {
+      // A signed-out device must stop getting reminders. Do it while the session can still authorize it;
+      // failing here (no service worker, offline) must not block logging out.
+      await disablePush().catch(() => undefined);
       const { response } = await api.POST("/auth/logout");
       if (!response.ok) throw new ApiError(response.status);
     },

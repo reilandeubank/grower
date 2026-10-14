@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/reilandeubank/grower/internal/auth"
 	"github.com/reilandeubank/grower/internal/backup"
 	"github.com/reilandeubank/grower/internal/buildinfo"
+	"github.com/reilandeubank/grower/internal/push"
 	"github.com/reilandeubank/grower/internal/server"
 	"github.com/reilandeubank/grower/web"
 )
@@ -44,20 +46,26 @@ func cmdServe(args []string) error {
 		return err
 	}
 
-	// The backup runner stops with ctx and must finish before the database closes.
+	keys, err := push.LoadKeys(cfg.DataDir)
+	if err != nil {
+		return err
+	}
+	pusher := &push.Sender{DB: d, Keys: keys, Subject: cfg.BaseURL.String(), Now: time.Now, Log: log}
+
+	// The background runners stop with ctx and must finish before the database closes.
 	backups := &backup.Runner{DB: d, DataDir: cfg.DataDir, Loc: cfg.Location, Now: time.Now, Log: log}
-	backupsDone := make(chan struct{})
-	go func() {
-		defer close(backupsDone)
-		backups.Run(ctx)
-	}()
+	digest := &push.Digest{DB: d, Sender: pusher, Now: time.Now, Log: log}
+	var runners sync.WaitGroup
+	for _, run := range []func(context.Context){backups.Run, digest.Run} {
+		runners.Go(func() { run(ctx) })
+	}
 	defer func() {
 		stop()
-		<-backupsDone
+		runners.Wait()
 	}()
 
 	log.Info("starting grower", "version", buildinfo.Version, "data_dir", cfg.DataDir,
 		"base_url", cfg.BaseURL.String(), "trusted_proxies", len(cfg.TrustedProxies))
-	h := server.New(server.Deps{Config: cfg, DB: d, Auth: authSvc, SPA: web.FS(), Log: log})
+	h := server.New(server.Deps{Config: cfg, DB: d, Auth: authSvc, Push: pusher, SPA: web.FS(), Log: log})
 	return server.Run(ctx, cfg.Listen, h, log)
 }

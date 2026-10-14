@@ -10,7 +10,7 @@ Assumes TrueNAS SCALE 24.10 or newer (Docker-based apps) and NPM already running
 2. Set the owner to the `apps` user and group (UID/GID 568). The container runs as `568:568` and needs write access.
 3. **Data Protection → Periodic Snapshot Tasks:** add hourly snapshots kept for 2 days and daily snapshots kept for 30 days on this dataset.
 
-Everything grower stores lives here: `grower.db` (+ `-wal`/`-shm`), `media/` and `backups/`. For what is backed up and how to restore, see [backup.md](backup.md).
+Everything grower stores lives here: `grower.db` (+ `-wal`/`-shm`), `media/`, `backups/` and `vapid.json` (the push notification keys, made on first start). For what is backed up and how to restore, see [backup.md](backup.md).
 
 ## 2. Let TrueNAS pull the image
 
@@ -58,9 +58,11 @@ If the setting is wrong, everything still works, but login rate limiting treats 
 - `https://grower.example.com/healthz` returns `{"status":"ok",...}`.
 - Log in on your phone in Chrome, then **⋮ → Add to Home screen → Install**.
 - Close and reopen the installed app: you should still be signed in. Sessions last 90 days from your last visit.
+- In the installed app, **Settings → Notifications → Daily reminder** on, allow notifications, then **Send test notification**. On Android the reminder arrives even when the app is closed. Web push needs HTTPS, which the NPM proxy host already provides; over plain http the browser offers no push at all.
 
 ## Troubleshooting
 
 - **Container restarts with a permission error:** the dataset isn't writable by 568:568. Fix the dataset ACL/owner.
 - **Login returns 403:** `GROWER_BASE_URL` doesn't exactly match the URL in the browser (scheme, host and port).
 - **Unhealthy container:** check logs. `grower healthcheck` calls `/healthz` inside the container.
+- **No reminder arrives:** the app log says `daily reminder attempt failed` or `push subscription gone` when the push service refuses. If `vapid.json` was lost or replaced, every device must turn Daily reminder off and on again. The reminder is sent once a day at the chosen time (in the time zone from Settings) and only when something is due.

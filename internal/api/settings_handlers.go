@@ -13,6 +13,7 @@ import (
 	"github.com/reilandeubank/grower/internal/backup"
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
+	"github.com/reilandeubank/grower/internal/push"
 )
 
 // unauthorized is the backstop for handlers reached without a session; the server's
@@ -34,13 +35,20 @@ func (h *Handler) UpdateSettings(ctx context.Context, req apigen.UpdateSettingsR
 	if _, err := time.LoadLocation(tz); err != nil || tz == "" || tz == "Local" {
 		return apigen.UpdateSettings400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest("Pick a time zone from the list.")}, nil
 	}
-	row, err := h.db.Writer().UpdateTimezone(ctx, dbgen.UpdateTimezoneParams{
-		Timezone: tz, UpdatedAt: db.FormatTime(h.auth.Now()), UserID: p.UserID,
+	if _, err := push.ParseClock(req.Body.DigestTime); err != nil {
+		return apigen.UpdateSettings400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest("Pick a time like 08:00.")}, nil
+	}
+	row, err := h.db.Writer().UpdateSettings(ctx, dbgen.UpdateSettingsParams{
+		Timezone: tz, DigestLocalTime: req.Body.DigestTime, UpdatedAt: db.FormatTime(h.auth.Now()), UserID: p.UserID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("update settings for user %s: %w", p.UserID, err)
 	}
-	return apigen.UpdateSettings200JSONResponse{Timezone: row.Timezone}, nil
+	return apigen.UpdateSettings200JSONResponse(settingsOf(row)), nil
+}
+
+func settingsOf(row dbgen.Setting) apigen.Settings {
+	return apigen.Settings{Timezone: row.Timezone, DigestTime: row.DigestLocalTime}
 }
 
 // ChangePassword sets a new password after checking the current one, keeping only

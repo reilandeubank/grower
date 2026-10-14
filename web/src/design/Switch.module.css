@@ -1,0 +1,86 @@
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: calc(var(--target-min) + var(--space-2));
+  padding: var(--space-3) 0;
+  cursor: pointer;
+}
+
+.row:has(:disabled) {
+  cursor: default;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.description {
+  color: var(--ink-muted);
+}
+
+/* The track is the input itself; the thumb is its ::before. */
+.switch {
+  flex: none;
+  position: relative;
+  --thumb: calc(var(--space-4) + var(--space-1));
+  --inset: calc(var(--space-1) - 1px); /* inside the 1px border */
+  width: calc(var(--space-8) + var(--space-4));
+  height: calc(var(--space-6) + var(--space-1));
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+  appearance: none;
+  cursor: inherit;
+  transition: background-color var(--dur-press) var(--ease-out);
+}
+
+.switch::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: var(--inset);
+  width: var(--thumb);
+  height: var(--thumb);
+  border-radius: var(--radius-full);
+  background: var(--ink-muted);
+  translate: 0 -50%;
+  transition:
+    translate var(--dur-press) var(--ease-out),
+    background-color var(--dur-press) var(--ease-out);
+}
+
+.switch:checked {
+  border-color: var(--brand);
+  background: var(--brand);
+}
+
+.switch:checked::before {
+  background: var(--on-brand);
+  /* Track width less its border, both insets and the thumb. */
+  translate: calc(var(--space-8) + var(--space-4) - 2px - 2 * var(--inset) - var(--thumb)) -50%;
+}
+
+.switch:disabled {
+  opacity: 0.5;
+}
+
+.row[aria-busy="true"] .switch {
+  opacity: 0.7;
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch::before {
+    transition: none;
+  }
+}

@@ -15,6 +15,7 @@ import (
 
 	"github.com/reilandeubank/grower/internal/apigen"
 	"github.com/reilandeubank/grower/internal/auth"
+	"github.com/reilandeubank/grower/internal/care"
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
 	"github.com/reilandeubank/grower/internal/schedule"
@@ -150,33 +151,25 @@ func (h *Handler) careTask(ctx context.Context, row dbgen.CareTask) (apigen.Care
 // careTask maps a task, computing next_due and last_done from its non-voided events
 // in insertion order.
 func careTask(row dbgen.CareTask, events []dbgen.CareEvent) (apigen.CareTask, error) {
-	start, err := schedule.Parse(row.StartOn)
+	dates, err := care.Schedule(row, events)
 	if err != nil {
 		return apigen.CareTask{}, err
 	}
-	evs := make([]schedule.Event, len(events))
-	for i, e := range events {
-		evs[i] = schedule.Event{Kind: schedule.EventKind(e.Kind)}
-		if evs[i].On, err = schedule.Parse(e.LocalDate); err != nil {
-			return apigen.CareTask{}, err
-		}
-		if e.SnoozeUntil.Valid {
-			if evs[i].SnoozeUntil, err = schedule.Parse(e.SnoozeUntil.String); err != nil {
-				return apigen.CareTask{}, err
-			}
-		}
-	}
-	task := schedule.Task{IntervalDays: int(row.IntervalDays), Anchor: schedule.Anchor(row.Anchor), StartOn: start}
+	return taskOf(row, dates), nil
+}
+
+// taskOf maps a task with its computed schedule.
+func taskOf(row dbgen.CareTask, dates care.Dates) apigen.CareTask {
 	t := apigen.CareTask{
 		Id: row.ID, PlantId: row.PlantID, Kind: apigen.TaskKind(row.Kind), Label: row.Label,
 		IntervalDays: int(row.IntervalDays), Anchor: apigen.Anchor(row.Anchor),
-		StartOn: apiDate(start), NextDue: apiDate(schedule.NextDue(task, evs)),
+		StartOn: apiDate(dates.Start), NextDue: apiDate(dates.Next),
 	}
-	if last, ok := schedule.LastDone(evs); ok {
-		d := apiDate(last)
+	if dates.HasLast {
+		d := apiDate(dates.Last)
 		t.LastDone = &d
 	}
-	return t, nil
+	return t
 }
 
 // today is the current date in the signed-in user's time zone.

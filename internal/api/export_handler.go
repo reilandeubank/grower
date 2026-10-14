@@ -117,7 +117,7 @@ func (h *Handler) exportSnapshot(ctx context.Context, userID string) (exportFile
 	if err != nil {
 		return f, fmt.Errorf("export settings: %w", err)
 	}
-	f.Settings.Timezone = settings.Timezone
+	f.Settings = settingsOf(settings)
 	if f.Locations, err = exportRows(ctx, q.ExportLocations, exportLocationOf); err != nil {
 		return f, fmt.Errorf("export locations: %w", err)
 	}

@@ -93,7 +93,7 @@ func (h *Handler) me(ctx context.Context, p auth.Principal) (apigen.Me, error) {
 	}
 	return apigen.Me{
 		User:     apigen.User{Id: p.UserID, Username: p.Username},
-		Settings: apigen.Settings{Timezone: settings.Timezone},
+		Settings: settingsOf(settings),
 		Version:  buildinfo.Version,
 	}, nil
 }

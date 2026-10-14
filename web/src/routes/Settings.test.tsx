@@ -55,7 +55,7 @@ describe("Settings", () => {
     expect(within(list).getAllByRole("button").map((b) => b.textContent)).toEqual(["America/New York"]);
     await userEvent.click(within(list).getByRole("button", { name: "America/New York" }));
 
-    await waitFor(() => expect(saved).toEqual({ timezone: "America/New_York" }));
+    await waitFor(() => expect(saved).toEqual({ timezone: "America/New_York", digest_time: "08:00" }));
     expect(await screen.findByRole("button", { name: "Time zone America/New York" })).toBeTruthy();
     expect(screen.getByText("Time zone set to America/New York.")).toBeTruthy();
   });

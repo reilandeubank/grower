@@ -86,6 +86,17 @@ type Plant struct {
 	Soil         string
 }
 
+type PushSubscription struct {
+	ID          string
+	UserID      string
+	Endpoint    string
+	P256dh      string
+	Auth        string
+	CreatedAt   string
+	LastOkAt    sql.NullString
+	FailedCount int64
+}
+
 type Session struct {
 	IDHash     string
 	UserID     string

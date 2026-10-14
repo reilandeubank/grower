@@ -35,6 +35,17 @@ test("settings: theme, Android back on sheets, export, password", async ({ page 
   await page.getByRole("radio", { name: "System" }).check();
   await expect(html).not.toHaveAttribute("data-theme", /.*/);
 
+  // The reminder time saves. Push itself needs a real device, so the switch is only seen.
+  await expect(page.getByRole("switch", { name: /Daily reminder/ })).toBeVisible();
+  const time = page.getByLabel("Reminder time");
+  await expect(time).toHaveValue("08:00");
+  await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith("/api/v1/settings") && r.request().method() === "PUT" && r.ok()),
+    time.fill("07:30"),
+  ]);
+  await page.reload();
+  await expect(page.getByLabel("Reminder time")).toHaveValue("07:30");
+
   // Back closes the sheet and stays on Settings.
   await page.getByRole("button", { name: "Change password" }).click();
   const sheet = page.getByRole("dialog", { name: "Change password" });
