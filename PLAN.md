@@ -93,7 +93,7 @@ Every milestone ends with: CI green, image published, update applied on TrueNAS,
 - **M7 Seasonal adjustment:** per-task-type monthly multipliers + hemisphere (§5.4).
 - **M8 Species:** `species` table, provider interface with Open Plantbook + Perenual adapters, search-as-you-type on the plant form (debounced, local cache first), "apply care defaults" to create tasks; cached data with `fetched_at` and a budget-limited refresh job.
 - **M9 Import** (round-trips M5 export) **+ quick-add via photo** with optional Pl@ntNet identification.
-- **Later:** health notes, propagation, ICS feed (`/calendar.ics?token=`), Home Assistant (REST sensor of due count, or MQTT).
+- **Later:** see §10 for the owner's feature backlog (light environment, plant profile, moisture-based watering, journal, propagation). Also: health notes, ICS feed (`/calendar.ics?token=`), Home Assistant (REST sensor of due count, or MQTT).
 
 ---
 
@@ -371,6 +371,38 @@ Plan:
 | 10  | Image architecture    | `linux/amd64` only                                                                   |
 | 11  | Repo hosting          | GitHub, private for now; may open later, so keep secrets out of history from day one |
 | 12  | Claude Design         | Start now, alongside M1                                                              |
+
+---
+
+## 10. Backlog: owner feature ideas (captured 2026-10-14)
+
+Ideas from using the app. None are scheduled yet. They're grouped by theme, with where each would most naturally land and anything to keep in mind now so they stay cheap later. The owner's numbering is kept in brackets.
+
+### Light environment
+- **Windows per location** [9]: a location lists its windows by direction (e.g. 1 east, 1 north, 1 west). Small schema: `location_windows(location_id, direction N/NE/E/…, count)`. Replaces or feeds the single `light` level.
+- **Per-plant light** [1]: a plant can override its location's light, e.g. basil right at the window and monstera across the room. Likely a `light` column on `plants` (null = inherit from location), plus an optional "distance from window" (at the window / within 1 m / across the room).
+- **Grow lights** [2]: mark a plant as under a grow light, with hours per day. Light then comes from natural light + grow light rather than the window alone.
+- **Seasonal sun by location** [8]: with the home's latitude (a setting; no external service needed) and window directions, estimate daylight hours and sun strength by month. This feeds M7 seasonal adjustment: shorter, weaker winter light lengthens watering and pauses fertilizing.
+- *Placement:* a "Light" milestone right after M7, or folded into it. Do windows and per-plant overrides first; the seasonal estimate builds on them.
+
+### Plant profile
+- **Pot and soil** [5]: pot type (plastic, terracotta, ceramic, …), pot size (inches), drainage (yes/no), soil type. Plain columns on `plants`, editable in the plant form. Terracotta and pot size later inform watering hints.
+- **Size and growth over time** [4]: maturity stage (seedling, young, mature) plus measurements in inches (height, width) that change over time. Model it as a dated log, `plant_measurements(plant_id, measured_on, height_in, width_in, stage, note)`, not as columns, so growth shows as a timeline next to photos.
+- *Placement:* pot/soil is small enough to ride along with M5. Measurements pair with progress updates (below).
+
+### Care intelligence
+- **Moisture-based watering** [6]: instead of watering on a fixed interval, a watering task can be a **check**. On the due date the app asks for a moisture reading (1–10 meter scale), and the reading decides: below the plant's threshold means "Water now", otherwise "Check again in N days". Over time the app learns each plant's typical drying time and adapts the check interval. Design hooks:
+  - Add an optional `reading` to `care_events` (a new event kind `checked`), so readings live in the same append-only log.
+  - Keep `internal/schedule` pure: the adaptive interval is a function of past readings, testable like the rest.
+  - Today shows these tasks as "Check soil" with a quick 1–10 picker instead of a plain done check.
+- *Placement:* its own milestone after M5. It changes the core loop, so it needs the same test-first treatment as M3.
+
+### Journal
+- **Progress updates** [7]: periodic reminders ("How's the monstera doing?") that open a quick check-in with a photo, an optional measurement and a note. Model it as a task kind `check_in` with its own interval, whose completion links to the photo and measurement it produced. M4 photos already carry a caption and date, which is the base for this.
+- *Placement:* after M4 and the measurements work.
+
+### Later
+- **Propagation** [3]: track cuttings with parent plant, method (water, soil, leaf) and rooting progress, then promote one to a full plant. Already in the M9+ "Later" list. Low priority.
 
 ---
 
