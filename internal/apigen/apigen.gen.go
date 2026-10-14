@@ -412,8 +412,27 @@ type Problem struct {
 	Type   *string `json:"type,omitempty"`
 }
 
+// PushSubscription A browser PushSubscription, as returned by PushSubscription.toJSON().
+type PushSubscription struct {
+	Endpoint string `json:"endpoint"`
+	Keys     struct {
+		Auth   string `json:"auth"`
+		P256dh string `json:"p256dh"`
+	} `json:"keys"`
+}
+
+// PushUnsubscribe defines model for PushUnsubscribe.
+type PushUnsubscribe struct {
+	Endpoint string `json:"endpoint"`
+}
+
 // Settings defines model for Settings.
 type Settings struct {
+	// DigestTime Local time (HH:MM) of the daily care reminder, sent to every subscribed device.
+	//
+	// Example: 08:00
+	DigestTime string `json:"digest_time"`
+
 	// Timezone IANA time zone used to decide what "today" is.
 	//
 	// Example: America/Chicago
@@ -465,6 +484,12 @@ type User struct {
 	Username string `json:"username"`
 }
 
+// VapidKey defines model for VapidKey.
+type VapidKey struct {
+	// PublicKey The server's VAPID public key, URL-safe base64, for PushManager.subscribe.
+	PublicKey string `json:"public_key"`
+}
+
 // Id defines model for Id.
 type Id = string
 
@@ -508,6 +533,12 @@ type UploadPhotoMultipartRequestBody = PhotoUpload
 
 // CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
 type CreateTaskJSONRequestBody = CareTaskInput
+
+// UnsubscribePushJSONRequestBody defines body for UnsubscribePush for application/json ContentType.
+type UnsubscribePushJSONRequestBody = PushUnsubscribe
+
+// SubscribePushJSONRequestBody defines body for SubscribePush for application/json ContentType.
+type SubscribePushJSONRequestBody = PushSubscription
 
 // UpdateSettingsJSONRequestBody defines body for UpdateSettings for application/json ContentType.
 type UpdateSettingsJSONRequestBody = Settings
@@ -589,6 +620,18 @@ type ServerInterface interface {
 
 	// (POST /plants/{id}/tasks)
 	CreateTask(w http.ResponseWriter, r *http.Request, id Id)
+	// UnsubscribePush Stop reminders on a device. Unknown endpoints are ignored.
+	// (DELETE /push/subscriptions)
+	UnsubscribePush(w http.ResponseWriter, r *http.Request)
+	// SubscribePush Register this device for the daily reminder. Re-registering an endpoint updates its keys.
+	// (POST /push/subscriptions)
+	SubscribePush(w http.ResponseWriter, r *http.Request)
+	// SendTestPush Send a test notification to every device the user has subscribed.
+	// (POST /push/test)
+	SendTestPush(w http.ResponseWriter, r *http.Request)
+
+	// (GET /push/vapid-key)
+	GetVapidKey(w http.ResponseWriter, r *http.Request)
 	// UpdateSettings Replace the user's settings.
 	// (PUT /settings)
 	UpdateSettings(w http.ResponseWriter, r *http.Request)
@@ -1143,6 +1186,62 @@ func (siw *ServerInterfaceWrapper) CreateTask(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// UnsubscribePush operation middleware
+func (siw *ServerInterfaceWrapper) UnsubscribePush(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnsubscribePush(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SubscribePush operation middleware
+func (siw *ServerInterfaceWrapper) SubscribePush(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SubscribePush(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SendTestPush operation middleware
+func (siw *ServerInterfaceWrapper) SendTestPush(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SendTestPush(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetVapidKey operation middleware
+func (siw *ServerInterfaceWrapper) GetVapidKey(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetVapidKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // UpdateSettings operation middleware
 func (siw *ServerInterfaceWrapper) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -1390,6 +1489,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/settings", wrapper.UpdateSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/storage", wrapper.GetStorage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/export", wrapper.ExportData)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/push/vapid-key", wrapper.GetVapidKey)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/push/subscriptions", wrapper.UnsubscribePush)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/push/subscriptions", wrapper.SubscribePush)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/push/test", wrapper.SendTestPush)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/locations", wrapper.ListLocations)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/locations", wrapper.CreateLocation)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/locations/{id}", wrapper.DeleteLocation)
@@ -2683,6 +2786,152 @@ func (response CreateTask404ApplicationProblemPlusJSONResponse) VisitCreateTaskR
 	return err
 }
 
+type UnsubscribePushRequestObject struct {
+	Body *UnsubscribePushJSONRequestBody
+}
+
+type UnsubscribePushResponseObject interface {
+	VisitUnsubscribePushResponse(w http.ResponseWriter) error
+}
+
+type UnsubscribePush204Response struct {
+}
+
+func (response UnsubscribePush204Response) VisitUnsubscribePushResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type UnsubscribePush401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UnsubscribePush401ApplicationProblemPlusJSONResponse) VisitUnsubscribePushResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SubscribePushRequestObject struct {
+	Body *SubscribePushJSONRequestBody
+}
+
+type SubscribePushResponseObject interface {
+	VisitSubscribePushResponse(w http.ResponseWriter) error
+}
+
+type SubscribePush204Response struct {
+}
+
+func (response SubscribePush204Response) VisitSubscribePushResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type SubscribePush400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SubscribePush400ApplicationProblemPlusJSONResponse) VisitSubscribePushResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SubscribePush401ApplicationProblemPlusJSONResponse Problem
+
+func (response SubscribePush401ApplicationProblemPlusJSONResponse) VisitSubscribePushResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SendTestPushRequestObject struct {
+}
+
+type SendTestPushResponseObject interface {
+	VisitSendTestPushResponse(w http.ResponseWriter) error
+}
+
+type SendTestPush204Response struct {
+}
+
+func (response SendTestPush204Response) VisitSendTestPushResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type SendTestPush401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SendTestPush401ApplicationProblemPlusJSONResponse) VisitSendTestPushResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVapidKeyRequestObject struct {
+}
+
+type GetVapidKeyResponseObject interface {
+	VisitGetVapidKeyResponse(w http.ResponseWriter) error
+}
+
+type GetVapidKey200JSONResponse VapidKey
+
+func (response GetVapidKey200JSONResponse) VisitGetVapidKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVapidKey401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetVapidKey401ApplicationProblemPlusJSONResponse) VisitGetVapidKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type UpdateSettingsRequestObject struct {
 	Body *UpdateSettingsJSONRequestBody
 }
@@ -3060,6 +3309,18 @@ type StrictServerInterface interface {
 
 	// (POST /plants/{id}/tasks)
 	CreateTask(ctx context.Context, request CreateTaskRequestObject) (CreateTaskResponseObject, error)
+	// UnsubscribePush Stop reminders on a device. Unknown endpoints are ignored.
+	// (DELETE /push/subscriptions)
+	UnsubscribePush(ctx context.Context, request UnsubscribePushRequestObject) (UnsubscribePushResponseObject, error)
+	// SubscribePush Register this device for the daily reminder. Re-registering an endpoint updates its keys.
+	// (POST /push/subscriptions)
+	SubscribePush(ctx context.Context, request SubscribePushRequestObject) (SubscribePushResponseObject, error)
+	// SendTestPush Send a test notification to every device the user has subscribed.
+	// (POST /push/test)
+	SendTestPush(ctx context.Context, request SendTestPushRequestObject) (SendTestPushResponseObject, error)
+
+	// (GET /push/vapid-key)
+	GetVapidKey(ctx context.Context, request GetVapidKeyRequestObject) (GetVapidKeyResponseObject, error)
 	// UpdateSettings Replace the user's settings.
 	// (PUT /settings)
 	UpdateSettings(ctx context.Context, request UpdateSettingsRequestObject) (UpdateSettingsResponseObject, error)
@@ -3765,6 +4026,116 @@ func (sh *strictHandler) CreateTask(w http.ResponseWriter, r *http.Request, id I
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateTaskResponseObject); ok {
 		if err := validResponse.VisitCreateTaskResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UnsubscribePush operation middleware
+func (sh *strictHandler) UnsubscribePush(w http.ResponseWriter, r *http.Request) {
+	var request UnsubscribePushRequestObject
+
+	var body UnsubscribePushJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UnsubscribePush(ctx, request.(UnsubscribePushRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UnsubscribePush")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UnsubscribePushResponseObject); ok {
+		if err := validResponse.VisitUnsubscribePushResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SubscribePush operation middleware
+func (sh *strictHandler) SubscribePush(w http.ResponseWriter, r *http.Request) {
+	var request SubscribePushRequestObject
+
+	var body SubscribePushJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SubscribePush(ctx, request.(SubscribePushRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SubscribePush")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SubscribePushResponseObject); ok {
+		if err := validResponse.VisitSubscribePushResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SendTestPush operation middleware
+func (sh *strictHandler) SendTestPush(w http.ResponseWriter, r *http.Request) {
+	var request SendTestPushRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SendTestPush(ctx, request.(SendTestPushRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SendTestPush")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SendTestPushResponseObject); ok {
+		if err := validResponse.VisitSendTestPushResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetVapidKey operation middleware
+func (sh *strictHandler) GetVapidKey(w http.ResponseWriter, r *http.Request) {
+	var request GetVapidKeyRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetVapidKey(ctx, request.(GetVapidKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetVapidKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetVapidKeyResponseObject); ok {
+		if err := validResponse.VisitGetVapidKeyResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
