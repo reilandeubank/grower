@@ -1,0 +1,15 @@
+# grower on TrueNAS SCALE (Apps → Discover Apps → ⋮ → Install via YAML).
+# Replace every value marked CHANGE. See docs/deploy.md for the full walkthrough.
+services:
+  grower:
+    image: ghcr.io/reilandeubank/grower:v0.1.0   # CHANGE on each update (docs/update.md)
+    restart: unless-stopped
+    user: "568:568"                               # TrueNAS "apps" user; must own the dataset
+    environment:
+      GROWER_BASE_URL: https://grower.example.com # CHANGE: the public URL served by Nginx Proxy Manager
+      GROWER_TRUSTED_PROXIES: 172.16.0.0/12       # CHANGE: the subnet NPM's requests arrive from (docs/deploy.md §4)
+      GROWER_TZ: America/Chicago                  # CHANGE: your time zone
+    volumes:
+      - /mnt/tank/apps/grower:/data               # CHANGE: your dataset's mount path
+    ports:
+      - "8080:8080"                               # remove if NPM reaches grower over a shared Docker network

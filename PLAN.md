@@ -283,8 +283,8 @@ Table-driven tests plus a property test (`testing/quick` or `rapid`):
 │   ├── src/routes/ …
 │   └── e2e/                  Playwright
 ├── web/embed.go              //go:embed dist
-├── deploy/compose.yaml, deploy/nginx-proxy-manager.md
-├── docs/ deploy.md update.md backup.md export-format.md adr/
+├── deploy/compose.yaml       TrueNAS custom app (NPM setup is in docs/deploy.md)
+├── docs/ PROGRESS.md deploy.md update.md development.md (later: backup.md export-format.md)
 └── .github/workflows/ ci.yml release.yml
 ```
 
