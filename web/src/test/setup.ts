@@ -1,7 +1,10 @@
 import { afterEach } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 
 afterEach(() => cleanup());
+
+// The first test in a file also loads its lazy routes; 1 s (the default) is too tight on slow CI runners.
+configure({ asyncUtilTimeout: 5000 });
 
 // Node's Request rejects relative URLs; the browser resolves them against the page. Match the browser.
 const NodeRequest = globalThis.Request;
