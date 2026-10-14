@@ -18,6 +18,45 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for Anchor.
+const (
+	Fixed          Anchor = "fixed"
+	FromCompletion Anchor = "from_completion"
+)
+
+// Valid indicates whether the value is a known member of the Anchor enum.
+func (e Anchor) Valid() bool {
+	switch e {
+	case Fixed:
+		return true
+	case FromCompletion:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EventKind.
+const (
+	Done    EventKind = "done"
+	Skipped EventKind = "skipped"
+	Snoozed EventKind = "snoozed"
+)
+
+// Valid indicates whether the value is a known member of the EventKind enum.
+func (e EventKind) Valid() bool {
+	switch e {
+	case Done:
+		return true
+	case Skipped:
+		return true
+	case Snoozed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LightLevel.
 const (
 	BrightIndirect LightLevel = "bright_indirect"
@@ -40,6 +79,114 @@ func (e LightLevel) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// Defines values for TaskKind.
+const (
+	Custom    TaskKind = "custom"
+	Fertilize TaskKind = "fertilize"
+	Mist      TaskKind = "mist"
+	Repot     TaskKind = "repot"
+	Rotate    TaskKind = "rotate"
+	Water     TaskKind = "water"
+)
+
+// Valid indicates whether the value is a known member of the TaskKind enum.
+func (e TaskKind) Valid() bool {
+	switch e {
+	case Custom:
+		return true
+	case Fertilize:
+		return true
+	case Mist:
+		return true
+	case Repot:
+		return true
+	case Rotate:
+		return true
+	case Water:
+		return true
+	default:
+		return false
+	}
+}
+
+// Anchor from_completion: the next due date counts from when the task was last done or skipped.
+// fixed: due dates stay on start_on + k × interval_days regardless of when it was done.
+type Anchor string
+
+// CareEvent defines model for CareEvent.
+type CareEvent struct {
+	Id          string              `json:"id"`
+	Kind        EventKind           `json:"kind"`
+	LocalDate   openapi_types.Date  `json:"local_date"`
+	Note        string              `json:"note"`
+	OccurredAt  time.Time           `json:"occurred_at"`
+	SnoozeUntil *openapi_types.Date `json:"snooze_until"`
+	TaskId      string              `json:"task_id"`
+}
+
+// CareEventInput defines model for CareEventInput.
+type CareEventInput struct {
+	Kind EventKind `json:"kind"`
+
+	// LocalDate The user's local date when it happened. Defaults to today in the user's time zone;
+	// must be within a day of it, so a tap just before midnight counts for that day.
+	LocalDate *openapi_types.Date `json:"local_date,omitempty"`
+	Note      *string             `json:"note,omitempty"`
+
+	// SnoozeUntil Required for snoozed, and must be after today. Not allowed otherwise.
+	SnoozeUntil *openapi_types.Date `json:"snooze_until,omitempty"`
+}
+
+// CareEventList defines model for CareEventList.
+type CareEventList struct {
+	Items []HistoryEntry `json:"items"`
+}
+
+// CareTask defines model for CareTask.
+type CareTask struct {
+	// Anchor from_completion: the next due date counts from when the task was last done or skipped.
+	// fixed: due dates stay on start_on + k × interval_days regardless of when it was done.
+	Anchor       Anchor   `json:"anchor"`
+	Id           string   `json:"id"`
+	IntervalDays int      `json:"interval_days"`
+	Kind         TaskKind `json:"kind"`
+	Label        string   `json:"label"`
+
+	// LastDone The last date it was done (skips and snoozes don't count).
+	LastDone *openapi_types.Date `json:"last_done"`
+	NextDue  openapi_types.Date  `json:"next_due"`
+	PlantId  string              `json:"plant_id"`
+	StartOn  openapi_types.Date  `json:"start_on"`
+}
+
+// CareTaskInput defines model for CareTaskInput.
+type CareTaskInput struct {
+	Anchor       *Anchor  `json:"anchor,omitempty"`
+	IntervalDays int      `json:"interval_days"`
+	Kind         TaskKind `json:"kind"`
+
+	// Label Required for custom tasks; ignored otherwise.
+	Label *string `json:"label,omitempty"`
+
+	// StartOn First due date. Defaults to today in the user's time zone.
+	StartOn *openapi_types.Date `json:"start_on,omitempty"`
+}
+
+// CareTaskList defines model for CareTaskList.
+type CareTaskList struct {
+	Items []CareTask `json:"items"`
+}
+
+// EventKind defines model for EventKind.
+type EventKind string
+
+// HistoryEntry defines model for HistoryEntry.
+type HistoryEntry struct {
+	Event     CareEvent `json:"event"`
+	TaskKind  TaskKind  `json:"task_kind"`
+	TaskLabel string    `json:"task_label"`
 }
 
 // LightLevel defines model for LightLevel.
@@ -68,6 +215,12 @@ type LocationInput struct {
 // LocationList defines model for LocationList.
 type LocationList struct {
 	Items []Location `json:"items"`
+}
+
+// LoggedEvent defines model for LoggedEvent.
+type LoggedEvent struct {
+	Event CareEvent `json:"event"`
+	Task  CareTask  `json:"task"`
 }
 
 // LoginRequest defines model for LoginRequest.
@@ -143,6 +296,30 @@ type Settings struct {
 	Timezone string `json:"timezone"`
 }
 
+// TaskKind defines model for TaskKind.
+type TaskKind string
+
+// Today defines model for Today.
+type Today struct {
+	// Date Today in the user's time zone.
+	Date openapi_types.Date `json:"date"`
+	Due  []TodayItem        `json:"due"`
+
+	// Overdue Most overdue first.
+	Overdue []TodayItem `json:"overdue"`
+
+	// Upcoming Due within the next 7 days, soonest first.
+	Upcoming []TodayItem `json:"upcoming"`
+}
+
+// TodayItem defines model for TodayItem.
+type TodayItem struct {
+	// DaysOverdue Days past task.next_due; 0 when due today, negative when upcoming.
+	DaysOverdue int      `json:"days_overdue"`
+	Plant       Plant    `json:"plant"`
+	Task        CareTask `json:"task"`
+}
+
 // User defines model for User.
 type User struct {
 	Id       string `json:"id"`
@@ -156,6 +333,11 @@ type Id = string
 type ListPlantsParams struct {
 	// Archived true lists only archived plants; false (default) only active ones.
 	Archived *bool `form:"archived,omitempty" json:"archived,omitempty"`
+}
+
+// ListPlantEventsParams defines parameters for ListPlantEvents.
+type ListPlantEventsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
@@ -173,6 +355,15 @@ type CreatePlantJSONRequestBody = PlantInput
 // UpdatePlantJSONRequestBody defines body for UpdatePlant for application/json ContentType.
 type UpdatePlantJSONRequestBody = PlantUpdate
 
+// CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
+type CreateTaskJSONRequestBody = CareTaskInput
+
+// UpdateTaskJSONRequestBody defines body for UpdateTask for application/json ContentType.
+type UpdateTaskJSONRequestBody = CareTaskInput
+
+// LogTaskEventJSONRequestBody defines body for LogTaskEvent for application/json ContentType.
+type LogTaskEventJSONRequestBody = CareEventInput
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Login Log in with username and password; sets the session cookie.
@@ -181,6 +372,9 @@ type ServerInterface interface {
 	// Logout End the current session and clear the cookie.
 	// (POST /auth/logout)
 	Logout(w http.ResponseWriter, r *http.Request)
+	// UndoEvent Undo an event. It is kept but ignored from now on.
+	// (DELETE /events/{id})
+	UndoEvent(w http.ResponseWriter, r *http.Request, id Id)
 	// ListLocations All locations, ordered by name, with how many active plants each holds.
 	// (GET /locations)
 	ListLocations(w http.ResponseWriter, r *http.Request)
@@ -211,6 +405,27 @@ type ServerInterface interface {
 	// UpdatePlant Replace a plant's fields, including whether it is archived.
 	// (PUT /plants/{id})
 	UpdatePlant(w http.ResponseWriter, r *http.Request, id Id)
+	// ListPlantEvents A plant's care history, newest first. Undone events are left out.
+	// (GET /plants/{id}/events)
+	ListPlantEvents(w http.ResponseWriter, r *http.Request, id Id, params ListPlantEventsParams)
+	// ListPlantTasks A plant's care tasks, ordered by next due date.
+	// (GET /plants/{id}/tasks)
+	ListPlantTasks(w http.ResponseWriter, r *http.Request, id Id)
+
+	// (POST /plants/{id}/tasks)
+	CreateTask(w http.ResponseWriter, r *http.Request, id Id)
+	// DeleteTask Delete a task and its history.
+	// (DELETE /tasks/{id})
+	DeleteTask(w http.ResponseWriter, r *http.Request, id Id)
+	// UpdateTask Replace a task's schedule. History is kept.
+	// (PUT /tasks/{id})
+	UpdateTask(w http.ResponseWriter, r *http.Request, id Id)
+	// LogTaskEvent Record that a task was done, skipped or snoozed.
+	// (POST /tasks/{id}/events)
+	LogTaskEvent(w http.ResponseWriter, r *http.Request, id Id)
+	// GetToday Care due today or overdue, plus the next 7 days, for active plants.
+	// (GET /today)
+	GetToday(w http.ResponseWriter, r *http.Request)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -241,6 +456,32 @@ func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Logout(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UndoEvent operation middleware
+func (siw *ServerInterfaceWrapper) UndoEvent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UndoEvent(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -469,6 +710,192 @@ func (siw *ServerInterfaceWrapper) UpdatePlant(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ListPlantEvents operation middleware
+func (siw *ServerInterfaceWrapper) ListPlantEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPlantEventsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlantEvents(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPlantTasks operation middleware
+func (siw *ServerInterfaceWrapper) ListPlantTasks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlantTasks(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateTask operation middleware
+func (siw *ServerInterfaceWrapper) CreateTask(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateTask(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteTask operation middleware
+func (siw *ServerInterfaceWrapper) DeleteTask(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteTask(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateTask operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTask(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTask(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LogTaskEvent operation middleware
+func (siw *ServerInterfaceWrapper) LogTaskEvent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LogTaskEvent(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetToday operation middleware
+func (siw *ServerInterfaceWrapper) GetToday(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetToday(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -601,6 +1028,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/plants/{id}", wrapper.DeletePlant)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plants/{id}", wrapper.GetPlant)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/plants/{id}", wrapper.UpdatePlant)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/today", wrapper.GetToday)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plants/{id}/tasks", wrapper.ListPlantTasks)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plants/{id}/tasks", wrapper.CreateTask)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plants/{id}/events", wrapper.ListPlantEvents)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/tasks/{id}", wrapper.DeleteTask)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tasks/{id}", wrapper.UpdateTask)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tasks/{id}/events", wrapper.LogTaskEvent)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/events/{id}", wrapper.UndoEvent)
 
 	return m
 }
@@ -686,6 +1121,58 @@ type Logout204Response struct {
 func (response Logout204Response) VisitLogoutResponse(w http.ResponseWriter) error {
 	w.WriteHeader(204)
 	return nil
+}
+
+type UndoEventRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type UndoEventResponseObject interface {
+	VisitUndoEventResponse(w http.ResponseWriter) error
+}
+
+type UndoEvent200JSONResponse CareTask
+
+func (response UndoEvent200JSONResponse) VisitUndoEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UndoEvent401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UndoEvent401ApplicationProblemPlusJSONResponse) VisitUndoEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UndoEvent404ApplicationProblemPlusJSONResponse Problem
+
+func (response UndoEvent404ApplicationProblemPlusJSONResponse) VisitUndoEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
 }
 
 type ListLocationsRequestObject struct {
@@ -1210,6 +1697,395 @@ func (response UpdatePlant404ApplicationProblemPlusJSONResponse) VisitUpdatePlan
 	return err
 }
 
+type ListPlantEventsRequestObject struct {
+	Id     Id `json:"id"`
+	Params ListPlantEventsParams
+}
+
+type ListPlantEventsResponseObject interface {
+	VisitListPlantEventsResponse(w http.ResponseWriter) error
+}
+
+type ListPlantEvents200JSONResponse CareEventList
+
+func (response ListPlantEvents200JSONResponse) VisitListPlantEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlantEvents401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListPlantEvents401ApplicationProblemPlusJSONResponse) VisitListPlantEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlantEvents404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListPlantEvents404ApplicationProblemPlusJSONResponse) VisitListPlantEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlantTasksRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type ListPlantTasksResponseObject interface {
+	VisitListPlantTasksResponse(w http.ResponseWriter) error
+}
+
+type ListPlantTasks200JSONResponse CareTaskList
+
+func (response ListPlantTasks200JSONResponse) VisitListPlantTasksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlantTasks401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListPlantTasks401ApplicationProblemPlusJSONResponse) VisitListPlantTasksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlantTasks404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListPlantTasks404ApplicationProblemPlusJSONResponse) VisitListPlantTasksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTaskRequestObject struct {
+	Id   Id `json:"id"`
+	Body *CreateTaskJSONRequestBody
+}
+
+type CreateTaskResponseObject interface {
+	VisitCreateTaskResponse(w http.ResponseWriter) error
+}
+
+type CreateTask201JSONResponse CareTask
+
+func (response CreateTask201JSONResponse) VisitCreateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTask400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateTask400ApplicationProblemPlusJSONResponse) VisitCreateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTask401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateTask401ApplicationProblemPlusJSONResponse) VisitCreateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTask404ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateTask404ApplicationProblemPlusJSONResponse) VisitCreateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteTaskRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type DeleteTaskResponseObject interface {
+	VisitDeleteTaskResponse(w http.ResponseWriter) error
+}
+
+type DeleteTask204Response struct {
+}
+
+func (response DeleteTask204Response) VisitDeleteTaskResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteTask401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DeleteTask401ApplicationProblemPlusJSONResponse) VisitDeleteTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteTask404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteTask404ApplicationProblemPlusJSONResponse) VisitDeleteTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTaskRequestObject struct {
+	Id   Id `json:"id"`
+	Body *UpdateTaskJSONRequestBody
+}
+
+type UpdateTaskResponseObject interface {
+	VisitUpdateTaskResponse(w http.ResponseWriter) error
+}
+
+type UpdateTask200JSONResponse CareTask
+
+func (response UpdateTask200JSONResponse) VisitUpdateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTask400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateTask400ApplicationProblemPlusJSONResponse) VisitUpdateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTask401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateTask401ApplicationProblemPlusJSONResponse) VisitUpdateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTask404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateTask404ApplicationProblemPlusJSONResponse) VisitUpdateTaskResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogTaskEventRequestObject struct {
+	Id   Id `json:"id"`
+	Body *LogTaskEventJSONRequestBody
+}
+
+type LogTaskEventResponseObject interface {
+	VisitLogTaskEventResponse(w http.ResponseWriter) error
+}
+
+type LogTaskEvent201JSONResponse LoggedEvent
+
+func (response LogTaskEvent201JSONResponse) VisitLogTaskEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogTaskEvent400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response LogTaskEvent400ApplicationProblemPlusJSONResponse) VisitLogTaskEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogTaskEvent401ApplicationProblemPlusJSONResponse Problem
+
+func (response LogTaskEvent401ApplicationProblemPlusJSONResponse) VisitLogTaskEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogTaskEvent404ApplicationProblemPlusJSONResponse Problem
+
+func (response LogTaskEvent404ApplicationProblemPlusJSONResponse) VisitLogTaskEventResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTodayRequestObject struct {
+}
+
+type GetTodayResponseObject interface {
+	VisitGetTodayResponse(w http.ResponseWriter) error
+}
+
+type GetToday200JSONResponse Today
+
+func (response GetToday200JSONResponse) VisitGetTodayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetToday401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetToday401ApplicationProblemPlusJSONResponse) VisitGetTodayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Login Log in with username and password; sets the session cookie.
@@ -1218,6 +2094,9 @@ type StrictServerInterface interface {
 	// Logout End the current session and clear the cookie.
 	// (POST /auth/logout)
 	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
+	// UndoEvent Undo an event. It is kept but ignored from now on.
+	// (DELETE /events/{id})
+	UndoEvent(ctx context.Context, request UndoEventRequestObject) (UndoEventResponseObject, error)
 	// ListLocations All locations, ordered by name, with how many active plants each holds.
 	// (GET /locations)
 	ListLocations(ctx context.Context, request ListLocationsRequestObject) (ListLocationsResponseObject, error)
@@ -1248,6 +2127,27 @@ type StrictServerInterface interface {
 	// UpdatePlant Replace a plant's fields, including whether it is archived.
 	// (PUT /plants/{id})
 	UpdatePlant(ctx context.Context, request UpdatePlantRequestObject) (UpdatePlantResponseObject, error)
+	// ListPlantEvents A plant's care history, newest first. Undone events are left out.
+	// (GET /plants/{id}/events)
+	ListPlantEvents(ctx context.Context, request ListPlantEventsRequestObject) (ListPlantEventsResponseObject, error)
+	// ListPlantTasks A plant's care tasks, ordered by next due date.
+	// (GET /plants/{id}/tasks)
+	ListPlantTasks(ctx context.Context, request ListPlantTasksRequestObject) (ListPlantTasksResponseObject, error)
+
+	// (POST /plants/{id}/tasks)
+	CreateTask(ctx context.Context, request CreateTaskRequestObject) (CreateTaskResponseObject, error)
+	// DeleteTask Delete a task and its history.
+	// (DELETE /tasks/{id})
+	DeleteTask(ctx context.Context, request DeleteTaskRequestObject) (DeleteTaskResponseObject, error)
+	// UpdateTask Replace a task's schedule. History is kept.
+	// (PUT /tasks/{id})
+	UpdateTask(ctx context.Context, request UpdateTaskRequestObject) (UpdateTaskResponseObject, error)
+	// LogTaskEvent Record that a task was done, skipped or snoozed.
+	// (POST /tasks/{id}/events)
+	LogTaskEvent(ctx context.Context, request LogTaskEventRequestObject) (LogTaskEventResponseObject, error)
+	// GetToday Care due today or overdue, plus the next 7 days, for active plants.
+	// (GET /today)
+	GetToday(ctx context.Context, request GetTodayRequestObject) (GetTodayResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -1337,6 +2237,32 @@ func (sh *strictHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(LogoutResponseObject); ok {
 		if err := validResponse.VisitLogoutResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UndoEvent operation middleware
+func (sh *strictHandler) UndoEvent(w http.ResponseWriter, r *http.Request, id Id) {
+	var request UndoEventRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UndoEvent(ctx, request.(UndoEventRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UndoEvent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UndoEventResponseObject); ok {
+		if err := validResponse.VisitUndoEventResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1617,6 +2543,208 @@ func (sh *strictHandler) UpdatePlant(w http.ResponseWriter, r *http.Request, id 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdatePlantResponseObject); ok {
 		if err := validResponse.VisitUpdatePlantResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPlantEvents operation middleware
+func (sh *strictHandler) ListPlantEvents(w http.ResponseWriter, r *http.Request, id Id, params ListPlantEventsParams) {
+	var request ListPlantEventsRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPlantEvents(ctx, request.(ListPlantEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPlantEvents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPlantEventsResponseObject); ok {
+		if err := validResponse.VisitListPlantEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPlantTasks operation middleware
+func (sh *strictHandler) ListPlantTasks(w http.ResponseWriter, r *http.Request, id Id) {
+	var request ListPlantTasksRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPlantTasks(ctx, request.(ListPlantTasksRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPlantTasks")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPlantTasksResponseObject); ok {
+		if err := validResponse.VisitListPlantTasksResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateTask operation middleware
+func (sh *strictHandler) CreateTask(w http.ResponseWriter, r *http.Request, id Id) {
+	var request CreateTaskRequestObject
+
+	request.Id = id
+
+	var body CreateTaskJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateTask(ctx, request.(CreateTaskRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateTask")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateTaskResponseObject); ok {
+		if err := validResponse.VisitCreateTaskResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteTask operation middleware
+func (sh *strictHandler) DeleteTask(w http.ResponseWriter, r *http.Request, id Id) {
+	var request DeleteTaskRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteTask(ctx, request.(DeleteTaskRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteTask")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteTaskResponseObject); ok {
+		if err := validResponse.VisitDeleteTaskResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateTask operation middleware
+func (sh *strictHandler) UpdateTask(w http.ResponseWriter, r *http.Request, id Id) {
+	var request UpdateTaskRequestObject
+
+	request.Id = id
+
+	var body UpdateTaskJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateTask(ctx, request.(UpdateTaskRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateTask")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateTaskResponseObject); ok {
+		if err := validResponse.VisitUpdateTaskResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// LogTaskEvent operation middleware
+func (sh *strictHandler) LogTaskEvent(w http.ResponseWriter, r *http.Request, id Id) {
+	var request LogTaskEventRequestObject
+
+	request.Id = id
+
+	var body LogTaskEventJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.LogTaskEvent(ctx, request.(LogTaskEventRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LogTaskEvent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LogTaskEventResponseObject); ok {
+		if err := validResponse.VisitLogTaskEventResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetToday operation middleware
+func (sh *strictHandler) GetToday(w http.ResponseWriter, r *http.Request) {
+	var request GetTodayRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetToday(ctx, request.(GetTodayRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetToday")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetTodayResponseObject); ok {
+		if err := validResponse.VisitGetTodayResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

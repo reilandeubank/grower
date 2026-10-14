@@ -129,6 +129,123 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Care due today or overdue, plus the next 7 days, for active plants.
+         * @description "Today" is the current date in the user's time zone. Each task appears once,
+         *     in the section its next due date falls in.
+         */
+        get: operations["getToday"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plants/{id}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** A plant's care tasks, ordered by next due date. */
+        get: operations["listPlantTasks"];
+        put?: never;
+        post: operations["createTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plants/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** A plant's care history, newest first. Undone events are left out. */
+        get: operations["listPlantEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace a task's schedule. History is kept. */
+        put: operations["updateTask"];
+        post?: never;
+        /** Delete a task and its history. */
+        delete: operations["deleteTask"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tasks/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record that a task was done, skipped or snoozed. */
+        post: operations["logTaskEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Undo an event. It is kept but ignored from now on. */
+        delete: operations["undoEvent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -207,6 +324,110 @@ export interface components {
         };
         PlantList: {
             items: components["schemas"]["Plant"][];
+        };
+        /** @enum {string} */
+        TaskKind: "water" | "fertilize" | "mist" | "repot" | "rotate" | "custom";
+        /**
+         * @description from_completion: the next due date counts from when the task was last done or skipped.
+         *     fixed: due dates stay on start_on + k × interval_days regardless of when it was done.
+         * @enum {string}
+         */
+        Anchor: "from_completion" | "fixed";
+        CareTaskInput: {
+            kind: components["schemas"]["TaskKind"];
+            /**
+             * @description Required for custom tasks; ignored otherwise.
+             * @default
+             */
+            label: string;
+            interval_days: number;
+            /** @default from_completion */
+            anchor: components["schemas"]["Anchor"];
+            /**
+             * Format: date
+             * @description First due date. Defaults to today in the user's time zone.
+             */
+            start_on?: string;
+        };
+        CareTask: {
+            id: string;
+            plant_id: string;
+            kind: components["schemas"]["TaskKind"];
+            label: string;
+            interval_days: number;
+            anchor: components["schemas"]["Anchor"];
+            /** Format: date */
+            start_on: string;
+            /** Format: date */
+            next_due: string;
+            /**
+             * Format: date
+             * @description The last date it was done (skips and snoozes don't count).
+             */
+            last_done: string | null;
+        };
+        CareTaskList: {
+            items: components["schemas"]["CareTask"][];
+        };
+        /** @enum {string} */
+        EventKind: "done" | "skipped" | "snoozed";
+        CareEventInput: {
+            kind: components["schemas"]["EventKind"];
+            /**
+             * Format: date
+             * @description The user's local date when it happened. Defaults to today in the user's time zone;
+             *     must be within a day of it, so a tap just before midnight counts for that day.
+             */
+            local_date?: string;
+            /**
+             * Format: date
+             * @description Required for snoozed, and must be after today. Not allowed otherwise.
+             */
+            snooze_until?: string;
+            /** @default  */
+            note: string;
+        };
+        CareEvent: {
+            id: string;
+            task_id: string;
+            kind: components["schemas"]["EventKind"];
+            /** Format: date */
+            local_date: string;
+            /** Format: date */
+            snooze_until: string | null;
+            note: string;
+            /** Format: date-time */
+            occurred_at: string;
+        };
+        LoggedEvent: {
+            event: components["schemas"]["CareEvent"];
+            task: components["schemas"]["CareTask"];
+        };
+        HistoryEntry: {
+            event: components["schemas"]["CareEvent"];
+            task_kind: components["schemas"]["TaskKind"];
+            task_label: string;
+        };
+        CareEventList: {
+            items: components["schemas"]["HistoryEntry"][];
+        };
+        TodayItem: {
+            task: components["schemas"]["CareTask"];
+            plant: components["schemas"]["Plant"];
+            /** @description Days past task.next_due; 0 when due today, negative when upcoming. */
+            days_overdue: number;
+        };
+        Today: {
+            /**
+             * Format: date
+             * @description Today in the user's time zone.
+             */
+            date: string;
+            /** @description Most overdue first. */
+            overdue: components["schemas"]["TodayItem"][];
+            due: components["schemas"]["TodayItem"][];
+            /** @description Due within the next 7 days, soonest first. */
+            upcoming: components["schemas"]["TodayItem"][];
         };
         Problem: {
             type?: string;
@@ -521,6 +742,210 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    getToday: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Today view. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Today"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    listPlantTasks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tasks. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareTaskList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    createTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CareTaskInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareTask"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listPlantEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description History. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareEventList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CareTaskInput"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareTask"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    deleteTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    logTaskEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CareEventInput"];
+            };
+        };
+        responses: {
+            /** @description Recorded. Returns the event and the task with its new next due date. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoggedEvent"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    undoEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Undone. Returns the task with its recalculated next due date. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareTask"];
+                };
             };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];

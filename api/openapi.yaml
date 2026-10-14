@@ -214,6 +214,162 @@ paths:
           $ref: "#/components/responses/Problem"
         "404":
           $ref: "#/components/responses/Problem"
+  /today:
+    get:
+      operationId: getToday
+      summary: Care due today or overdue, plus the next 7 days, for active plants.
+      description: |
+        "Today" is the current date in the user's time zone. Each task appears once,
+        in the section its next due date falls in.
+      responses:
+        "200":
+          description: The Today view.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Today"
+        "401":
+          $ref: "#/components/responses/Problem"
+  /plants/{id}/tasks:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      operationId: listPlantTasks
+      summary: A plant's care tasks, ordered by next due date.
+      responses:
+        "200":
+          description: Tasks.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareTaskList"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CareTaskInput"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareTask"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+  /plants/{id}/events:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      operationId: listPlantEvents
+      summary: A plant's care history, newest first. Undone events are left out.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: History.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareEventList"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+  /tasks/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      operationId: updateTask
+      summary: Replace a task's schedule. History is kept.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CareTaskInput"
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareTask"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deleteTask
+      summary: Delete a task and its history.
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+  /tasks/{id}/events:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: logTaskEvent
+      summary: Record that a task was done, skipped or snoozed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CareEventInput"
+      responses:
+        "201":
+          description: Recorded. Returns the event and the task with its new next due date.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoggedEvent"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+  /events/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    delete:
+      operationId: undoEvent
+      summary: Undo an event. It is kept but ignored from now on.
+      responses:
+        "200":
+          description: Undone. Returns the task with its recalculated next due date.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareTask"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
 components:
   parameters:
     Id:
@@ -385,6 +541,177 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Plant"
+    TaskKind:
+      type: string
+      enum: [water, fertilize, mist, repot, rotate, custom]
+    Anchor:
+      type: string
+      enum: [from_completion, fixed]
+      description: |
+        from_completion: the next due date counts from when the task was last done or skipped.
+        fixed: due dates stay on start_on + k × interval_days regardless of when it was done.
+    CareTaskInput:
+      type: object
+      required: [kind, interval_days]
+      properties:
+        kind:
+          $ref: "#/components/schemas/TaskKind"
+        label:
+          type: string
+          maxLength: 40
+          default: ""
+          description: Required for custom tasks; ignored otherwise.
+        interval_days:
+          type: integer
+          minimum: 1
+          maximum: 365
+        anchor:
+          allOf:
+            - $ref: "#/components/schemas/Anchor"
+          default: from_completion
+        start_on:
+          type: string
+          format: date
+          description: First due date. Defaults to today in the user's time zone.
+    CareTask:
+      type: object
+      required: [id, plant_id, kind, label, interval_days, anchor, start_on, next_due, last_done]
+      properties:
+        id:
+          type: string
+        plant_id:
+          type: string
+        kind:
+          $ref: "#/components/schemas/TaskKind"
+        label:
+          type: string
+        interval_days:
+          type: integer
+        anchor:
+          $ref: "#/components/schemas/Anchor"
+        start_on:
+          type: string
+          format: date
+        next_due:
+          type: string
+          format: date
+        last_done:
+          type: string
+          format: date
+          nullable: true
+          description: The last date it was done (skips and snoozes don't count).
+    CareTaskList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CareTask"
+    EventKind:
+      type: string
+      enum: [done, skipped, snoozed]
+    CareEventInput:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          $ref: "#/components/schemas/EventKind"
+        local_date:
+          type: string
+          format: date
+          description: |
+            The user's local date when it happened. Defaults to today in the user's time zone;
+            must be within a day of it, so a tap just before midnight counts for that day.
+        snooze_until:
+          type: string
+          format: date
+          description: Required for snoozed, and must be after today. Not allowed otherwise.
+        note:
+          type: string
+          maxLength: 500
+          default: ""
+    CareEvent:
+      type: object
+      required: [id, task_id, kind, local_date, snooze_until, note, occurred_at]
+      properties:
+        id:
+          type: string
+        task_id:
+          type: string
+        kind:
+          $ref: "#/components/schemas/EventKind"
+        local_date:
+          type: string
+          format: date
+        snooze_until:
+          type: string
+          format: date
+          nullable: true
+        note:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+    LoggedEvent:
+      type: object
+      required: [event, task]
+      properties:
+        event:
+          $ref: "#/components/schemas/CareEvent"
+        task:
+          $ref: "#/components/schemas/CareTask"
+    HistoryEntry:
+      type: object
+      required: [event, task_kind, task_label]
+      properties:
+        event:
+          $ref: "#/components/schemas/CareEvent"
+        task_kind:
+          $ref: "#/components/schemas/TaskKind"
+        task_label:
+          type: string
+    CareEventList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistoryEntry"
+    TodayItem:
+      type: object
+      required: [task, plant, days_overdue]
+      properties:
+        task:
+          $ref: "#/components/schemas/CareTask"
+        plant:
+          $ref: "#/components/schemas/Plant"
+        days_overdue:
+          type: integer
+          description: Days past task.next_due; 0 when due today, negative when upcoming.
+    Today:
+      type: object
+      required: [date, overdue, due, upcoming]
+      properties:
+        date:
+          type: string
+          format: date
+          description: Today in the user's time zone.
+        overdue:
+          type: array
+          description: Most overdue first.
+          items:
+            $ref: "#/components/schemas/TodayItem"
+        due:
+          type: array
+          items:
+            $ref: "#/components/schemas/TodayItem"
+        upcoming:
+          type: array
+          description: Due within the next 7 days, soonest first.
+          items:
+            $ref: "#/components/schemas/TodayItem"
     Problem:
       type: object
       required: [title, status]
