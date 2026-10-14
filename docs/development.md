@@ -1,6 +1,8 @@
 # Local development
 
-Needs Go (version in `go.mod`), Node 24 and Docker (for the image build only).
+**With Nix (recommended):** `direnv allow` once, and the flake devshell provides Go, Node 24, golangci-lint, ImageMagick and Playwright browsers that run on NixOS. Without direnv: `nix develop`.
+
+**Without Nix:** install Go (version in `go.mod`) and Node 24, then `npx --prefix web playwright install chromium` for e2e. Docker is only needed for the image build.
 
 ```sh
 make web-install                                   # npm ci in web/
