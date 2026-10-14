@@ -1,0 +1,101 @@
+.bar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 20;
+  height: calc(var(--tab-bar) + var(--safe-bottom));
+  padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
+  background: var(--surface-raised);
+  border-top: 1px solid var(--line);
+}
+
+.railLogo {
+  display: none;
+}
+
+.list {
+  display: flex;
+  height: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  flex: 1;
+  display: flex;
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--target-min);
+  color: var(--ink-muted);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  transition: color var(--dur-press) var(--ease-out);
+}
+
+.tab:focus-visible {
+  outline-offset: -2px;
+}
+
+.pill {
+  display: grid;
+  place-items: center;
+  width: calc(var(--space-8) * 2);
+  height: var(--space-8);
+  border-radius: var(--radius-full);
+  transition: background-color var(--dur-enter) var(--ease-out);
+}
+
+.label {
+  font-weight: 700;
+}
+
+.active {
+  color: var(--brand);
+}
+
+.active .pill {
+  background: var(--brand-soft);
+}
+
+.tab:hover:not(.active) .pill {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+@media (min-width: 900px) {
+  .bar {
+    inset: 0 auto 0 0;
+    width: calc(var(--rail-width) + var(--safe-left));
+    height: auto;
+    padding: calc(var(--safe-top) + var(--space-6)) 0 var(--space-6) var(--safe-left);
+    border-top: 0;
+    border-right: 1px solid var(--line);
+  }
+
+  .railLogo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--space-8);
+  }
+
+  .list {
+    flex-direction: column;
+    gap: var(--space-3);
+    height: auto;
+  }
+
+  .item {
+    flex: none;
+  }
+
+  .tab {
+    padding: var(--space-2) 0;
+  }
+}

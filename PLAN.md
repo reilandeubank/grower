@@ -325,7 +325,7 @@ Table-driven tests plus a property test (`testing/quick` or `rapid`):
 ## 7. Auth, proxy, operations details
 
 - **Passwords:** argon2id (`golang.org/x/crypto/argon2`). Login rate limiting is per IP + global (token bucket, in memory), with a constant-time response.
-- **Sessions:** 32-byte random token, stored as SHA-256 in `sessions`. Cookie `__Host-session`, `HttpOnly; Secure; SameSite=Lax; Path=/`. **Sliding 90-day expiry** (refreshed at most once a day), so the installed PWA effectively stays logged in. Logout and "log out other devices" are in Settings.
+- **Sessions:** 32-byte random token, stored as SHA-256 in `sessions`. Cookie `__Host-grower_session` (or `grower_session` when the base URL is plain http, for local dev), `HttpOnly; Secure; SameSite=Lax; Path=/`. **Sliding 90-day expiry** (refreshed at most once a day), so the installed PWA effectively stays logged in. Logout and "log out other devices" are in Settings.
 - **CSRF:** SameSite=Lax + mutating endpoints require `Content-Type: application/json` or a custom `X-Requested-With` header, with an Origin check against `GROWER_BASE_URL`.
 - **Proxy:** honour `X-Forwarded-For/Proto` only from `GROWER_TRUSTED_PROXIES` CIDRs. `GROWER_BASE_URL` is authoritative for absolute URLs and cookie security. Add security headers (CSP, HSTS left to the proxy).
 - **Nginx Proxy Manager:** NPM sends `X-Forwarded-For`, `X-Forwarded-Proto` and `X-Real-IP` by default. Put the app and NPM on a shared Docker network, set `GROWER_TRUSTED_PROXIES` to that network's subnet, and don't publish the app's port on the host. On the proxy host, enable Force SSL + HSTS and raise `client_max_body_size` (Advanced tab, e.g. `20m`) for photo uploads.

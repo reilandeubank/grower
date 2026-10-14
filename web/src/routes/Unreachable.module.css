@@ -1,0 +1,12 @@
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: calc(var(--safe-top) + var(--space-4)) calc(var(--gutter) + var(--safe-right))
+    calc(var(--safe-bottom) + var(--space-4)) calc(var(--gutter) + var(--safe-left));
+}
+
+.page > * {
+  width: 100%;
+  max-width: 400px;
+}

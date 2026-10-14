@@ -1,0 +1,35 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--ink);
+}
+
+.stacked {
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.mark {
+  flex: none;
+}
+
+.tile {
+  fill: var(--brand);
+}
+
+.leaf {
+  fill: var(--brand-soft);
+}
+
+.stem {
+  stroke: var(--brand);
+}
+
+.stemTail {
+  stroke: var(--brand-soft);
+}
+
+.word {
+  text-transform: lowercase;
+}

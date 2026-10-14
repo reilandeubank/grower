@@ -1,0 +1,8 @@
+# oapi-codegen config: models, a net/http (Go 1.22+ ServeMux) server and the strict
+# server interface that internal/api implements.
+package: apigen
+output: apigen.gen.go
+generate:
+  models: true
+  std-http-server: true
+  strict-server: true

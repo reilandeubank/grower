@@ -1,0 +1,32 @@
+.shell {
+  min-height: 100dvh;
+}
+
+.main {
+  min-height: 100dvh;
+}
+
+.content {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-2) calc(var(--gutter) + var(--safe-right))
+    calc(var(--tab-bar) + var(--safe-bottom) + var(--space-8)) calc(var(--gutter) + var(--safe-left));
+}
+
+.noTopBar {
+  padding-top: calc(var(--safe-top) + var(--space-8));
+}
+
+@media (min-width: 900px) {
+  .main {
+    padding-left: calc(var(--rail-width) + var(--safe-left));
+  }
+
+  .content {
+    padding-bottom: var(--space-8);
+  }
+
+  .noTopBar {
+    padding-top: calc(var(--safe-top) + var(--space-8) * 2);
+  }
+}
