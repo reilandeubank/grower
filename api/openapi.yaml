@@ -370,6 +370,117 @@ paths:
           $ref: "#/components/responses/Problem"
         "404":
           $ref: "#/components/responses/Problem"
+  /plants/{id}/photos:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      operationId: listPlantPhotos
+      summary: A plant's photos, newest taken_at first.
+      responses:
+        "200":
+          description: Photos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhotoList"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: uploadPhoto
+      summary: Upload a JPEG or PNG (max 15 MB). The plant's first photo becomes its cover.
+      description: |
+        Clients should downscale to at most 2560 px on the long side and re-encode as JPEG
+        before uploading. Uploading the same bytes to the same plant again returns the
+        existing photo with 200.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PhotoUpload"
+      responses:
+        "200":
+          description: Already uploaded; the existing photo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Photo"
+        "201":
+          description: Uploaded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Photo"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "413":
+          $ref: "#/components/responses/Problem"
+  /plants/{id}/cover:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      operationId: setPlantCover
+      summary: Choose the plant's cover photo, or clear it with null.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoverInput"
+      responses:
+        "200":
+          description: The plant with its new cover.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plant"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+  /photos/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      operationId: updatePhoto
+      summary: Replace a photo's caption and date.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhotoInput"
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Photo"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deletePhoto
+      summary: Delete a photo and its files. If it was the cover, the newest remaining photo becomes the cover.
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
 components:
   parameters:
     Id:
@@ -511,8 +622,13 @@ components:
               type: boolean
     Plant:
       type: object
-      required: [id, name, species, location_id, acquired_on, notes, archived, created_at]
+      required: [id, name, species, location_id, acquired_on, notes, archived, cover, created_at]
       properties:
+        cover:
+          allOf:
+            - $ref: "#/components/schemas/Photo"
+          nullable: true
+          description: The cover photo, or null when the plant has none.
         id:
           type: string
         name:
@@ -541,6 +657,79 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Plant"
+    PhotoUrls:
+      type: object
+      description: |
+        Same-origin URLs, served outside /api at /media/photos/{id}/{small|medium|original}.
+        They require the session cookie and never change for a given photo.
+      required: [small, medium, original]
+      properties:
+        small:
+          type: string
+          description: JPEG, 256 px on the long side.
+        medium:
+          type: string
+          description: JPEG, 1024 px on the long side.
+        original:
+          type: string
+    Photo:
+      type: object
+      required: [id, plant_id, taken_at, caption, width, height, urls]
+      properties:
+        id:
+          type: string
+        plant_id:
+          type: string
+        taken_at:
+          type: string
+          format: date-time
+        caption:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+        urls:
+          $ref: "#/components/schemas/PhotoUrls"
+    PhotoList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Photo"
+    PhotoUpload:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+        caption:
+          type: string
+          maxLength: 500
+        taken_at:
+          type: string
+          format: date-time
+          description: When the photo was taken. Defaults to the upload time.
+    PhotoInput:
+      type: object
+      required: [caption, taken_at]
+      properties:
+        caption:
+          type: string
+          maxLength: 500
+        taken_at:
+          type: string
+          format: date-time
+    CoverInput:
+      type: object
+      required: [photo_id]
+      properties:
+        photo_id:
+          type: string
+          nullable: true
     TaskKind:
       type: string
       enum: [water, fertilize, mist, repot, rotate, custom]

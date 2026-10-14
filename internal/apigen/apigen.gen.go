@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"time"
 
@@ -179,6 +180,11 @@ type CareTaskList struct {
 	Items []CareTask `json:"items"`
 }
 
+// CoverInput defines model for CoverInput.
+type CoverInput struct {
+	PhotoId *string `json:"photo_id"`
+}
+
 // EventKind defines model for EventKind.
 type EventKind string
 
@@ -240,16 +246,64 @@ type Me struct {
 	Version string `json:"version"`
 }
 
+// Photo defines model for Photo.
+type Photo struct {
+	Caption string    `json:"caption"`
+	Height  int       `json:"height"`
+	Id      string    `json:"id"`
+	PlantId string    `json:"plant_id"`
+	TakenAt time.Time `json:"taken_at"`
+
+	// Urls Same-origin URLs, served outside /api at /media/photos/{id}/{small|medium|original}.
+	// They require the session cookie and never change for a given photo.
+	Urls  PhotoUrls `json:"urls"`
+	Width int       `json:"width"`
+}
+
+// PhotoInput defines model for PhotoInput.
+type PhotoInput struct {
+	Caption string    `json:"caption"`
+	TakenAt time.Time `json:"taken_at"`
+}
+
+// PhotoList defines model for PhotoList.
+type PhotoList struct {
+	Items []Photo `json:"items"`
+}
+
+// PhotoUpload defines model for PhotoUpload.
+type PhotoUpload struct {
+	Caption *string            `json:"caption,omitempty"`
+	File    openapi_types.File `json:"file"`
+
+	// TakenAt When the photo was taken. Defaults to the upload time.
+	TakenAt *time.Time `json:"taken_at,omitempty"`
+}
+
+// PhotoUrls Same-origin URLs, served outside /api at /media/photos/{id}/{small|medium|original}.
+// They require the session cookie and never change for a given photo.
+type PhotoUrls struct {
+	// Medium JPEG, 1024 px on the long side.
+	Medium   string `json:"medium"`
+	Original string `json:"original"`
+
+	// Small JPEG, 256 px on the long side.
+	Small string `json:"small"`
+}
+
 // Plant defines model for Plant.
 type Plant struct {
 	AcquiredOn *openapi_types.Date `json:"acquired_on"`
 	Archived   bool                `json:"archived"`
-	CreatedAt  time.Time           `json:"created_at"`
-	Id         string              `json:"id"`
-	LocationId *string             `json:"location_id"`
-	Name       string              `json:"name"`
-	Notes      string              `json:"notes"`
-	Species    string              `json:"species"`
+
+	// Cover The cover photo, or null when the plant has none.
+	Cover      *Photo    `json:"cover"`
+	CreatedAt  time.Time `json:"created_at"`
+	Id         string    `json:"id"`
+	LocationId *string   `json:"location_id"`
+	Name       string    `json:"name"`
+	Notes      string    `json:"notes"`
+	Species    string    `json:"species"`
 }
 
 // PlantInput defines model for PlantInput.
@@ -352,11 +406,20 @@ type CreateLocationJSONRequestBody = LocationInput
 // UpdateLocationJSONRequestBody defines body for UpdateLocation for application/json ContentType.
 type UpdateLocationJSONRequestBody = LocationInput
 
+// UpdatePhotoJSONRequestBody defines body for UpdatePhoto for application/json ContentType.
+type UpdatePhotoJSONRequestBody = PhotoInput
+
 // CreatePlantJSONRequestBody defines body for CreatePlant for application/json ContentType.
 type CreatePlantJSONRequestBody = PlantInput
 
 // UpdatePlantJSONRequestBody defines body for UpdatePlant for application/json ContentType.
 type UpdatePlantJSONRequestBody = PlantUpdate
+
+// SetPlantCoverJSONRequestBody defines body for SetPlantCover for application/json ContentType.
+type SetPlantCoverJSONRequestBody = CoverInput
+
+// UploadPhotoMultipartRequestBody defines body for UploadPhoto for multipart/form-data ContentType.
+type UploadPhotoMultipartRequestBody = PhotoUpload
 
 // CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
 type CreateTaskJSONRequestBody = CareTaskInput
@@ -393,6 +456,12 @@ type ServerInterface interface {
 	// GetMe The signed-in user, their settings and the server version.
 	// (GET /me)
 	GetMe(w http.ResponseWriter, r *http.Request)
+	// DeletePhoto Delete a photo and its files. If it was the cover, the newest remaining photo becomes the cover.
+	// (DELETE /photos/{id})
+	DeletePhoto(w http.ResponseWriter, r *http.Request, id Id)
+	// UpdatePhoto Replace a photo's caption and date.
+	// (PUT /photos/{id})
+	UpdatePhoto(w http.ResponseWriter, r *http.Request, id Id)
 	// ListPlants Plants ordered by name. Archived plants are excluded unless archived=true.
 	// (GET /plants)
 	ListPlants(w http.ResponseWriter, r *http.Request, params ListPlantsParams)
@@ -408,9 +477,18 @@ type ServerInterface interface {
 	// UpdatePlant Replace a plant's fields, including whether it is archived.
 	// (PUT /plants/{id})
 	UpdatePlant(w http.ResponseWriter, r *http.Request, id Id)
+	// SetPlantCover Choose the plant's cover photo, or clear it with null.
+	// (PUT /plants/{id}/cover)
+	SetPlantCover(w http.ResponseWriter, r *http.Request, id Id)
 	// ListPlantEvents A plant's care history, newest first. Undone events are left out.
 	// (GET /plants/{id}/events)
 	ListPlantEvents(w http.ResponseWriter, r *http.Request, id Id, params ListPlantEventsParams)
+	// ListPlantPhotos A plant's photos, newest taken_at first.
+	// (GET /plants/{id}/photos)
+	ListPlantPhotos(w http.ResponseWriter, r *http.Request, id Id)
+	// UploadPhoto Upload a JPEG or PNG (max 15 MB). The plant's first photo becomes its cover.
+	// (POST /plants/{id}/photos)
+	UploadPhoto(w http.ResponseWriter, r *http.Request, id Id)
 	// ListPlantTasks A plant's care tasks, ordered by next due date.
 	// (GET /plants/{id}/tasks)
 	ListPlantTasks(w http.ResponseWriter, r *http.Request, id Id)
@@ -588,6 +666,58 @@ func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request)
 	handler.ServeHTTP(w, r)
 }
 
+// DeletePhoto operation middleware
+func (siw *ServerInterfaceWrapper) DeletePhoto(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePhoto(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdatePhoto operation middleware
+func (siw *ServerInterfaceWrapper) UpdatePhoto(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdatePhoto(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPlants operation middleware
 func (siw *ServerInterfaceWrapper) ListPlants(w http.ResponseWriter, r *http.Request) {
 
@@ -713,6 +843,32 @@ func (siw *ServerInterfaceWrapper) UpdatePlant(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// SetPlantCover operation middleware
+func (siw *ServerInterfaceWrapper) SetPlantCover(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetPlantCover(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPlantEvents operation middleware
 func (siw *ServerInterfaceWrapper) ListPlantEvents(w http.ResponseWriter, r *http.Request) {
 
@@ -746,6 +902,58 @@ func (siw *ServerInterfaceWrapper) ListPlantEvents(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListPlantEvents(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPlantPhotos operation middleware
+func (siw *ServerInterfaceWrapper) ListPlantPhotos(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlantPhotos(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadPhoto operation middleware
+func (siw *ServerInterfaceWrapper) UploadPhoto(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadPhoto(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1039,6 +1247,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tasks/{id}", wrapper.UpdateTask)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tasks/{id}/events", wrapper.LogTaskEvent)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/events/{id}", wrapper.UndoEvent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plants/{id}/photos", wrapper.ListPlantPhotos)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plants/{id}/photos", wrapper.UploadPhoto)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/plants/{id}/cover", wrapper.SetPlantCover)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/photos/{id}", wrapper.DeletePhoto)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/photos/{id}", wrapper.UpdatePhoto)
 
 	return m
 }
@@ -1445,6 +1658,119 @@ func (response GetMe401ApplicationProblemPlusJSONResponse) VisitGetMeResponse(w 
 	return err
 }
 
+type DeletePhotoRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type DeletePhotoResponseObject interface {
+	VisitDeletePhotoResponse(w http.ResponseWriter) error
+}
+
+type DeletePhoto204Response struct {
+}
+
+func (response DeletePhoto204Response) VisitDeletePhotoResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeletePhoto401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DeletePhoto401ApplicationProblemPlusJSONResponse) VisitDeletePhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeletePhoto404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeletePhoto404ApplicationProblemPlusJSONResponse) VisitDeletePhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePhotoRequestObject struct {
+	Id   Id `json:"id"`
+	Body *UpdatePhotoJSONRequestBody
+}
+
+type UpdatePhotoResponseObject interface {
+	VisitUpdatePhotoResponse(w http.ResponseWriter) error
+}
+
+type UpdatePhoto200JSONResponse Photo
+
+func (response UpdatePhoto200JSONResponse) VisitUpdatePhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePhoto400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdatePhoto400ApplicationProblemPlusJSONResponse) VisitUpdatePhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePhoto401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdatePhoto401ApplicationProblemPlusJSONResponse) VisitUpdatePhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePhoto404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdatePhoto404ApplicationProblemPlusJSONResponse) VisitUpdatePhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListPlantsRequestObject struct {
 	Params ListPlantsParams
 }
@@ -1700,6 +2026,73 @@ func (response UpdatePlant404ApplicationProblemPlusJSONResponse) VisitUpdatePlan
 	return err
 }
 
+type SetPlantCoverRequestObject struct {
+	Id   Id `json:"id"`
+	Body *SetPlantCoverJSONRequestBody
+}
+
+type SetPlantCoverResponseObject interface {
+	VisitSetPlantCoverResponse(w http.ResponseWriter) error
+}
+
+type SetPlantCover200JSONResponse Plant
+
+func (response SetPlantCover200JSONResponse) VisitSetPlantCoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetPlantCover400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response SetPlantCover400ApplicationProblemPlusJSONResponse) VisitSetPlantCoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetPlantCover401ApplicationProblemPlusJSONResponse Problem
+
+func (response SetPlantCover401ApplicationProblemPlusJSONResponse) VisitSetPlantCoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetPlantCover404ApplicationProblemPlusJSONResponse Problem
+
+func (response SetPlantCover404ApplicationProblemPlusJSONResponse) VisitSetPlantCoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListPlantEventsRequestObject struct {
 	Id     Id `json:"id"`
 	Params ListPlantEventsParams
@@ -1749,6 +2142,153 @@ func (response ListPlantEvents404ApplicationProblemPlusJSONResponse) VisitListPl
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlantPhotosRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type ListPlantPhotosResponseObject interface {
+	VisitListPlantPhotosResponse(w http.ResponseWriter) error
+}
+
+type ListPlantPhotos200JSONResponse PhotoList
+
+func (response ListPlantPhotos200JSONResponse) VisitListPlantPhotosResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlantPhotos401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListPlantPhotos401ApplicationProblemPlusJSONResponse) VisitListPlantPhotosResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlantPhotos404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListPlantPhotos404ApplicationProblemPlusJSONResponse) VisitListPlantPhotosResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadPhotoRequestObject struct {
+	Id   Id `json:"id"`
+	Body *multipart.Reader
+}
+
+type UploadPhotoResponseObject interface {
+	VisitUploadPhotoResponse(w http.ResponseWriter) error
+}
+
+type UploadPhoto200JSONResponse Photo
+
+func (response UploadPhoto200JSONResponse) VisitUploadPhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadPhoto201JSONResponse Photo
+
+func (response UploadPhoto201JSONResponse) VisitUploadPhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadPhoto400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UploadPhoto400ApplicationProblemPlusJSONResponse) VisitUploadPhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadPhoto401ApplicationProblemPlusJSONResponse Problem
+
+func (response UploadPhoto401ApplicationProblemPlusJSONResponse) VisitUploadPhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadPhoto404ApplicationProblemPlusJSONResponse Problem
+
+func (response UploadPhoto404ApplicationProblemPlusJSONResponse) VisitUploadPhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadPhoto413ApplicationProblemPlusJSONResponse Problem
+
+func (response UploadPhoto413ApplicationProblemPlusJSONResponse) VisitUploadPhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(413)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -2115,6 +2655,12 @@ type StrictServerInterface interface {
 	// GetMe The signed-in user, their settings and the server version.
 	// (GET /me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
+	// DeletePhoto Delete a photo and its files. If it was the cover, the newest remaining photo becomes the cover.
+	// (DELETE /photos/{id})
+	DeletePhoto(ctx context.Context, request DeletePhotoRequestObject) (DeletePhotoResponseObject, error)
+	// UpdatePhoto Replace a photo's caption and date.
+	// (PUT /photos/{id})
+	UpdatePhoto(ctx context.Context, request UpdatePhotoRequestObject) (UpdatePhotoResponseObject, error)
 	// ListPlants Plants ordered by name. Archived plants are excluded unless archived=true.
 	// (GET /plants)
 	ListPlants(ctx context.Context, request ListPlantsRequestObject) (ListPlantsResponseObject, error)
@@ -2130,9 +2676,18 @@ type StrictServerInterface interface {
 	// UpdatePlant Replace a plant's fields, including whether it is archived.
 	// (PUT /plants/{id})
 	UpdatePlant(ctx context.Context, request UpdatePlantRequestObject) (UpdatePlantResponseObject, error)
+	// SetPlantCover Choose the plant's cover photo, or clear it with null.
+	// (PUT /plants/{id}/cover)
+	SetPlantCover(ctx context.Context, request SetPlantCoverRequestObject) (SetPlantCoverResponseObject, error)
 	// ListPlantEvents A plant's care history, newest first. Undone events are left out.
 	// (GET /plants/{id}/events)
 	ListPlantEvents(ctx context.Context, request ListPlantEventsRequestObject) (ListPlantEventsResponseObject, error)
+	// ListPlantPhotos A plant's photos, newest taken_at first.
+	// (GET /plants/{id}/photos)
+	ListPlantPhotos(ctx context.Context, request ListPlantPhotosRequestObject) (ListPlantPhotosResponseObject, error)
+	// UploadPhoto Upload a JPEG or PNG (max 15 MB). The plant's first photo becomes its cover.
+	// (POST /plants/{id}/photos)
+	UploadPhoto(ctx context.Context, request UploadPhotoRequestObject) (UploadPhotoResponseObject, error)
 	// ListPlantTasks A plant's care tasks, ordered by next due date.
 	// (GET /plants/{id}/tasks)
 	ListPlantTasks(ctx context.Context, request ListPlantTasksRequestObject) (ListPlantTasksResponseObject, error)
@@ -2411,6 +2966,65 @@ func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DeletePhoto operation middleware
+func (sh *strictHandler) DeletePhoto(w http.ResponseWriter, r *http.Request, id Id) {
+	var request DeletePhotoRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeletePhoto(ctx, request.(DeletePhotoRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeletePhoto")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeletePhotoResponseObject); ok {
+		if err := validResponse.VisitDeletePhotoResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdatePhoto operation middleware
+func (sh *strictHandler) UpdatePhoto(w http.ResponseWriter, r *http.Request, id Id) {
+	var request UpdatePhotoRequestObject
+
+	request.Id = id
+
+	var body UpdatePhotoJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdatePhoto(ctx, request.(UpdatePhotoRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdatePhoto")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdatePhotoResponseObject); ok {
+		if err := validResponse.VisitUpdatePhotoResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListPlants operation middleware
 func (sh *strictHandler) ListPlants(w http.ResponseWriter, r *http.Request, params ListPlantsParams) {
 	var request ListPlantsRequestObject
@@ -2553,6 +3167,39 @@ func (sh *strictHandler) UpdatePlant(w http.ResponseWriter, r *http.Request, id 
 	}
 }
 
+// SetPlantCover operation middleware
+func (sh *strictHandler) SetPlantCover(w http.ResponseWriter, r *http.Request, id Id) {
+	var request SetPlantCoverRequestObject
+
+	request.Id = id
+
+	var body SetPlantCoverJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetPlantCover(ctx, request.(SetPlantCoverRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetPlantCover")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetPlantCoverResponseObject); ok {
+		if err := validResponse.VisitSetPlantCoverResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListPlantEvents operation middleware
 func (sh *strictHandler) ListPlantEvents(w http.ResponseWriter, r *http.Request, id Id, params ListPlantEventsParams) {
 	var request ListPlantEventsRequestObject
@@ -2573,6 +3220,65 @@ func (sh *strictHandler) ListPlantEvents(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListPlantEventsResponseObject); ok {
 		if err := validResponse.VisitListPlantEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPlantPhotos operation middleware
+func (sh *strictHandler) ListPlantPhotos(w http.ResponseWriter, r *http.Request, id Id) {
+	var request ListPlantPhotosRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPlantPhotos(ctx, request.(ListPlantPhotosRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPlantPhotos")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPlantPhotosResponseObject); ok {
+		if err := validResponse.VisitListPlantPhotosResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UploadPhoto operation middleware
+func (sh *strictHandler) UploadPhoto(w http.ResponseWriter, r *http.Request, id Id) {
+	var request UploadPhotoRequestObject
+
+	request.Id = id
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UploadPhoto(ctx, request.(UploadPhotoRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UploadPhoto")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UploadPhotoResponseObject); ok {
+		if err := validResponse.VisitUploadPhotoResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

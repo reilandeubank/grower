@@ -76,7 +76,8 @@ Every milestone ends with: CI green, image published, update applied on TrueNAS,
 ### M4: Photos
 
 - Migration 0004: `photos`; `media/` layout (§3).
-- Upload (multipart, size cap, client-side resize to ~2560px max + HEIC → JPEG in the browser), server-side EXIF orientation, thumbnails at 256/1024 px, served with long-cache immutable headers.
+- Upload (multipart, 15 MB cap, client-side resize to ≤2560 px and JPEG re-encode), server-side EXIF orientation for thumbnails, small (256 px) and medium (1024 px) JPEG thumbnails, auth-checked `/media` with immutable caching. The first photo becomes the cover.
+- HEIC: Chrome on Android cannot decode it, and a WASM decoder is a large dependency. M4 shows a clear "unsupported format" message instead; HEIC conversion is a backlog item if it turns out to matter.
 - Timeline tab on plant detail; set cover photo; camera capture via `<input capture>`.
 
 ### M5: MVP hardening, release v1.0

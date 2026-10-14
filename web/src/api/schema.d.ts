@@ -246,6 +246,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/plants/{id}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** A plant's photos, newest taken_at first. */
+        get: operations["listPlantPhotos"];
+        put?: never;
+        /**
+         * Upload a JPEG or PNG (max 15 MB). The plant's first photo becomes its cover.
+         * @description Clients should downscale to at most 2560 px on the long side and re-encode as JPEG
+         *     before uploading. Uploading the same bytes to the same plant again returns the
+         *     existing photo with 200.
+         */
+        post: operations["uploadPhoto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plants/{id}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Choose the plant's cover photo, or clear it with null. */
+        put: operations["setPlantCover"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/photos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace a photo's caption and date. */
+        put: operations["updatePhoto"];
+        post?: never;
+        /** Delete a photo and its files. If it was the cover, the newest remaining photo becomes the cover. */
+        delete: operations["deletePhoto"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -311,6 +375,8 @@ export interface components {
             archived: boolean;
         };
         Plant: {
+            /** @description The cover photo, or null when the plant has none. */
+            cover: components["schemas"]["Photo"] | null;
             id: string;
             name: string;
             species: string;
@@ -324,6 +390,48 @@ export interface components {
         };
         PlantList: {
             items: components["schemas"]["Plant"][];
+        };
+        /**
+         * @description Same-origin URLs, served outside /api at /media/photos/{id}/{small|medium|original}.
+         *     They require the session cookie and never change for a given photo.
+         */
+        PhotoUrls: {
+            /** @description JPEG, 256 px on the long side. */
+            small: string;
+            /** @description JPEG, 1024 px on the long side. */
+            medium: string;
+            original: string;
+        };
+        Photo: {
+            id: string;
+            plant_id: string;
+            /** Format: date-time */
+            taken_at: string;
+            caption: string;
+            width: number;
+            height: number;
+            urls: components["schemas"]["PhotoUrls"];
+        };
+        PhotoList: {
+            items: components["schemas"]["Photo"][];
+        };
+        PhotoUpload: {
+            /** Format: binary */
+            file: string;
+            caption?: string;
+            /**
+             * Format: date-time
+             * @description When the photo was taken. Defaults to the upload time.
+             */
+            taken_at?: string;
+        };
+        PhotoInput: {
+            caption: string;
+            /** Format: date-time */
+            taken_at: string;
+        };
+        CoverInput: {
+            photo_id: string | null;
         };
         /** @enum {string} */
         TaskKind: "water" | "fertilize" | "mist" | "repot" | "rotate" | "custom";
@@ -948,6 +1056,149 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CareTask"];
                 };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listPlantPhotos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Photos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    uploadPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["PhotoUpload"];
+            };
+        };
+        responses: {
+            /** @description Already uploaded; the existing photo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Photo"];
+                };
+            };
+            /** @description Uploaded. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Photo"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            413: components["responses"]["Problem"];
+        };
+    };
+    setPlantCover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoverInput"];
+            };
+        };
+        responses: {
+            /** @description The plant with its new cover. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plant"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updatePhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoInput"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Photo"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    deletePhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
