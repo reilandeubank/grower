@@ -10,3 +10,11 @@ globalThis.Request = class extends NodeRequest {
     super(typeof input === "string" ? new URL(input, window.location.href) : input, init);
   }
 } as typeof Request;
+
+// jsdom has <dialog> but not showModal/close; enough of them for BottomSheet.
+HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
+  this.open = true;
+};
+HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
+  this.open = false;
+};

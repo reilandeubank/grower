@@ -24,3 +24,8 @@ func WriteProblem(w http.ResponseWriter, status int, detail string) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(problem(status, detail))
 }
+
+// badRequest is the body of the generated 400 responses.
+func badRequest(detail string) apigen.ProblemApplicationProblemPlusJSONResponse {
+	return apigen.ProblemApplicationProblemPlusJSONResponse(problem(http.StatusBadRequest, detail))
+}

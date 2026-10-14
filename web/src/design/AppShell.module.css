@@ -17,13 +17,21 @@
   padding-top: calc(var(--safe-top) + var(--space-8));
 }
 
+.noTabBar {
+  padding-bottom: 0;
+}
+
 @media (min-width: 900px) {
-  .main {
+  .withTabBar {
     padding-left: calc(var(--rail-width) + var(--safe-left));
   }
 
   .content {
     padding-bottom: var(--space-8);
+  }
+
+  .noTabBar {
+    padding-bottom: 0;
   }
 
   .noTopBar {

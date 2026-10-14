@@ -1,0 +1,26 @@
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+}
+
+.question {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.question svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--danger);
+}
+
+.buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}

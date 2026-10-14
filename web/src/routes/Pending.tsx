@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import styles from "./Pending.module.css";
 
 /** Shows nothing for the first 300ms so fast loads don't flash, then a quiet indicator. */
-export function Pending() {
+export function Pending({ inline = false }: { inline?: boolean }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const id = window.setTimeout(() => setVisible(true), 300);
     return () => window.clearTimeout(id);
   }, []);
   return (
-    <div className={styles.pending} role="status" aria-live="polite">
+    <div className={`${styles.pending} ${inline ? styles.inline : ""}`} role="status" aria-live="polite">
       {visible && (
         <>
           <span className={styles.dots} aria-hidden="true">

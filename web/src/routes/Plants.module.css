@@ -1,0 +1,21 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* Room to scroll the last row clear of the FAB. */
+  padding-bottom: calc(var(--target-min) + var(--space-4));
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+/* Quiet, but still a full-size tap target. */
+.archivedLink {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: 0 var(--space-4);
+  color: var(--ink-muted);
+}

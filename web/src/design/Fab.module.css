@@ -1,0 +1,31 @@
+.fab {
+  position: fixed;
+  right: calc(var(--gutter) + var(--safe-right));
+  bottom: calc(var(--tab-bar) + var(--safe-bottom) + var(--space-4));
+  z-index: 15;
+  display: grid;
+  place-items: center;
+  width: calc(var(--target-min) + var(--space-2));
+  height: calc(var(--target-min) + var(--space-2));
+  border-radius: var(--radius-lg);
+  background: var(--brand);
+  color: var(--on-brand);
+  box-shadow: var(--shadow-sheet);
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color var(--dur-press) var(--ease-out);
+}
+
+.fab:hover {
+  background: color-mix(in srgb, var(--brand) 90%, var(--ink));
+}
+
+.fab:active {
+  transform: scale(0.96);
+}
+
+@media (min-width: 900px) {
+  .fab {
+    bottom: calc(var(--safe-bottom) + var(--space-8));
+  }
+}

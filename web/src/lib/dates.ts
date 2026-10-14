@@ -19,3 +19,11 @@ function format(now: Date, options: Intl.DateTimeFormatOptions, timeZone?: strin
     return new Intl.DateTimeFormat("en-US", options).format(now);
   }
 }
+
+/** Formats a civil date (YYYY-MM-DD) as "Mar 2024". */
+export function formatMonthYear(civil: string): string {
+  const [year, month] = civil.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, 1)),
+  );
+}

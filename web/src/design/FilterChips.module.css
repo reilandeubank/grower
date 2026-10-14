@@ -1,0 +1,54 @@
+/* Scrolls edge to edge, past the screen gutter. */
+.row {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 calc(var(--gutter) * -1);
+  padding: 0 var(--gutter);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.row::-webkit-scrollbar {
+  display: none;
+}
+
+/* The button is a full tap target; the visible pill inside it is smaller. */
+.chip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-full);
+}
+
+.chip:focus-visible {
+  outline-offset: -2px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: calc(var(--space-8) + var(--space-1));
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background-color var(--dur-press) var(--ease-out);
+}
+
+.chip:hover .pill {
+  background: color-mix(in srgb, var(--surface-raised) 94%, var(--ink));
+}
+
+.chip[aria-pressed="true"] .pill {
+  padding-left: var(--space-3);
+  border-color: transparent;
+  background: var(--brand-soft);
+}

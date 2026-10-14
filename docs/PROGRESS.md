@@ -7,8 +7,8 @@ Milestone definitions live in `PLAN.md` §2.
 
 | Milestone | Status |
 |---|---|
-| M1 Deployed skeleton + auth | in progress |
-| M2 Plants and locations | not started |
+| M1 Deployed skeleton + auth | done (deployed 2026-10-14) |
+| M2 Plants and locations | done (pending deploy) |
 | M3 Care tasks + scheduling + Today | not started |
 | M4 Photos | not started |
 | M5 MVP hardening, v1.0 | not started |
@@ -21,15 +21,28 @@ Milestone definitions live in `PLAN.md` §2.
 - [x] Dockerfile, compose file, CI (test) and release (GHCR) workflows; Nix devshell
 - [x] Docs: deploy (TrueNAS + Nginx Proxy Manager), update, local dev
 - [x] First image published to GHCR (`ghcr.io/reilandeubank/grower:v0.1.0`, `:main`)
-- [ ] Deployed on TrueNAS behind NPM; logged in from the installed PWA (needs owner)
+- [x] Deployed on TrueNAS behind NPM; logged in from the installed PWA
 
 ## Owner action items
-- Decide GHCR access: make the `grower` package public, or create a `read:packages` token for TrueNAS (docs/deploy.md §2).
-- Create the `apps/grower` dataset, install `deploy/compose.yaml`, add the NPM proxy host, create your user (docs/deploy.md §1–4).
-- Report back the domain and what `GROWER_TRUSTED_PROXIES` should be (from the app logs).
-- Install the PWA on your phone and confirm the session survives a restart (M1 exit check).
+- After M2 is released: update the TrueNAS app (image `:main`, or tag a version) and try adding plants on the phone.
 
 ## Checkpoints
+
+### 2026-10-14 · CP3: M2 integrated
+- Verified: no codegen drift, golangci-lint 0 issues, eslint + tsc clean, Go tests + 23 Vitest, 3 Playwright e2e (incl. the full locations/plants flow).
+- Known minor issues: after deleting a plant, Back lands on its "Plant not found" page; location filter is client-side (fine at this scale).
+- Next: M3 (care tasks, `internal/schedule`, Today). Write the schedule test table first (PLAN §5.4).
+
+### 2026-10-14 · Frontend M2
+- Done: design components Fab, FilterChips, PlantCard/PlantPhoto (initial placeholder until M4), BottomSheet (native `<dialog>`), SelectField, TextAreaField (shared `Field` wrapper with TextField), ConfirmButton (inline two-step delete), Tabs, ErrorText; Button `danger` variant; field errors use `--danger`; TopBar `leading` slot and optional title; AppShell `tabBar={false}` for full-screen forms. Hooks in `src/plants/queries.ts` and `src/locations/queries.ts` (writes refresh plants and locations). Screens: `/plants` (location chips in `?location=`, grid, FAB, Archived link), `/plants/archived`, `/plants/:id` (Care · Photos · Notes, restore), `/plants/new` and `/plants/:id/edit` (new location from a sheet, archive, delete), `/settings/locations` (sheet add/edit/delete, 409 name message).
+- Checks: lint, typecheck, 23 Vitest, build, `make e2e` (3 tests, incl. the M2 flow) all pass.
+- Notes: the location filter is client-side (the API has no `?location=`). Saves refetch the open plant once more than needed; harmless.
+- Next: M3 care tasks (the Care tab and Today).
+
+### 2026-10-14 · Backend M2
+- Done: sqlc queries `locations.sql` and `plants.sql`, handlers `internal/api/{locations,plants}_handlers.go`, and integration tests `internal/server/{locations,plants}_test.go` (CRUD, plant_count, unplacing on delete, archive filter and timestamp, validation, 404, 401, CSRF on PUT/DELETE). New dependency: `github.com/oapi-codegen/runtime` (the generated code needs it). Checks pass: gen (no drift), build, vet, golangci-lint (0 issues), tests.
+- Duplicate names and unknown `location_id` come from SQLite constraint errors (`db.IsUniqueViolation`, `db.IsForeignKeyViolation`), not pre-checks. Names are trimmed; species and notes are not. A bad `acquired_on` fails JSON decoding, so it gets the generic 400 detail.
+- Problem details: 409 "A location with that name already exists.", 400 "That location does not exist.", "Name is required.", "Name must be 60 (or 80) characters or fewer.", 404 "Location not found." and "Plant not found."
 
 ### 2026-10-14 · CP2: M1 code complete, integrated
 - Verified in the devshell: `make gen` (no drift), `make lint` (golangci-lint 0 issues, eslint, tsc), `make test` (Go + 16 Vitest), `make e2e` (2 Playwright tests vs the real binary), `make docker` (24 MB image; container user create, login and HEALTHCHECK all OK).

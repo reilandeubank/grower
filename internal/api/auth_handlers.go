@@ -18,8 +18,7 @@ func (h *Handler) Login(ctx context.Context, req apigen.LoginRequestObject) (api
 	body := req.Body
 	if n := utf8.RuneCountInString(body.Username); n < 1 || n > 64 || body.Password == "" || utf8.RuneCountInString(body.Password) > 256 {
 		return apigen.Login400ApplicationProblemPlusJSONResponse{
-			ProblemApplicationProblemPlusJSONResponse: apigen.ProblemApplicationProblemPlusJSONResponse(
-				problem(http.StatusBadRequest, "Username and password are required.")),
+			ProblemApplicationProblemPlusJSONResponse: badRequest("Username and password are required."),
 		}, nil
 	}
 

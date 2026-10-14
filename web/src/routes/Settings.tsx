@@ -1,5 +1,5 @@
-import { LogOut } from "lucide-react";
-import { useNavigate } from "react-router";
+import { ChevronRight, LogOut } from "lucide-react";
+import { Link, useNavigate } from "react-router";
 import { useLogout } from "../auth/hooks";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { AppShell, Button, TopBar } from "../design";
@@ -40,6 +40,18 @@ export function Settings() {
                 Couldn't log out. Check your connection, then try again.
               </p>
             )}
+          </div>
+        </section>
+
+        <section aria-labelledby="settings-plants" className={styles.section}>
+          <h2 id="settings-plants" className="t-heading">
+            Plants
+          </h2>
+          <div className={styles.card}>
+            <Link to="/settings/locations" className={`t-body ${styles.row} ${styles.link}`}>
+              Locations
+              <ChevronRight size={20} strokeWidth={1.75} aria-hidden="true" className={styles.muted} />
+            </Link>
           </div>
         </section>
 

@@ -22,6 +22,27 @@ type Job struct {
 	UpdatedAt   string
 }
 
+type Location struct {
+	ID        string
+	Name      string
+	Light     sql.NullString
+	Notes     string
+	CreatedAt string
+	UpdatedAt string
+}
+
+type Plant struct {
+	ID         string
+	Name       string
+	Species    string
+	LocationID sql.NullString
+	AcquiredOn sql.NullString
+	Notes      string
+	ArchivedAt sql.NullString
+	CreatedAt  string
+	UpdatedAt  string
+}
+
 type Session struct {
 	IDHash     string
 	UserID     string

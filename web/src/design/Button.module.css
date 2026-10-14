@@ -82,3 +82,14 @@
     transform: rotate(360deg);
   }
 }
+
+/* Destructive actions: danger text and edge, always with an icon and words. */
+.danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}

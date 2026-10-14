@@ -13,7 +13,8 @@ import (
 
 	"github.com/reilandeubank/grower/internal/db/dbgen"
 
-	_ "modernc.org/sqlite" // registers the pure-Go "sqlite" driver
+	"modernc.org/sqlite" // also registers the pure-Go "sqlite" driver
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 // FileName is the database file inside GROWER_DATA_DIR.
@@ -108,4 +109,15 @@ func (d *DB) InTx(ctx context.Context, fn func(q *dbgen.Queries) error) error {
 		return fmt.Errorf("commit tx: %w", err)
 	}
 	return nil
+}
+
+// IsUniqueViolation reports whether err is a UNIQUE constraint failure.
+func IsUniqueViolation(err error) bool { return hasCode(err, sqlite3.SQLITE_CONSTRAINT_UNIQUE) }
+
+// IsForeignKeyViolation reports whether err is a FOREIGN KEY constraint failure.
+func IsForeignKeyViolation(err error) bool { return hasCode(err, sqlite3.SQLITE_CONSTRAINT_FOREIGNKEY) }
+
+func hasCode(err error, code int) bool {
+	var e *sqlite.Error
+	return errors.As(err, &e) && e.Code() == code
 }

@@ -148,8 +148,8 @@ func decode[T any](t *testing.T, resp *http.Response) T {
 	return v
 }
 
-// expectProblem asserts an RFC 9457 response with the given status.
-func expectProblem(t *testing.T, resp *http.Response, status int) {
+// expectProblem asserts an RFC 9457 response with the given status and returns its detail.
+func expectProblem(t *testing.T, resp *http.Response, status int) string {
 	t.Helper()
 	if resp.StatusCode != status {
 		t.Fatalf("status = %d, want %d", resp.StatusCode, status)
@@ -160,8 +160,25 @@ func expectProblem(t *testing.T, resp *http.Response, status int) {
 	p := decode[struct {
 		Title  string `json:"title"`
 		Status int    `json:"status"`
+		Detail string `json:"detail"`
 	}](t, resp)
 	if p.Status != status || p.Title == "" {
 		t.Errorf("problem body = %+v", p)
 	}
+	return p.Detail
+}
+
+// call makes a same-origin JSON request with the given session cookie (nil for none).
+func (e *env) call(cookie *http.Cookie, method, path, body string) *http.Response {
+	e.t.Helper()
+	return e.do(request{method: method, path: path, body: body, cookie: cookie})
+}
+
+// expectJSON asserts the status and decodes the body.
+func expectJSON[T any](t *testing.T, resp *http.Response, status int) T {
+	t.Helper()
+	if resp.StatusCode != status {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, status)
+	}
+	return decode[T](t, resp)
 }

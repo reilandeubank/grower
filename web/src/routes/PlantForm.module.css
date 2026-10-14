@@ -1,0 +1,40 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-height: calc(100dvh - var(--target-min) * 2);
+}
+
+.fields,
+.manage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.location {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.newLocation {
+  align-self: flex-start;
+  margin-left: calc(var(--space-4) * -1);
+}
+
+.manage {
+  gap: var(--space-3);
+}
+
+/* Save stays in thumb reach at the bottom of the screen. */
+.footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding: var(--space-3) 0 calc(var(--safe-bottom) + var(--space-4));
+  background: var(--surface);
+}

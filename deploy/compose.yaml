@@ -6,10 +6,10 @@ services:
     restart: unless-stopped
     user: "568:568" # TrueNAS "apps" user; must own the dataset
     environment:
-      GROWER_BASE_URL: https://grower.example.com # CHANGE: the public URL served by Nginx Proxy Manager
-      GROWER_TRUSTED_PROXIES: 192.0.2.10/16 # CHANGE: the subnet NPM's requests arrive from (docs/deploy.md §4)
-      GROWER_TZ: America/Chicago # CHANGE: your time zone
+      GROWER_BASE_URL: https://grower.example.com # the public URL served by Nginx Proxy Manager
+      GROWER_TRUSTED_PROXIES: 192.0.2.10/32
+      GROWER_TZ: America/Chicago
     volumes:
-      - /mnt/vm-disk/grower:/data # CHANGE: your dataset's mount path
+      - /mnt/vm-disk/grower:/data
     ports:
       - "18080:8080" # remove if NPM reaches grower over a shared Docker network

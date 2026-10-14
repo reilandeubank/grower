@@ -55,3 +55,8 @@ dd {
   padding-bottom: var(--space-3);
   color: var(--ink);
 }
+
+.link {
+  color: var(--ink);
+  text-decoration: none;
+}
