@@ -30,6 +30,7 @@ type CareTask struct {
 	StartOn      string
 	CreatedAt    string
 	UpdatedAt    string
+	Seasonal     int64
 }
 
 type Job struct {

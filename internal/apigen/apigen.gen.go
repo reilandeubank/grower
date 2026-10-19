@@ -226,8 +226,9 @@ type CareTaskInput struct {
 	Label *string `json:"label,omitempty"`
 
 	// Seasonal Stretch or shorten the interval by season (internal/schedule's built-in curves).
-	// Defaults to true for water, mist and fertilize, false otherwise. Only applies to
-	// the from_completion anchor; fixed schedules keep their calendar.
+	// Defaults to true for water, mist and fertilize, false otherwise. PUT replaces the
+	// whole task, so omitting it there resets it to that default too. Only applies to the
+	// from_completion anchor; fixed schedules keep their calendar.
 	Seasonal *bool `json:"seasonal,omitempty"`
 
 	// StartOn First due date. Defaults to today in the user's time zone.

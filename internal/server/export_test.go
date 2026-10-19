@@ -115,7 +115,10 @@ func TestExport(t *testing.T) {
 	if a := byID(x.Plants, old.Id); a["archived_at"] != "2026-05-01T03:00:00Z" || a["pot_type"] != nil {
 		t.Errorf("archived plant = %v", a)
 	}
-	wantKeys(t, "task", x.Tasks[0], "id", "plant_id", "kind", "label", "interval_days", "anchor", "start_on")
+	wantKeys(t, "task", x.Tasks[0], "id", "plant_id", "kind", "label", "interval_days", "anchor", "start_on", "seasonal")
+	if x.Tasks[0]["seasonal"] != true || x.Settings["hemisphere"] != "north" {
+		t.Errorf("task = %v, settings = %v", x.Tasks[0], x.Settings)
+	}
 	if ev := byID(x.Events, done.Id); ev["voided_at"] != nil || ev["kind"] != "done" || ev["local_date"] != "2026-04-30" {
 		t.Errorf("done event = %v", ev)
 	}

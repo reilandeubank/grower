@@ -646,8 +646,9 @@ export interface components {
             start_on?: string;
             /**
              * @description Stretch or shorten the interval by season (internal/schedule's built-in curves).
-             *     Defaults to true for water, mist and fertilize, false otherwise. Only applies to
-             *     the from_completion anchor; fixed schedules keep their calendar.
+             *     Defaults to true for water, mist and fertilize, false otherwise. PUT replaces the
+             *     whole task, so omitting it there resets it to that default too. Only applies to the
+             *     from_completion anchor; fixed schedules keep their calendar.
              */
             seasonal?: boolean;
         };

@@ -54,9 +54,9 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (CareE
 }
 
 const createTask = `-- name: CreateTask :one
-INSERT INTO care_tasks (id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at
+INSERT INTO care_tasks (id, plant_id, kind, label, interval_days, anchor, start_on, seasonal, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at, seasonal
 `
 
 type CreateTaskParams struct {
@@ -67,6 +67,7 @@ type CreateTaskParams struct {
 	IntervalDays int64
 	Anchor       string
 	StartOn      string
+	Seasonal     int64
 	CreatedAt    string
 	UpdatedAt    string
 }
@@ -80,6 +81,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (CareTas
 		arg.IntervalDays,
 		arg.Anchor,
 		arg.StartOn,
+		arg.Seasonal,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -94,6 +96,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (CareTas
 		&i.StartOn,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Seasonal,
 	)
 	return i, err
 }
@@ -111,7 +114,7 @@ func (q *Queries) DeleteTask(ctx context.Context, id string) (int64, error) {
 }
 
 const getTask = `-- name: GetTask :one
-SELECT id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at FROM care_tasks WHERE id = ?
+SELECT id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at, seasonal FROM care_tasks WHERE id = ?
 `
 
 func (q *Queries) GetTask(ctx context.Context, id string) (CareTask, error) {
@@ -127,6 +130,7 @@ func (q *Queries) GetTask(ctx context.Context, id string) (CareTask, error) {
 		&i.StartOn,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Seasonal,
 	)
 	return i, err
 }
@@ -174,7 +178,7 @@ func (q *Queries) ListActiveEvents(ctx context.Context) ([]CareEvent, error) {
 }
 
 const listActiveTasks = `-- name: ListActiveTasks :many
-SELECT care_tasks.id, care_tasks.plant_id, care_tasks.kind, care_tasks.label, care_tasks.interval_days, care_tasks.anchor, care_tasks.start_on, care_tasks.created_at, care_tasks.updated_at, plants.id, plants.name, plants.species, plants.location_id, plants.acquired_on, plants.notes, plants.archived_at, plants.created_at, plants.updated_at, plants.cover_photo_id, plants.pot_type, plants.pot_size_in, plants.drainage, plants.soil
+SELECT care_tasks.id, care_tasks.plant_id, care_tasks.kind, care_tasks.label, care_tasks.interval_days, care_tasks.anchor, care_tasks.start_on, care_tasks.created_at, care_tasks.updated_at, care_tasks.seasonal, plants.id, plants.name, plants.species, plants.location_id, plants.acquired_on, plants.notes, plants.archived_at, plants.created_at, plants.updated_at, plants.cover_photo_id, plants.pot_type, plants.pot_size_in, plants.drainage, plants.soil
 FROM care_tasks JOIN plants ON plants.id = care_tasks.plant_id
 WHERE plants.archived_at IS NULL
 ORDER BY plants.name COLLATE NOCASE, care_tasks.kind, care_tasks.label, care_tasks.id
@@ -205,6 +209,7 @@ func (q *Queries) ListActiveTasks(ctx context.Context) ([]ListActiveTasksRow, er
 			&i.CareTask.StartOn,
 			&i.CareTask.CreatedAt,
 			&i.CareTask.UpdatedAt,
+			&i.CareTask.Seasonal,
 			&i.Plant.ID,
 			&i.Plant.Name,
 			&i.Plant.Species,
@@ -288,7 +293,7 @@ func (q *Queries) ListPlantHistory(ctx context.Context, arg ListPlantHistoryPara
 }
 
 const listPlantTasks = `-- name: ListPlantTasks :many
-SELECT id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at FROM care_tasks WHERE plant_id = ? ORDER BY kind, label, id
+SELECT id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at, seasonal FROM care_tasks WHERE plant_id = ? ORDER BY kind, label, id
 `
 
 func (q *Queries) ListPlantTasks(ctx context.Context, plantID string) ([]CareTask, error) {
@@ -310,6 +315,7 @@ func (q *Queries) ListPlantTasks(ctx context.Context, plantID string) ([]CareTas
 			&i.StartOn,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Seasonal,
 		); err != nil {
 			return nil, err
 		}
@@ -366,9 +372,9 @@ func (q *Queries) ListTaskEvents(ctx context.Context, taskID string) ([]CareEven
 
 const updateTask = `-- name: UpdateTask :one
 UPDATE care_tasks
-SET kind = ?, label = ?, interval_days = ?, anchor = ?, start_on = ?, updated_at = ?
+SET kind = ?, label = ?, interval_days = ?, anchor = ?, start_on = ?, seasonal = ?, updated_at = ?
 WHERE id = ?
-RETURNING id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at
+RETURNING id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at, seasonal
 `
 
 type UpdateTaskParams struct {
@@ -377,6 +383,7 @@ type UpdateTaskParams struct {
 	IntervalDays int64
 	Anchor       string
 	StartOn      string
+	Seasonal     int64
 	UpdatedAt    string
 	ID           string
 }
@@ -388,6 +395,7 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (CareTas
 		arg.IntervalDays,
 		arg.Anchor,
 		arg.StartOn,
+		arg.Seasonal,
 		arg.UpdatedAt,
 		arg.ID,
 	)
@@ -402,6 +410,7 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (CareTas
 		&i.StartOn,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Seasonal,
 	)
 	return i, err
 }

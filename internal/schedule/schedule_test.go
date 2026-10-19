@@ -66,7 +66,7 @@ func TestNextDue(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NextDue(tt.task, tt.events); got.String() != tt.want {
+			if got := NextDue(tt.task, tt.events, North); got.String() != tt.want {
 				t.Errorf("NextDue = %s, want %s", got, tt.want)
 			}
 		})
@@ -75,7 +75,7 @@ func TestNextDue(t *testing.T) {
 
 func TestNextDueDoesNotReorderInput(t *testing.T) {
 	events := []Event{done("2026-05-10"), done("2026-05-03")}
-	NextDue(Task{IntervalDays: 7, StartOn: d("2026-05-01")}, events)
+	NextDue(Task{IntervalDays: 7, StartOn: d("2026-05-01")}, events, North)
 	if events[0].On != d("2026-05-10") {
 		t.Error("NextDue sorted the caller's slice")
 	}
@@ -109,8 +109,8 @@ func TestNextDueProperties(t *testing.T) {
 			}
 			events = append(events, e)
 		}
-		due := NextDue(task, events)
-		if again := NextDue(task, events); again != due {
+		due := NextDue(task, events, North)
+		if again := NextDue(task, events, North); again != due {
 			t.Fatalf("not deterministic: %s then %s for %+v %+v", due, again, task, events)
 		}
 		var last Date

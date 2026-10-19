@@ -76,7 +76,32 @@ describe("Task form", () => {
     await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(posts).toEqual([
-      { kind: "fertilize", label: "", interval_days: 14, anchor: "fixed", start_on: "2026-10-14" },
+      { kind: "fertilize", label: "", interval_days: 14, anchor: "fixed", start_on: "2026-10-14", seasonal: true },
+    ]);
+  });
+
+  it("adjusts for seasons by default for the kinds the seasons change", async () => {
+    const posts = setup();
+    const sheet = await openSheet();
+    const seasons = () => within(sheet).queryByRole("switch", { name: /Adjust for seasons/ }) as HTMLInputElement | null;
+    expect(seasons()?.checked).toBe(true);
+    expect(within(sheet).getByText("Waters less often in winter and a little more in summer.")).toBeTruthy();
+
+    await userEvent.click(within(sheet).getByRole("button", { name: "Rotate" }));
+    expect(seasons()).toBeNull();
+    await userEvent.click(within(sheet).getByRole("button", { name: "Fertilize" }));
+    expect(seasons()?.checked).toBe(true);
+    expect(within(sheet).getByText("Feeds less often from fall to early spring.")).toBeTruthy();
+
+    await userEvent.click(within(sheet).getByRole("button", { name: "Keep a fixed schedule" }));
+    expect(seasons()?.disabled).toBe(true);
+    expect(within(sheet).getByText("Only for schedules counted from when it's done.")).toBeTruthy();
+    await userEvent.click(within(sheet).getByRole("button", { name: "Count from when it's done" }));
+    await userEvent.click(seasons()!);
+    await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(posts).toEqual([
+      { kind: "fertilize", label: "", interval_days: 7, anchor: "from_completion", start_on: "2026-10-14", seasonal: false },
     ]);
   });
 });

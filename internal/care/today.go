@@ -14,10 +14,18 @@ import (
 // UpcomingDays is how far ahead Today looks.
 const UpcomingDays = 7
 
+// Calendar is where the user is in the year: their date and hemisphere.
+type Calendar struct {
+	Today      schedule.Date
+	Hemisphere schedule.Hemisphere
+}
+
 // Dates is a task's schedule: its start and what the events make of it.
 type Dates struct {
 	Start schedule.Date
 	Next  schedule.Date
+	// Interval is the interval this season (schedule.CurrentInterval).
+	Interval int
 	// Last is the most recent completion; zero when HasLast is false.
 	Last    schedule.Date
 	HasLast bool
@@ -42,8 +50,9 @@ type Agenda struct {
 	Upcoming  []Item
 }
 
-// Today sorts every task of an active plant into the agenda for date.
-func Today(ctx context.Context, q *dbgen.Queries, date schedule.Date) (Agenda, error) {
+// Today sorts every task of an active plant into the agenda for cal.Today.
+func Today(ctx context.Context, q *dbgen.Queries, cal Calendar) (Agenda, error) {
+	date := cal.Today
 	// Two queries in all: tasks with their plants, and every event they need.
 	rows, err := q.ListActiveTasks(ctx)
 	if err != nil {
@@ -60,7 +69,7 @@ func Today(ctx context.Context, q *dbgen.Queries, date schedule.Date) (Agenda, e
 
 	a := Agenda{Date: date, TaskCount: len(rows), Overdue: []Item{}, Due: []Item{}, Upcoming: []Item{}}
 	for _, r := range rows {
-		dates, err := Schedule(r.CareTask, events[r.CareTask.ID])
+		dates, err := Schedule(r.CareTask, events[r.CareTask.ID], cal)
 		if err != nil {
 			return Agenda{}, err
 		}
@@ -83,8 +92,8 @@ func Today(ctx context.Context, q *dbgen.Queries, date schedule.Date) (Agenda, e
 }
 
 // Schedule computes a task's next due date and last completion from its non-voided
-// events in insertion order.
-func Schedule(row dbgen.CareTask, events []dbgen.CareEvent) (Dates, error) {
+// events in insertion order, in the seasons of cal.
+func Schedule(row dbgen.CareTask, events []dbgen.CareEvent, cal Calendar) (Dates, error) {
 	start, err := schedule.Parse(row.StartOn)
 	if err != nil {
 		return Dates{}, err
@@ -101,8 +110,12 @@ func Schedule(row dbgen.CareTask, events []dbgen.CareEvent) (Dates, error) {
 			}
 		}
 	}
-	task := schedule.Task{IntervalDays: int(row.IntervalDays), Anchor: schedule.Anchor(row.Anchor), StartOn: start}
-	d := Dates{Start: start, Next: schedule.NextDue(task, evs)}
+	task := schedule.Task{
+		IntervalDays: int(row.IntervalDays), Anchor: schedule.Anchor(row.Anchor), StartOn: start, Kind: row.Kind, Seasonal: row.Seasonal == 1,
+	}
+	d := Dates{
+		Start: start, Next: schedule.NextDue(task, evs, cal.Hemisphere), Interval: schedule.CurrentInterval(task, cal.Today, cal.Hemisphere),
+	}
 	d.Last, d.HasLast = schedule.LastDone(evs)
 	return d, nil
 }

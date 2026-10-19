@@ -162,6 +162,6 @@ describe("Notifications settings", () => {
     // A native time input changes in one step, so set it the way the picker does.
     await userEvent.clear(time);
     await userEvent.type(time, "07:30");
-    await waitFor(() => expect(saved).toEqual({ timezone: "America/Chicago", digest_time: "07:30" }));
+    await waitFor(() => expect(saved).toEqual({ timezone: "America/Chicago", digest_time: "07:30", hemisphere: "north" }));
   });
 });

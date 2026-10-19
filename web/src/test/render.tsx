@@ -40,6 +40,6 @@ export function json(status: number, body: unknown): Response {
 
 export const me = {
   user: { id: "u1", username: "fern" },
-  settings: { timezone: "America/Chicago", digest_time: "08:00" },
+  settings: { timezone: "America/Chicago", digest_time: "08:00", hemisphere: "north" as const },
   version: "v0.1.0-test",
 };

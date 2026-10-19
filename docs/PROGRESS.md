@@ -13,7 +13,7 @@ Milestone definitions live in `PLAN.md` §2.
 | M4 Photos | done (v0.3.0) |
 | M5 MVP hardening, v1.0 | done (v1.0.0) |
 | M6 Web push (daily reminder) | done (not yet released) |
-| M7 Seasonal adjustment | not started |
+| M7 Seasonal adjustment | done (not yet released) |
 | M8 Species | not started |
 | M9 Import + quick-add via photo | not started |
 
@@ -28,9 +28,16 @@ Milestone definitions live in `PLAN.md` §2.
 - [x] Deployed on TrueNAS behind NPM; logged in from the installed PWA
 
 ## Owner action items
-- Update to v1.1.0, then on the phone: Settings → Notifications → turn on Daily reminder → Allow → Send test notification; set the reminder time.
+- Update to v1.2.0 (seasonal care: existing water/mist/fertilize tasks now stretch in winter; switch off per task in its sheet). If not done yet, on the phone: Settings → Notifications → turn on Daily reminder → Allow → Send test notification; set the reminder time.
 
 ## Checkpoints
+
+### 2026-10-19 · M7: seasonal adjustment (backend + frontend)
+- Done: `internal/schedule/season.go` (`Hemisphere`, built-in monthly curves in percent for water, mist and fertilize, south = six months on; `Task.Kind`/`Seasonal`; `NextDue(t, events, h)`; `CurrentInterval`), table + property tests in `season_test.go`. `care.Calendar` (today + hemisphere) flows from settings into task responses, Today, log/undo responses and the push digest. Tasks read/write `seasonal` (omitted = kind default on POST and PUT); responses carry `seasonal` and `current_interval_days`. Settings save `hemisphere` (400 "Hemisphere must be north or south."). Export adds `settings.hemisphere` and `tasks[].seasonal` (docs/export-format.md). Frontend: "Adjust for seasons" switch in the task sheet (default from kind on new tasks; disabled with a hint under a fixed schedule), "Every 7 days · 8 days this season" on the Care tab, Hemisphere (Northern/Southern) in Settings → General. Settings saves now also refresh plants (task lists).
+- Behaviour: migration 0007 opted existing water, mist and fertilize tasks in, so their next due dates shift at once (e.g. weekly water done in October is due after 8 days, in January 11, in July 6).
+- Deviation: the switch is shown only for kinds with a curve (water, mist, fertilize); for the others it would do nothing. The today e2e turns seasons off on its task so it doesn't depend on the month.
+- Checks: `make gen` (no drift), golangci-lint 0 issues, `make lint test` (Go + 89 Vitest), `make build`, `make e2e` (6 passed).
+- Next: M8 species.
 
 ### 2026-10-14 · M6: web push daily reminder (backend + frontend)
 - Lead fix: logging out turns off push on that device first (best effort), so a signed-out phone stops getting reminders. Released as v1.1.0.

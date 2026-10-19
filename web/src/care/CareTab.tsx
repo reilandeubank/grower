@@ -5,7 +5,7 @@ import { Button, DoneCheck, EmptyState, TaskIcon, taskName } from "../design";
 import { deviceToday, formatDay } from "../lib/dates";
 import { LoadError } from "../routes/LoadError";
 import { Pending } from "../routes/Pending";
-import { dueLine, historyLine, intervalLine, lastDoneLine } from "./copy";
+import { dueLine, historyLine, lastDoneLine, taskIntervalLine } from "./copy";
 import { useLogEvent, usePlantHistory, usePlantTasks, useToday } from "./queries";
 import { TaskSheet } from "./TaskSheet";
 import styles from "./CareTab.module.css";
@@ -52,7 +52,7 @@ export function CareTab({ plant }: { plant: Plant }) {
                     <span className={styles.text}>
                       <span className="t-body-strong">{name}</span>
                       <span className={`t-caption ${styles.muted}`}>
-                        {intervalLine(t.interval_days)} ·{" "}
+                        {taskIntervalLine(t)} ·{" "}
                         <span className={overdue ? styles.overdue : undefined}>
                           {overdue && <Clock size={16} strokeWidth={1.75} aria-hidden="true" />}
                           {dueLine(t.next_due, today)}

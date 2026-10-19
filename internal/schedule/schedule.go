@@ -23,11 +23,14 @@ const (
 	Snoozed EventKind = "snoozed"
 )
 
-// Task is a recurring care task. IntervalDays must be at least 1.
+// Task is a recurring care task. IntervalDays must be at least 1. When Seasonal is set,
+// Kind (water, mist, ...) picks the curve that adjusts the interval by month.
 type Task struct {
 	IntervalDays int
 	Anchor       Anchor
 	StartOn      Date
+	Kind         string
+	Seasonal     bool
 }
 
 // Event is one logged action. SnoozeUntil is set only for snoozes.
@@ -39,8 +42,9 @@ type Event struct {
 
 // NextDue returns the task's next due date. events are the task's non-voided events in
 // insertion order; ties on the same date keep that order. Missed periods never stack:
-// there is one due date, and a task is overdue by today − due.
-func NextDue(t Task, events []Event) Date {
+// there is one due date, and a task is overdue by today − due. h picks the seasons for a
+// seasonal task.
+func NextDue(t Task, events []Event, h Hemisphere) Date {
 	sorted := slices.Clone(events)
 	slices.SortStableFunc(sorted, func(a, b Event) int { return a.On.Compare(b.On) })
 
@@ -55,7 +59,7 @@ func NextDue(t Task, events []Event) Date {
 			}
 			due = t.StartOn.AddDays(k * t.IntervalDays)
 		default:
-			due = last.AddDays(t.IntervalDays)
+			due = last.AddDays(t.interval(last, h))
 		}
 	}
 	// A snooze counts only while it is the latest event: a later done or skip clears it.

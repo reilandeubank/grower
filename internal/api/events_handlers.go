@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/reilandeubank/grower/internal/apigen"
+	"github.com/reilandeubank/grower/internal/care"
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
 	"github.com/reilandeubank/grower/internal/schedule"
@@ -18,11 +19,11 @@ const eventNotFound = "Event not found."
 
 // LogTaskEvent records a done, skip or snooze and returns the task's new schedule.
 func (h *Handler) LogTaskEvent(ctx context.Context, req apigen.LogTaskEventRequestObject) (apigen.LogTaskEventResponseObject, error) {
-	today, err := h.today(ctx)
+	cal, err := h.calendar(ctx)
 	if err != nil {
 		return nil, err
 	}
-	in, detail := parseEvent(*req.Body, today)
+	in, detail := parseEvent(*req.Body, cal.Today)
 	if detail != "" {
 		return apigen.LogTaskEvent400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest(detail)}, nil
 	}
@@ -39,7 +40,7 @@ func (h *Handler) LogTaskEvent(ctx context.Context, req apigen.LogTaskEventReque
 	if err != nil {
 		return nil, err
 	}
-	task, err := h.reloadTask(ctx, req.Id)
+	task, err := h.reloadTask(ctx, req.Id, cal)
 	if err != nil {
 		return nil, err
 	}
@@ -49,6 +50,10 @@ func (h *Handler) LogTaskEvent(ctx context.Context, req apigen.LogTaskEventReque
 // UndoEvent voids an event and returns the task's recalculated schedule. Undoing an
 // event twice is not an error.
 func (h *Handler) UndoEvent(ctx context.Context, req apigen.UndoEventRequestObject) (apigen.UndoEventResponseObject, error) {
+	cal, err := h.calendar(ctx)
+	if err != nil {
+		return nil, err
+	}
 	taskID, err := h.db.Writer().VoidEvent(ctx, dbgen.VoidEventParams{VoidedAt: sql.NullString{String: db.FormatTime(h.auth.Now()), Valid: true}, ID: req.Id})
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -56,7 +61,7 @@ func (h *Handler) UndoEvent(ctx context.Context, req apigen.UndoEventRequestObje
 	case err != nil:
 		return nil, fmt.Errorf("void event %s: %w", req.Id, err)
 	}
-	task, err := h.reloadTask(ctx, taskID)
+	task, err := h.reloadTask(ctx, taskID, cal)
 	if err != nil {
 		return nil, err
 	}
@@ -116,12 +121,12 @@ func parseEvent(in apigen.CareEventInput, today schedule.Date) (dbgen.CreateEven
 }
 
 // reloadTask reads a task after a write and maps it with its schedule.
-func (h *Handler) reloadTask(ctx context.Context, id string) (apigen.CareTask, error) {
+func (h *Handler) reloadTask(ctx context.Context, id string, cal care.Calendar) (apigen.CareTask, error) {
 	row, err := h.db.Reader().GetTask(ctx, id)
 	if err != nil {
 		return apigen.CareTask{}, fmt.Errorf("reload task %s: %w", id, err)
 	}
-	return h.careTask(ctx, row)
+	return h.careTask(ctx, row, cal)
 }
 
 func careEvent(r dbgen.CareEvent) (apigen.CareEvent, error) {

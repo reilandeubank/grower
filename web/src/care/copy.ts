@@ -1,5 +1,5 @@
 // Care copy, per the design README: relative dates when close, plain verbs, no guilt.
-import type { HistoryEntry, TaskKind } from "../api/client";
+import type { CareTask, HistoryEntry, TaskKind } from "../api/client";
 import { taskName } from "../design";
 import { daysBetween, formatDay, formatWeekdayDay } from "../lib/dates";
 
@@ -26,6 +26,24 @@ export function dueWhen(due: string, today: string): string {
 
 export function intervalLine(days: number): string {
   return days === 1 ? "Every day" : `Every ${days} days`;
+}
+
+/** "Every 7 days", or "Every 7 days · 10 days this season" while seasons adjust it. */
+export function taskIntervalLine(task: Pick<CareTask, "interval_days" | "current_interval_days">): string {
+  const line = intervalLine(task.interval_days);
+  const now = task.current_interval_days;
+  return now === task.interval_days ? line : `${line} · ${plural(now, "day")} this season`;
+}
+
+const SEASONAL_HINTS: Partial<Record<TaskKind, string>> = {
+  water: "Waters less often in winter and a little more in summer.",
+  mist: "Mists less often in winter and a little more in summer.",
+  fertilize: "Feeds less often from fall to early spring.",
+};
+
+/** What seasonal adjustment does for a kind, or undefined for kinds it doesn't change. */
+export function seasonalHint(kind: TaskKind): string | undefined {
+  return SEASONAL_HINTS[kind];
 }
 
 export function lastDoneLine(lastDone: string | null, today: string): string {

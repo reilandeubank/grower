@@ -211,9 +211,10 @@ POST   /import
 type Date = civil date (year, month, day)  // e.g. cloud.google.com/go/civil-style; or own 30-line type
 type Task  struct { Interval int; Anchor AnchorMode; StartOn Date; Paused bool; Seasonal bool; Kind string }
 type Event struct { Kind EventKind; LocalDate Date; SnoozeUntil *Date; Voided bool }
-type Season interface { Factor(kind string, on Date) float64 } // identity until M7
+type Hemisphere string // "north" | "south"; picks which months are winter
 
-func NextDue(t Task, events []Event, s Season) (due Date, ok bool)
+func NextDue(t Task, events []Event, h Hemisphere) Date
+func CurrentInterval(t Task, today Date, h Hemisphere) int // the API's current_interval_days
 func Status(due Date, today Date) (overdueDays int, isDue bool)
 func Today(now time.Time, loc *time.Location) Date   // the only tz-aware function
 ```
@@ -228,7 +229,7 @@ func Today(now time.Time, loc *time.Location) Date   // the only tz-aware functi
 5. **Paused** tasks have no due date (`ok=false`).
 6. **Missed days:** no catch-up and no stacking. A task is overdue by `today - due` days and shows once. Completing it while overdue under `from_completion` restarts from the completion day.
 7. **Due today** = `due <= today`. **Overdue** = `due < today`.
-8. **Effective interval** = `max(1, round(Interval × Season.Factor(kind, last)))`. The factor is chosen by the month of `last`, the date the clock started from, so the due date is stable and doesn't oscillate across a season boundary.
+8. **Effective interval** = `max(1, round(Interval × factor(kind, month of last, hemisphere)))`. The factor is chosen by the month of `last`, the date the clock started from, so the due date is stable and doesn't oscillate across a season boundary. It applies only to seasonal tasks under `from_completion`; a fixed anchor keeps its calendar. The factors are built-in curves (M7), in percent so the arithmetic is exact: water and mist 150 140 120 100 100 90 85 90 100 120 140 150 (Jan–Dec), fertilize 200 200 125 100 100 100 100 100 125 150 200 200, other kinds 100. The southern hemisphere shifts them by six months. `current_interval_days` uses today's month, so after a month boundary it can differ from the interval the pending due date was counted with, until the task is next done. Per-user editable factors are deferred; backlog §10 idea 8 can refine the curves.
 
 ### 5.3 Time zones and DST
 

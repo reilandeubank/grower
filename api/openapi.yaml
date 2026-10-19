@@ -1003,8 +1003,9 @@ components:
           type: boolean
           description: |
             Stretch or shorten the interval by season (internal/schedule's built-in curves).
-            Defaults to true for water, mist and fertilize, false otherwise. Only applies to
-            the from_completion anchor; fixed schedules keep their calendar.
+            Defaults to true for water, mist and fertilize, false otherwise. PUT replaces the
+            whole task, so omitting it there resets it to that default too. Only applies to the
+            from_completion anchor; fixed schedules keep their calendar.
     CareTask:
       type: object
       required: [id, plant_id, kind, label, interval_days, anchor, start_on, seasonal, current_interval_days, next_due, last_done]

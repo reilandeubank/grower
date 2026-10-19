@@ -30,13 +30,17 @@ func (h *Handler) ListPlantTasks(ctx context.Context, req apigen.ListPlantTasksR
 	} else if err != nil {
 		return nil, fmt.Errorf("get plant %s: %w", req.Id, err)
 	}
+	cal, err := h.calendar(ctx)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := h.db.Reader().ListPlantTasks(ctx, req.Id)
 	if err != nil {
 		return nil, fmt.Errorf("list tasks of plant %s: %w", req.Id, err)
 	}
 	items := make([]apigen.CareTask, len(rows))
 	for i, r := range rows {
-		if items[i], err = h.careTask(ctx, r); err != nil {
+		if items[i], err = h.careTask(ctx, r, cal); err != nil {
 			return nil, err
 		}
 	}
@@ -47,18 +51,18 @@ func (h *Handler) ListPlantTasks(ctx context.Context, req apigen.ListPlantTasksR
 
 // CreateTask adds a care task to a plant.
 func (h *Handler) CreateTask(ctx context.Context, req apigen.CreateTaskRequestObject) (apigen.CreateTaskResponseObject, error) {
-	today, err := h.today(ctx)
+	cal, err := h.calendar(ctx)
 	if err != nil {
 		return nil, err
 	}
-	in, detail := parseTask(*req.Body, today)
+	in, detail := parseTask(*req.Body, cal.Today)
 	if detail != "" {
 		return apigen.CreateTask400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest(detail)}, nil
 	}
 	now := db.FormatTime(h.auth.Now())
 	row, err := h.db.Writer().CreateTask(ctx, dbgen.CreateTaskParams{
 		ID: db.NewID(), PlantID: req.Id, Kind: in.Kind, Label: in.Label, IntervalDays: in.IntervalDays,
-		Anchor: in.Anchor, StartOn: in.StartOn, CreatedAt: now, UpdatedAt: now,
+		Anchor: in.Anchor, StartOn: in.StartOn, Seasonal: in.Seasonal, CreatedAt: now, UpdatedAt: now,
 	})
 	switch {
 	case db.IsForeignKeyViolation(err):
@@ -66,7 +70,7 @@ func (h *Handler) CreateTask(ctx context.Context, req apigen.CreateTaskRequestOb
 	case err != nil:
 		return nil, fmt.Errorf("create task: %w", err)
 	}
-	t, err := careTask(row, nil)
+	t, err := careTask(row, nil, cal)
 	if err != nil {
 		return nil, err
 	}
@@ -75,11 +79,11 @@ func (h *Handler) CreateTask(ctx context.Context, req apigen.CreateTaskRequestOb
 
 // UpdateTask replaces a task's schedule; its history stays.
 func (h *Handler) UpdateTask(ctx context.Context, req apigen.UpdateTaskRequestObject) (apigen.UpdateTaskResponseObject, error) {
-	today, err := h.today(ctx)
+	cal, err := h.calendar(ctx)
 	if err != nil {
 		return nil, err
 	}
-	in, detail := parseTask(*req.Body, today)
+	in, detail := parseTask(*req.Body, cal.Today)
 	if detail != "" {
 		return apigen.UpdateTask400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest(detail)}, nil
 	}
@@ -91,7 +95,7 @@ func (h *Handler) UpdateTask(ctx context.Context, req apigen.UpdateTaskRequestOb
 	case err != nil:
 		return nil, fmt.Errorf("update task %s: %w", req.Id, err)
 	}
-	t, err := h.careTask(ctx, row)
+	t, err := h.careTask(ctx, row, cal)
 	if err != nil {
 		return nil, err
 	}
@@ -132,6 +136,12 @@ func parseTask(in apigen.CareTaskInput, today schedule.Date) (dbgen.UpdateTaskPa
 	if in.Anchor != nil {
 		f.Anchor = string(*in.Anchor)
 	}
+	// PUT is a full replace, so an omitted seasonal resets to the kind's default there too.
+	seasonal := in.Kind == apigen.Water || in.Kind == apigen.Mist || in.Kind == apigen.Fertilize
+	if in.Seasonal != nil {
+		seasonal = *in.Seasonal
+	}
+	f.Seasonal = boolInt(seasonal)
 	f.StartOn = today.String()
 	if in.StartOn != nil {
 		f.StartOn = schedule.DateOf(in.StartOn.Time).String()
@@ -140,18 +150,18 @@ func parseTask(in apigen.CareTaskInput, today schedule.Date) (dbgen.UpdateTaskPa
 }
 
 // careTask loads a task's events and maps it with its computed schedule.
-func (h *Handler) careTask(ctx context.Context, row dbgen.CareTask) (apigen.CareTask, error) {
+func (h *Handler) careTask(ctx context.Context, row dbgen.CareTask, cal care.Calendar) (apigen.CareTask, error) {
 	events, err := h.db.Reader().ListTaskEvents(ctx, row.ID)
 	if err != nil {
 		return apigen.CareTask{}, fmt.Errorf("list events of task %s: %w", row.ID, err)
 	}
-	return careTask(row, events)
+	return careTask(row, events, cal)
 }
 
 // careTask maps a task, computing next_due and last_done from its non-voided events
 // in insertion order.
-func careTask(row dbgen.CareTask, events []dbgen.CareEvent) (apigen.CareTask, error) {
-	dates, err := care.Schedule(row, events)
+func careTask(row dbgen.CareTask, events []dbgen.CareEvent, cal care.Calendar) (apigen.CareTask, error) {
+	dates, err := care.Schedule(row, events, cal)
 	if err != nil {
 		return apigen.CareTask{}, err
 	}
@@ -163,7 +173,7 @@ func taskOf(row dbgen.CareTask, dates care.Dates) apigen.CareTask {
 	t := apigen.CareTask{
 		Id: row.ID, PlantId: row.PlantID, Kind: apigen.TaskKind(row.Kind), Label: row.Label,
 		IntervalDays: int(row.IntervalDays), Anchor: apigen.Anchor(row.Anchor),
-		StartOn: apiDate(dates.Start), NextDue: apiDate(dates.Next),
+		StartOn: apiDate(dates.Start), NextDue: apiDate(dates.Next), Seasonal: row.Seasonal == 1, CurrentIntervalDays: dates.Interval,
 	}
 	if dates.HasLast {
 		d := apiDate(dates.Last)
@@ -172,21 +182,21 @@ func taskOf(row dbgen.CareTask, dates care.Dates) apigen.CareTask {
 	return t
 }
 
-// today is the current date in the signed-in user's time zone.
-func (h *Handler) today(ctx context.Context) (schedule.Date, error) {
+// calendar is today in the signed-in user's time zone, with their hemisphere.
+func (h *Handler) calendar(ctx context.Context) (care.Calendar, error) {
 	p, ok := auth.PrincipalFrom(ctx)
 	if !ok {
-		return schedule.Date{}, errors.New("no signed-in user")
+		return care.Calendar{}, errors.New("no signed-in user")
 	}
 	settings, err := h.db.Reader().GetSettings(ctx, p.UserID)
 	if err != nil {
-		return schedule.Date{}, fmt.Errorf("load settings for user %s: %w", p.UserID, err)
+		return care.Calendar{}, fmt.Errorf("load settings for user %s: %w", p.UserID, err)
 	}
 	loc, err := time.LoadLocation(settings.Timezone)
 	if err != nil {
-		return schedule.Date{}, fmt.Errorf("user %s time zone: %w", p.UserID, err)
+		return care.Calendar{}, fmt.Errorf("user %s time zone: %w", p.UserID, err)
 	}
-	return schedule.Today(h.auth.Now(), loc), nil
+	return care.Calendar{Today: schedule.Today(h.auth.Now(), loc), Hemisphere: schedule.Hemisphere(settings.Hemisphere)}, nil
 }
 
 func apiDate(d schedule.Date) openapi_types.Date {

@@ -173,7 +173,7 @@ func (d *Digest) process(ctx context.Context, job dbgen.Job) error {
 	if date.Compare(schedule.Today(d.Now(), loc)) < 0 {
 		return errSkip("skipped: the day ended before it was sent")
 	}
-	agenda, err := care.Today(ctx, d.DB.Reader(), date)
+	agenda, err := care.Today(ctx, d.DB.Reader(), care.Calendar{Today: date, Hemisphere: schedule.Hemisphere(settings.Hemisphere)})
 	if err != nil {
 		return err
 	}

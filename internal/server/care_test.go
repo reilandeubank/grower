@@ -41,11 +41,11 @@ func TestTaskCRUD(t *testing.T) {
 	water := e.newTask(c, p.Id, `{"kind":"water","label":"ignored","interval_days":3}`)
 	if water.Id == "" || water.PlantId != p.Id || water.Kind != apigen.Water || water.Label != "" || water.IntervalDays != 3 ||
 		water.Anchor != apigen.FromCompletion || water.StartOn.String() != "2026-05-01" || water.NextDue.String() != "2026-05-01" ||
-		water.LastDone != nil {
+		water.LastDone != nil || !water.Seasonal || water.CurrentIntervalDays != 3 {
 		t.Errorf("water = %+v", water)
 	}
 	custom := e.newTask(c, p.Id, `{"kind":"custom","label":"  Wipe leaves ","interval_days":14,"anchor":"fixed","start_on":"2026-04-20"}`)
-	if custom.Label != "Wipe leaves" || custom.Anchor != apigen.Fixed || custom.NextDue.String() != "2026-04-20" {
+	if custom.Label != "Wipe leaves" || custom.Anchor != apigen.Fixed || custom.NextDue.String() != "2026-04-20" || custom.Seasonal {
 		t.Errorf("custom = %+v", custom)
 	}
 	mist := e.newTask(c, p.Id, `{"kind":"mist","interval_days":2,"start_on":"2026-05-01"}`)

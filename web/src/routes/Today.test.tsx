@@ -27,6 +27,8 @@ const task = {
   start_on: "2026-10-14",
   next_due: "2026-10-14",
   last_done: null,
+  seasonal: true,
+  current_interval_days: 7,
 };
 const dueToday = { date: "2026-10-14", overdue: [], due: [{ task, plant, days_overdue: 0 }], upcoming: [] };
 const allDone = {

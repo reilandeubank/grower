@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { problemMessage, type Anchor, type CareTask, type TaskKind } from "../api/client";
-import { BottomSheet, Button, ConfirmButton, ErrorText, FilterChips, TaskIcon, TextField, taskName } from "../design";
-import { intervalLine } from "./copy";
+import { BottomSheet, Button, ConfirmButton, ErrorText, FilterChips, Switch, TaskIcon, TextField, taskName } from "../design";
+import { intervalLine, seasonalHint } from "./copy";
 import { useDeleteTask, useSaveTask } from "./queries";
 import styles from "./TaskSheet.module.css";
 
@@ -44,6 +44,8 @@ function TaskForm({ plantId, task, today, onDone }: Omit<TaskSheetProps, "open" 
   const [intervalText, setIntervalText] = useState(String(task?.interval_days ?? 7));
   const [startOn, setStartOn] = useState(task?.start_on ?? today);
   const [anchor, setAnchor] = useState<Anchor>(task?.anchor ?? "from_completion");
+  // On by default for the kinds the seasons change, as on the server.
+  const [seasonal, setSeasonal] = useState(task?.seasonal ?? seasonalHint(kind) !== undefined);
   const [errors, setErrors] = useState<{ label?: string; interval?: string; startOn?: string }>({});
   const save = useSaveTask(plantId);
   const remove = useDeleteTask(plantId);
@@ -64,12 +66,14 @@ function TaskForm({ plantId, task, today, onDone }: Omit<TaskSheetProps, "open" 
       interval_days: days,
       anchor,
       start_on: startOn,
+      seasonal,
     };
     save.mutate({ id: task?.id, body }, { onSuccess: onDone });
   };
 
   const failure = save.error ?? remove.error;
   const n = days ?? 7;
+  const hint = seasonalHint(kind);
 
   return (
     <form className={styles.form} onSubmit={onSubmit} noValidate>
@@ -77,7 +81,13 @@ function TaskForm({ plantId, task, today, onDone }: Omit<TaskSheetProps, "open" 
         <p className={`t-caption ${styles.label}`} aria-hidden="true">
           Kind
         </p>
-        <FilterChips label="Kind" options={KIND_OPTIONS} value={kind} onChange={(v) => setKind(v as TaskKind)} wrap />
+        <FilterChips label="Kind" options={KIND_OPTIONS} value={kind} onChange={(v) => {
+            const next = v as TaskKind;
+            setKind(next);
+            if (!task) setSeasonal(seasonalHint(next) !== undefined);
+          }}
+          wrap
+        />
       </div>
       {kind === "custom" && (
         <TextField
@@ -128,6 +138,15 @@ function TaskForm({ plantId, task, today, onDone }: Omit<TaskSheetProps, "open" 
             : `The next one is due ${n === 1 ? "a day" : `${n} days`} after you mark it done.`}
         </p>
       </div>
+      {hint && (
+        <Switch
+          label="Adjust for seasons"
+          description={anchor === "fixed" ? "Only for schedules counted from when it's done." : hint}
+          checked={seasonal}
+          disabled={anchor === "fixed"}
+          onChange={setSeasonal}
+        />
+      )}
       {failure && <ErrorText>{problemMessage(failure)}</ErrorText>}
       <div className={styles.actions}>
         <Button type="submit" fullWidth loading={save.isPending}>

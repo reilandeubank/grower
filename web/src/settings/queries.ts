@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, unwrap, type Me, type Settings } from "../api/client";
-import { todayKey } from "../api/keys";
+import { plantsKey, todayKey } from "../api/keys";
 import { meKey } from "../auth/hooks";
 
 export const storageKey = ["storage"] as const;
@@ -14,7 +14,8 @@ export function useStorage() {
 
 /**
  * Saves a change to the settings, keeping the rest as they are. Saves run one at a time, in
- * order. A new time zone moves "today", so Today refreshes too.
+ * order. A new time zone moves "today" and a new hemisphere moves seasonal due dates, so Today
+ * and the plants (with their task lists) refresh too.
  */
 export function useUpdateSettings() {
   const queryClient = useQueryClient();
@@ -27,7 +28,7 @@ export function useUpdateSettings() {
     },
     onSuccess: (settings) => {
       queryClient.setQueryData<Me | null>(meKey, (me) => (me ? { ...me, settings } : me));
-      return queryClient.invalidateQueries({ queryKey: todayKey });
+      return Promise.all([todayKey, plantsKey].map((queryKey) => queryClient.invalidateQueries({ queryKey })));
     },
   });
 }

@@ -55,9 +55,26 @@ describe("Settings", () => {
     expect(within(list).getAllByRole("button").map((b) => b.textContent)).toEqual(["America/New York"]);
     await userEvent.click(within(list).getByRole("button", { name: "America/New York" }));
 
-    await waitFor(() => expect(saved).toEqual({ timezone: "America/New_York", digest_time: "08:00" }));
+    await waitFor(() => expect(saved).toEqual({ timezone: "America/New_York", digest_time: "08:00", hemisphere: "north" }));
     expect(await screen.findByRole("button", { name: "Time zone America/New York" })).toBeTruthy();
     expect(screen.getByText("Time zone set to America/New York.")).toBeTruthy();
+  });
+
+  it("saves the hemisphere", async () => {
+    let saved: unknown;
+    mockApi({
+      ...base,
+      "PUT /api/v1/settings": async (req) => {
+        saved = await req.json();
+        return json(200, saved);
+      },
+    });
+    renderApp("/settings");
+    const group = await screen.findByRole("group", { name: "Hemisphere" });
+    expect((within(group).getByRole("radio", { name: "Northern" }) as HTMLInputElement).checked).toBe(true);
+    await userEvent.click(within(group).getByRole("radio", { name: "Southern" }));
+    await waitFor(() => expect(saved).toEqual({ timezone: "America/Chicago", digest_time: "08:00", hemisphere: "south" }));
+    await waitFor(() => expect((within(group).getByRole("radio", { name: "Southern" }) as HTMLInputElement).checked).toBe(true));
   });
 
   it("offers no device suggestion when the device already matches", async () => {

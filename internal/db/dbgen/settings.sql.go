@@ -85,13 +85,14 @@ func (q *Queries) ListSettings(ctx context.Context) ([]Setting, error) {
 }
 
 const updateSettings = `-- name: UpdateSettings :one
-UPDATE settings SET timezone = ?, digest_local_time = ?, updated_at = ? WHERE user_id = ?
+UPDATE settings SET timezone = ?, digest_local_time = ?, hemisphere = ?, updated_at = ? WHERE user_id = ?
 RETURNING user_id, timezone, hemisphere, digest_local_time, created_at, updated_at
 `
 
 type UpdateSettingsParams struct {
 	Timezone        string
 	DigestLocalTime string
+	Hemisphere      string
 	UpdatedAt       string
 	UserID          string
 }
@@ -100,6 +101,7 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 	row := q.db.QueryRowContext(ctx, updateSettings,
 		arg.Timezone,
 		arg.DigestLocalTime,
+		arg.Hemisphere,
 		arg.UpdatedAt,
 		arg.UserID,
 	)

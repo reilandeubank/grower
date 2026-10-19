@@ -17,7 +17,7 @@ grower-export-2026-10-14.zip
   "version": 1,
   "exported_at": "2026-10-14T18:30:00Z",
   "app_version": "v0.4.0",
-  "settings": { "timezone": "America/Chicago", "digest_time": "08:00" },
+  "settings": { "timezone": "America/Chicago", "digest_time": "08:00", "hemisphere": "north" },
   "locations": [ ... ],
   "plants": [ ... ],
   "tasks": [ ... ],
@@ -32,7 +32,7 @@ Every array holds objects with the same field names and types as the API (`api/o
 |---|---|---|
 | `locations` | `Location` without `plant_count` | |
 | `plants` | `Plant` with `cover_photo_id` (string or null) in place of `cover`, and `archived_at` (date-time or null) in place of `archived` | Archived plants are included. |
-| `tasks` | `CareTask` without `next_due` and `last_done` | Those are derived from events, never stored. |
+| `tasks` | `CareTask` without `next_due`, `last_done` and `current_interval_days` | Those are derived from events and the date, never stored. Older exports have no `seasonal`; treat it as false. |
 | `events` | `CareEvent` plus `voided_at` (date-time or null) | All events, including undone ones, so the log is complete. |
 | `photos` | `Photo` without `urls`, plus `file` (path inside the zip) and `sha256` | |
 

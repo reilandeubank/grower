@@ -20,6 +20,8 @@ test("the core loop: add a task, do it, undo, snooze, see history", async ({ pag
   await page.getByRole("button", { name: "Add care task" }).click();
   const sheet = page.getByRole("dialog", { name: "Add care task" });
   await expect(sheet.getByText("Every 7 days")).toBeVisible();
+  // Seasons would make the due dates depend on the month the test runs in.
+  await sheet.getByRole("switch", { name: /Adjust for seasons/ }).uncheck();
   await sheet.getByRole("button", { name: "Save" }).click();
   await expect(sheet).toBeHidden();
   await expect(page.getByText("Every 7 days · Due today")).toBeVisible();

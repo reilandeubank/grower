@@ -20,6 +20,7 @@ import (
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
 	"github.com/reilandeubank/grower/internal/media"
+	"github.com/reilandeubank/grower/internal/schedule"
 )
 
 // The export format (docs/export-format.md) has its own types rather than reusing the
@@ -66,6 +67,7 @@ type (
 		IntervalDays int                `json:"interval_days"`
 		Anchor       apigen.Anchor      `json:"anchor"`
 		StartOn      openapi_types.Date `json:"start_on"`
+		Seasonal     bool               `json:"seasonal"`
 	}
 	exportEvent struct {
 		apigen.CareEvent
@@ -91,7 +93,7 @@ func (h *Handler) ExportData(ctx context.Context, _ apigen.ExportDataRequestObje
 	if !ok {
 		return apigen.ExportData401ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: unauthorized()}, nil
 	}
-	today, err := h.today(ctx)
+	cal, err := h.calendar(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +101,7 @@ func (h *Handler) ExportData(ctx context.Context, _ apigen.ExportDataRequestObje
 	if err != nil {
 		return nil, err
 	}
-	return exportResponse{data: data, filename: "grower-export-" + today.String() + ".zip", media: h.media, log: h.log}, nil
+	return exportResponse{data: data, filename: "grower-export-" + cal.Today.String() + ".zip", media: h.media, log: h.log}, nil
 }
 
 func (h *Handler) exportSnapshot(ctx context.Context, userID string) (exportFile, error) {
@@ -177,12 +179,13 @@ func exportPlantOf(r dbgen.Plant) (exportPlant, error) {
 }
 
 func exportTaskOf(r dbgen.CareTask) (exportTask, error) {
-	t, err := careTask(r, nil)
+	start, err := schedule.Parse(r.StartOn)
 	if err != nil {
 		return exportTask{}, err
 	}
 	return exportTask{
-		ID: t.Id, PlantID: t.PlantId, Kind: t.Kind, Label: t.Label, IntervalDays: t.IntervalDays, Anchor: t.Anchor, StartOn: t.StartOn,
+		ID: r.ID, PlantID: r.PlantID, Kind: apigen.TaskKind(r.Kind), Label: r.Label, IntervalDays: int(r.IntervalDays),
+		Anchor: apigen.Anchor(r.Anchor), StartOn: apiDate(start), Seasonal: r.Seasonal == 1,
 	}, nil
 }
 

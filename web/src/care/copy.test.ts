@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { taskName } from "../design";
 import { addDays, daysBetween } from "../lib/dates";
-import { doneToast, doneVerb, dueLine, dueWhen, historyLine, intervalLine, skipToast, snoozeToast } from "./copy";
+import {
+  doneToast,
+  doneVerb,
+  dueLine,
+  dueWhen,
+  historyLine,
+  intervalLine,
+  skipToast,
+  snoozeToast,
+  taskIntervalLine,
+} from "./copy";
 
 const today = "2026-10-14"; // a Wednesday
 
@@ -57,6 +67,10 @@ describe("task names and verbs", () => {
   it("reads intervals and history in words", () => {
     expect(intervalLine(1)).toBe("Every day");
     expect(intervalLine(7)).toBe("Every 7 days");
+    expect(taskIntervalLine({ interval_days: 7, current_interval_days: 7 })).toBe("Every 7 days");
+    expect(taskIntervalLine({ interval_days: 7, current_interval_days: 11 })).toBe("Every 7 days · 11 days this season");
+    expect(taskIntervalLine({ interval_days: 1, current_interval_days: 1 })).toBe("Every day");
+    expect(taskIntervalLine({ interval_days: 2, current_interval_days: 1 })).toBe("Every 2 days · 1 day this season");
     const event = { id: "e1", task_id: "t1", note: "", occurred_at: "", local_date: "2026-10-12", snooze_until: null };
     expect(historyLine({ event: { ...event, kind: "done" }, task_kind: "water", task_label: "" }, today)).toBe(
       "Watered",

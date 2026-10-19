@@ -3,11 +3,13 @@ import { ChevronRight, LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { useLogout } from "../auth/hooks";
 import { useCurrentUser } from "../auth/useCurrentUser";
-import { AppShell, Button, SegmentedControl, TopBar } from "../design";
+import type { Settings as SettingsData } from "../api/client";
+import { AppShell, Button, ErrorText, SegmentedControl, TopBar } from "../design";
 import { readTheme, saveTheme, type Theme } from "../lib/theme";
 import { DataSection } from "../settings/DataSection";
 import { NotificationsSection } from "../settings/NotificationsSection";
 import { PasswordSheet } from "../settings/PasswordSheet";
+import { useUpdateSettings } from "../settings/queries";
 import { TimeZoneSheet } from "../settings/TimeZoneSheet";
 import { zoneLabel } from "../settings/timeZones";
 import styles from "./Settings.module.css";
@@ -17,6 +19,10 @@ const THEMES: { value: Theme; label: string; icon: ReactNode }[] = [
   { value: "system", label: "System", icon: icon(Monitor) },
   { value: "light", label: "Light", icon: icon(Sun) },
   { value: "dark", label: "Dark", icon: icon(Moon) },
+];
+const HEMISPHERES: { value: SettingsData["hemisphere"]; label: string }[] = [
+  { value: "north", label: "Northern" },
+  { value: "south", label: "Southern" },
 ];
 
 export function Settings() {
@@ -49,6 +55,7 @@ export function Settings() {
         <Section id="settings-general" title="General">
           <div className={styles.card}>
             <RowButton label="Time zone" value={zoneLabel(me.settings.timezone)} onClick={() => setSheet("timezone")} />
+            <Hemisphere />
             <Link to="/settings/locations" className={`${styles.row} ${styles.action}`}>
               <span className="t-body">Locations</span>
               <ChevronRight size={20} strokeWidth={1.75} aria-hidden="true" className={styles.muted} />
@@ -113,6 +120,24 @@ function Section({ id, title, children }: { id: string; title: string; children:
       </h2>
       {children}
     </section>
+  );
+}
+
+/** Which months are winter, for seasonal care. Saved as soon as it's picked. */
+function Hemisphere() {
+  const me = useCurrentUser();
+  const save = useUpdateSettings();
+  return (
+    <div className={`${styles.row} ${styles.block}`}>
+      <SegmentedControl
+        label="Hemisphere"
+        options={HEMISPHERES}
+        value={(save.isPending && save.variables.hemisphere) || me.settings.hemisphere}
+        onChange={(hemisphere) => save.mutate({ hemisphere })}
+      />
+      <p className={`t-caption ${styles.muted}`}>Decides which months count as winter when care follows the seasons.</p>
+      {save.isError && <ErrorText>Couldn't save the hemisphere. Check your connection, then try again.</ErrorText>}
+    </div>
   );
 }
 

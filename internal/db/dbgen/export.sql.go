@@ -165,7 +165,7 @@ func (q *Queries) ExportPlants(ctx context.Context) ([]Plant, error) {
 }
 
 const exportTasks = `-- name: ExportTasks :many
-SELECT id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at FROM care_tasks ORDER BY id
+SELECT id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at, seasonal FROM care_tasks ORDER BY id
 `
 
 func (q *Queries) ExportTasks(ctx context.Context) ([]CareTask, error) {
@@ -187,6 +187,7 @@ func (q *Queries) ExportTasks(ctx context.Context) ([]CareTask, error) {
 			&i.StartOn,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Seasonal,
 		); err != nil {
 			return nil, err
 		}

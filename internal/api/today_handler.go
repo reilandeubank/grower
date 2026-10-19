@@ -11,11 +11,11 @@ import (
 
 // GetToday sorts every task of an active plant into overdue, due today or upcoming.
 func (h *Handler) GetToday(ctx context.Context, _ apigen.GetTodayRequestObject) (apigen.GetTodayResponseObject, error) {
-	today, err := h.today(ctx)
+	cal, err := h.calendar(ctx)
 	if err != nil {
 		return nil, err
 	}
-	agenda, err := care.Today(ctx, h.db.Reader(), today)
+	agenda, err := care.Today(ctx, h.db.Reader(), cal)
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +23,7 @@ func (h *Handler) GetToday(ctx context.Context, _ apigen.GetTodayRequestObject) 
 	if err != nil {
 		return nil, err
 	}
-	res := apigen.Today{Date: apiDate(today), TaskCount: agenda.TaskCount}
+	res := apigen.Today{Date: apiDate(cal.Today), TaskCount: agenda.TaskCount}
 	if res.Overdue, err = todayItems(agenda.Overdue, covers); err != nil {
 		return nil, err
 	}

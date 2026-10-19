@@ -1,6 +1,6 @@
 -- name: CreateTask :one
-INSERT INTO care_tasks (id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO care_tasks (id, plant_id, kind, label, interval_days, anchor, start_on, seasonal, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetTask :one
@@ -8,7 +8,7 @@ SELECT * FROM care_tasks WHERE id = ?;
 
 -- name: UpdateTask :one
 UPDATE care_tasks
-SET kind = ?, label = ?, interval_days = ?, anchor = ?, start_on = ?, updated_at = ?
+SET kind = ?, label = ?, interval_days = ?, anchor = ?, start_on = ?, seasonal = ?, updated_at = ?
 WHERE id = ?
 RETURNING *;
 
