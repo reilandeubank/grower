@@ -254,6 +254,31 @@ Table-driven tests plus a property test (`testing/quick` or `rapid`):
 - Seasonal factor at a month boundary, factor < 1 rounding to ≥ 1.
 - Property: `NextDue` is deterministic, `due > last` for `from_completion`, and adding a voided event never changes the result.
 
+### 5.5 Moisture-check watering (owner idea 6)
+
+A water task with `moisture_check` is a soil check. Its due date is *when to check*, and readings on the meter's 1–10 scale (dry 1–3, moist 4–7, wet 8–10) decide when to water. `water_at` (default 3) is the threshold: a reading `≤ water_at` means "water now". Check tasks always count from completion, and the seasonal curves don't apply because learning from recent cycles already tracks the seasons.
+
+Events: `checked` carries a required reading. `done` may carry the reading taken just before watering. Skip and snooze behave as before.
+
+**Learned drying time** (`drying_days`, pure function of the event log):
+1. A *cycle* starts at each `done` (a watering) at date W.
+2. Its *observation* is the date of the first reading `≤ water_at` after W, from a `checked` or the next `done`'s own reading. If there's no such reading, it's the next `done`'s date (watering without a reading implies it was time). A cycle with neither yet has no observation.
+3. D = observation − W, ignored if < 1. `drying_days` = the median of the last 3 observations (lower median for even counts), or null if there are none.
+4. `learned` = `drying_days` if known, else `interval_days`.
+
+**Next check** (after rules 1, 2, 4 and 5 of §5.2 for ordering, voids, snooze and pause semantics):
+- No `done`, `skipped` or `checked` yet: `StartOn`.
+- Latest relevant event is `done` or `skipped` at L: L + `learned`.
+- Latest relevant event is `checked` at C with reading r:
+  - r ≤ `water_at` (dry, but not watered yet): C + 1.
+  - Otherwise, with the last watering W before C:
+    - if C > W and r < 10: rate = (10 − r) / (C − W) points per day; remaining = ceil((r − `water_at`) / rate);
+    - else (no watering yet, same-day check, or still reading 10): remaining = W exists ? max(1, `learned` − (C − W)) : 2.
+  - Due = C + clamp(remaining, 1, 14).
+- A later snooze still applies on top, as in §5.2 rule 4.
+
+`current_interval_days` for check tasks is `learned`. Today and the digest call these "Check soil".
+
 ---
 
 ## 6. Repo layout, conventions, tests, CI/CD

@@ -649,8 +649,21 @@ export interface components {
              *     Defaults to true for water, mist and fertilize, false otherwise. PUT replaces the
              *     whole task, so omitting it there resets it to that default too. Only applies to the
              *     from_completion anchor; fixed schedules keep their calendar.
+             *     Ignored for moisture-check tasks, which learn from readings instead.
              */
             seasonal?: boolean;
+            /**
+             * @description Water tasks only. The task becomes a soil check: due dates are when to check, and
+             *     readings decide when to water (PLAN §5.5). interval_days is the first estimate of
+             *     how long the soil takes to dry out. Forces the from_completion anchor.
+             * @default false
+             */
+            moisture_check: boolean;
+            /**
+             * @description Water when a reading is at or below this (moisture-check tasks only).
+             * @default 3
+             */
+            water_at: number;
         };
         CareTask: {
             id: string;
@@ -669,17 +682,36 @@ export interface components {
              */
             last_done: string | null;
             seasonal: boolean;
+            moisture_check: boolean;
+            water_at: number;
+            /** @description The most recent reading on this task, from a check or a watering. */
+            last_reading: {
+                value: components["schemas"]["MoistureReading"];
+                /** Format: date */
+                on: string;
+            } | null;
+            /**
+             * @description Moisture-check tasks: the learned days from watering until the soil reads dry
+             *     (median of recent cycles). Null until a cycle has been observed.
+             */
+            drying_days: number | null;
             /**
              * @description The interval this season, after seasonal adjustment: what the next due date
-             *     is counted with. Equals interval_days when not seasonal.
+             *     is counted with. Equals interval_days when not seasonal. For moisture-check tasks,
+             *     drying_days when known, else interval_days.
              */
             current_interval_days: number;
         };
         CareTaskList: {
             items: components["schemas"]["CareTask"][];
         };
-        /** @enum {string} */
-        EventKind: "done" | "skipped" | "snoozed";
+        /**
+         * @description checked records a soil moisture reading on a moisture-check task.
+         * @enum {string}
+         */
+        EventKind: "done" | "skipped" | "snoozed" | "checked";
+        /** @description Moisture meter reading. 1–3 dry, 4–7 moist, 8–10 wet. */
+        MoistureReading: number;
         CareEventInput: {
             kind: components["schemas"]["EventKind"];
             /**
@@ -693,10 +725,16 @@ export interface components {
              * @description Required for snoozed, and must be after today. Not allowed otherwise.
              */
             snooze_until?: string;
+            /**
+             * @description Required for checked. Optional for done on a moisture-check task (the reading taken
+             *     just before watering). Not allowed otherwise.
+             */
+            reading?: components["schemas"]["MoistureReading"];
             /** @default  */
             note: string;
         };
         CareEvent: {
+            reading: components["schemas"]["MoistureReading"] | null;
             id: string;
             task_id: string;
             kind: components["schemas"]["EventKind"];

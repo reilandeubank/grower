@@ -1006,9 +1006,23 @@ components:
             Defaults to true for water, mist and fertilize, false otherwise. PUT replaces the
             whole task, so omitting it there resets it to that default too. Only applies to the
             from_completion anchor; fixed schedules keep their calendar.
+            Ignored for moisture-check tasks, which learn from readings instead.
+        moisture_check:
+          type: boolean
+          default: false
+          description: |
+            Water tasks only. The task becomes a soil check: due dates are when to check, and
+            readings decide when to water (PLAN §5.5). interval_days is the first estimate of
+            how long the soil takes to dry out. Forces the from_completion anchor.
+        water_at:
+          type: integer
+          minimum: 1
+          maximum: 9
+          default: 3
+          description: Water when a reading is at or below this (moisture-check tasks only).
     CareTask:
       type: object
-      required: [id, plant_id, kind, label, interval_days, anchor, start_on, seasonal, current_interval_days, next_due, last_done]
+      required: [id, plant_id, kind, label, interval_days, anchor, start_on, seasonal, moisture_check, water_at, last_reading, drying_days, current_interval_days, next_due, last_done]
       properties:
         id:
           type: string
@@ -1035,11 +1049,33 @@ components:
           description: The last date it was done (skips and snoozes don't count).
         seasonal:
           type: boolean
+        moisture_check:
+          type: boolean
+        water_at:
+          type: integer
+        last_reading:
+          type: object
+          nullable: true
+          description: The most recent reading on this task, from a check or a watering.
+          required: [value, on]
+          properties:
+            value:
+              $ref: "#/components/schemas/MoistureReading"
+            "on":
+              type: string
+              format: date
+        drying_days:
+          type: integer
+          nullable: true
+          description: |
+            Moisture-check tasks: the learned days from watering until the soil reads dry
+            (median of recent cycles). Null until a cycle has been observed.
         current_interval_days:
           type: integer
           description: |
             The interval this season, after seasonal adjustment: what the next due date
-            is counted with. Equals interval_days when not seasonal.
+            is counted with. Equals interval_days when not seasonal. For moisture-check tasks,
+            drying_days when known, else interval_days.
     CareTaskList:
       type: object
       required: [items]
@@ -1050,7 +1086,13 @@ components:
             $ref: "#/components/schemas/CareTask"
     EventKind:
       type: string
-      enum: [done, skipped, snoozed]
+      enum: [done, skipped, snoozed, checked]
+      description: checked records a soil moisture reading on a moisture-check task.
+    MoistureReading:
+      type: integer
+      minimum: 1
+      maximum: 10
+      description: Moisture meter reading. 1–3 dry, 4–7 moist, 8–10 wet.
     CareEventInput:
       type: object
       required: [kind]
@@ -1067,14 +1109,24 @@ components:
           type: string
           format: date
           description: Required for snoozed, and must be after today. Not allowed otherwise.
+        reading:
+          allOf:
+            - $ref: "#/components/schemas/MoistureReading"
+          description: |
+            Required for checked. Optional for done on a moisture-check task (the reading taken
+            just before watering). Not allowed otherwise.
         note:
           type: string
           maxLength: 500
           default: ""
     CareEvent:
       type: object
-      required: [id, task_id, kind, local_date, snooze_until, note, occurred_at]
+      required: [id, task_id, kind, local_date, snooze_until, reading, note, occurred_at]
       properties:
+        reading:
+          allOf:
+            - $ref: "#/components/schemas/MoistureReading"
+          nullable: true
         id:
           type: string
         task_id:

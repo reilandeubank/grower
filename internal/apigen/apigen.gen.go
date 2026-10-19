@@ -40,6 +40,7 @@ func (e Anchor) Valid() bool {
 
 // Defines values for EventKind.
 const (
+	Checked EventKind = "checked"
 	Done    EventKind = "done"
 	Skipped EventKind = "skipped"
 	Snoozed EventKind = "snoozed"
@@ -48,6 +49,8 @@ const (
 // Valid indicates whether the value is a known member of the EventKind enum.
 func (e EventKind) Valid() bool {
 	switch e {
+	case Checked:
+		return true
 	case Done:
 		return true
 	case Skipped:
@@ -167,23 +170,31 @@ type Anchor string
 
 // CareEvent defines model for CareEvent.
 type CareEvent struct {
-	Id          string              `json:"id"`
+	Id string `json:"id"`
+
+	// Kind checked records a soil moisture reading on a moisture-check task.
 	Kind        EventKind           `json:"kind"`
 	LocalDate   openapi_types.Date  `json:"local_date"`
 	Note        string              `json:"note"`
 	OccurredAt  time.Time           `json:"occurred_at"`
+	Reading     *MoistureReading    `json:"reading"`
 	SnoozeUntil *openapi_types.Date `json:"snooze_until"`
 	TaskId      string              `json:"task_id"`
 }
 
 // CareEventInput defines model for CareEventInput.
 type CareEventInput struct {
+	// Kind checked records a soil moisture reading on a moisture-check task.
 	Kind EventKind `json:"kind"`
 
 	// LocalDate The user's local date when it happened. Defaults to today in the user's time zone;
 	// must be within a day of it, so a tap just before midnight counts for that day.
 	LocalDate *openapi_types.Date `json:"local_date,omitempty"`
 	Note      *string             `json:"note,omitempty"`
+
+	// Reading Required for checked. Optional for done on a moisture-check task (the reading taken
+	// just before watering). Not allowed otherwise.
+	Reading *MoistureReading `json:"reading,omitempty"`
 
 	// SnoozeUntil Required for snoozed, and must be after today. Not allowed otherwise.
 	SnoozeUntil *openapi_types.Date `json:"snooze_until,omitempty"`
@@ -201,19 +212,34 @@ type CareTask struct {
 	Anchor Anchor `json:"anchor"`
 
 	// CurrentIntervalDays The interval this season, after seasonal adjustment: what the next due date
-	// is counted with. Equals interval_days when not seasonal.
-	CurrentIntervalDays int      `json:"current_interval_days"`
-	Id                  string   `json:"id"`
-	IntervalDays        int      `json:"interval_days"`
-	Kind                TaskKind `json:"kind"`
-	Label               string   `json:"label"`
+	// is counted with. Equals interval_days when not seasonal. For moisture-check tasks,
+	// drying_days when known, else interval_days.
+	CurrentIntervalDays int `json:"current_interval_days"`
+
+	// DryingDays Moisture-check tasks: the learned days from watering until the soil reads dry
+	// (median of recent cycles). Null until a cycle has been observed.
+	DryingDays   *int     `json:"drying_days"`
+	Id           string   `json:"id"`
+	IntervalDays int      `json:"interval_days"`
+	Kind         TaskKind `json:"kind"`
+	Label        string   `json:"label"`
 
 	// LastDone The last date it was done (skips and snoozes don't count).
 	LastDone *openapi_types.Date `json:"last_done"`
-	NextDue  openapi_types.Date  `json:"next_due"`
-	PlantId  string              `json:"plant_id"`
-	Seasonal bool                `json:"seasonal"`
-	StartOn  openapi_types.Date  `json:"start_on"`
+
+	// LastReading The most recent reading on this task, from a check or a watering.
+	LastReading *struct {
+		On openapi_types.Date `json:"on"`
+
+		// Value Moisture meter reading. 1–3 dry, 4–7 moist, 8–10 wet.
+		Value MoistureReading `json:"value"`
+	} `json:"last_reading"`
+	MoistureCheck bool               `json:"moisture_check"`
+	NextDue       openapi_types.Date `json:"next_due"`
+	PlantId       string             `json:"plant_id"`
+	Seasonal      bool               `json:"seasonal"`
+	StartOn       openapi_types.Date `json:"start_on"`
+	WaterAt       int                `json:"water_at"`
 }
 
 // CareTaskInput defines model for CareTaskInput.
@@ -225,14 +251,23 @@ type CareTaskInput struct {
 	// Label Required for custom tasks; ignored otherwise.
 	Label *string `json:"label,omitempty"`
 
+	// MoistureCheck Water tasks only. The task becomes a soil check: due dates are when to check, and
+	// readings decide when to water (PLAN §5.5). interval_days is the first estimate of
+	// how long the soil takes to dry out. Forces the from_completion anchor.
+	MoistureCheck *bool `json:"moisture_check,omitempty"`
+
 	// Seasonal Stretch or shorten the interval by season (internal/schedule's built-in curves).
 	// Defaults to true for water, mist and fertilize, false otherwise. PUT replaces the
 	// whole task, so omitting it there resets it to that default too. Only applies to the
 	// from_completion anchor; fixed schedules keep their calendar.
+	// Ignored for moisture-check tasks, which learn from readings instead.
 	Seasonal *bool `json:"seasonal,omitempty"`
 
 	// StartOn First due date. Defaults to today in the user's time zone.
 	StartOn *openapi_types.Date `json:"start_on,omitempty"`
+
+	// WaterAt Water when a reading is at or below this (moisture-check tasks only).
+	WaterAt *int `json:"water_at,omitempty"`
 }
 
 // CareTaskList defines model for CareTaskList.
@@ -245,7 +280,7 @@ type CoverInput struct {
 	PhotoId *string `json:"photo_id"`
 }
 
-// EventKind defines model for EventKind.
+// EventKind checked records a soil moisture reading on a moisture-check task.
 type EventKind string
 
 // HistoryEntry defines model for HistoryEntry.
@@ -305,6 +340,9 @@ type Me struct {
 	// Example: v0.1.0
 	Version string `json:"version"`
 }
+
+// MoistureReading Moisture meter reading. 1–3 dry, 4–7 moist, 8–10 wet.
+type MoistureReading = int
 
 // PasswordChange defines model for PasswordChange.
 type PasswordChange struct {
