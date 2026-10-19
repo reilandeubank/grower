@@ -649,8 +649,12 @@ components:
           type: string
     Settings:
       type: object
-      required: [timezone, digest_time]
+      required: [timezone, digest_time, hemisphere]
       properties:
+        hemisphere:
+          type: string
+          enum: [north, south]
+          description: Decides which months count as winter for seasonal care adjustment.
         timezone:
           type: string
           description: IANA time zone used to decide what "today" is.
@@ -995,9 +999,15 @@ components:
           type: string
           format: date
           description: First due date. Defaults to today in the user's time zone.
+        seasonal:
+          type: boolean
+          description: |
+            Stretch or shorten the interval by season (internal/schedule's built-in curves).
+            Defaults to true for water, mist and fertilize, false otherwise. Only applies to
+            the from_completion anchor; fixed schedules keep their calendar.
     CareTask:
       type: object
-      required: [id, plant_id, kind, label, interval_days, anchor, start_on, next_due, last_done]
+      required: [id, plant_id, kind, label, interval_days, anchor, start_on, seasonal, current_interval_days, next_due, last_done]
       properties:
         id:
           type: string
@@ -1022,6 +1032,13 @@ components:
           format: date
           nullable: true
           description: The last date it was done (skips and snoozes don't count).
+        seasonal:
+          type: boolean
+        current_interval_days:
+          type: integer
+          description: |
+            The interval this season, after seasonal adjustment: what the next due date
+            is counted with. Equals interval_days when not seasonal.
     CareTaskList:
       type: object
       required: [items]

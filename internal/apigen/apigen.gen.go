@@ -113,6 +113,24 @@ func (e PotType) Valid() bool {
 	}
 }
 
+// Defines values for SettingsHemisphere.
+const (
+	North SettingsHemisphere = "north"
+	South SettingsHemisphere = "south"
+)
+
+// Valid indicates whether the value is a known member of the SettingsHemisphere enum.
+func (e SettingsHemisphere) Valid() bool {
+	switch e {
+	case North:
+		return true
+	case South:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TaskKind.
 const (
 	Custom    TaskKind = "custom"
@@ -180,16 +198,21 @@ type CareEventList struct {
 type CareTask struct {
 	// Anchor from_completion: the next due date counts from when the task was last done or skipped.
 	// fixed: due dates stay on start_on + k × interval_days regardless of when it was done.
-	Anchor       Anchor   `json:"anchor"`
-	Id           string   `json:"id"`
-	IntervalDays int      `json:"interval_days"`
-	Kind         TaskKind `json:"kind"`
-	Label        string   `json:"label"`
+	Anchor Anchor `json:"anchor"`
+
+	// CurrentIntervalDays The interval this season, after seasonal adjustment: what the next due date
+	// is counted with. Equals interval_days when not seasonal.
+	CurrentIntervalDays int      `json:"current_interval_days"`
+	Id                  string   `json:"id"`
+	IntervalDays        int      `json:"interval_days"`
+	Kind                TaskKind `json:"kind"`
+	Label               string   `json:"label"`
 
 	// LastDone The last date it was done (skips and snoozes don't count).
 	LastDone *openapi_types.Date `json:"last_done"`
 	NextDue  openapi_types.Date  `json:"next_due"`
 	PlantId  string              `json:"plant_id"`
+	Seasonal bool                `json:"seasonal"`
 	StartOn  openapi_types.Date  `json:"start_on"`
 }
 
@@ -201,6 +224,11 @@ type CareTaskInput struct {
 
 	// Label Required for custom tasks; ignored otherwise.
 	Label *string `json:"label,omitempty"`
+
+	// Seasonal Stretch or shorten the interval by season (internal/schedule's built-in curves).
+	// Defaults to true for water, mist and fertilize, false otherwise. Only applies to
+	// the from_completion anchor; fixed schedules keep their calendar.
+	Seasonal *bool `json:"seasonal,omitempty"`
 
 	// StartOn First due date. Defaults to today in the user's time zone.
 	StartOn *openapi_types.Date `json:"start_on,omitempty"`
@@ -433,11 +461,17 @@ type Settings struct {
 	// Example: 08:00
 	DigestTime string `json:"digest_time"`
 
+	// Hemisphere Decides which months count as winter for seasonal care adjustment.
+	Hemisphere SettingsHemisphere `json:"hemisphere"`
+
 	// Timezone IANA time zone used to decide what "today" is.
 	//
 	// Example: America/Chicago
 	Timezone string `json:"timezone"`
 }
+
+// SettingsHemisphere Decides which months count as winter for seasonal care adjustment.
+type SettingsHemisphere string
 
 // Storage defines model for Storage.
 type Storage struct {

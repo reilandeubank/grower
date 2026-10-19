@@ -443,6 +443,11 @@ export interface components {
         };
         Settings: {
             /**
+             * @description Decides which months count as winter for seasonal care adjustment.
+             * @enum {string}
+             */
+            hemisphere: "north" | "south";
+            /**
              * @description IANA time zone used to decide what "today" is.
              * @example America/Chicago
              */
@@ -639,6 +644,12 @@ export interface components {
              * @description First due date. Defaults to today in the user's time zone.
              */
             start_on?: string;
+            /**
+             * @description Stretch or shorten the interval by season (internal/schedule's built-in curves).
+             *     Defaults to true for water, mist and fertilize, false otherwise. Only applies to
+             *     the from_completion anchor; fixed schedules keep their calendar.
+             */
+            seasonal?: boolean;
         };
         CareTask: {
             id: string;
@@ -656,6 +667,12 @@ export interface components {
              * @description The last date it was done (skips and snoozes don't count).
              */
             last_done: string | null;
+            seasonal: boolean;
+            /**
+             * @description The interval this season, after seasonal adjustment: what the next due date
+             *     is counted with. Equals interval_days when not seasonal.
+             */
+            current_interval_days: number;
         };
         CareTaskList: {
             items: components["schemas"]["CareTask"][];
