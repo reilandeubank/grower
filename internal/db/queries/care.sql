@@ -1,6 +1,6 @@
 -- name: CreateTask :one
-INSERT INTO care_tasks (id, plant_id, kind, label, interval_days, anchor, start_on, seasonal, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO care_tasks (id, plant_id, kind, label, interval_days, anchor, start_on, seasonal, moisture_check, water_at, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetTask :one
@@ -8,7 +8,7 @@ SELECT * FROM care_tasks WHERE id = ?;
 
 -- name: UpdateTask :one
 UPDATE care_tasks
-SET kind = ?, label = ?, interval_days = ?, anchor = ?, start_on = ?, seasonal = ?, updated_at = ?
+SET kind = ?, label = ?, interval_days = ?, anchor = ?, start_on = ?, seasonal = ?, moisture_check = ?, water_at = ?, updated_at = ?
 WHERE id = ?
 RETURNING *;
 
@@ -47,8 +47,8 @@ ORDER BY care_events.local_date DESC, care_events.created_at DESC, care_events.i
 LIMIT ?;
 
 -- name: CreateEvent :one
-INSERT INTO care_events (id, task_id, kind, local_date, snooze_until, note, occurred_at, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO care_events (id, task_id, kind, local_date, snooze_until, reading, note, occurred_at, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- Undo keeps the event but ignores it from now on. Voiding twice keeps the first time.

@@ -10,7 +10,7 @@ import (
 )
 
 const exportEvents = `-- name: ExportEvents :many
-SELECT id, task_id, kind, local_date, snooze_until, note, occurred_at, voided_at, created_at FROM care_events ORDER BY id
+SELECT id, task_id, kind, local_date, snooze_until, reading, note, occurred_at, voided_at, created_at FROM care_events ORDER BY id
 `
 
 // Voided events too, so the log is complete.
@@ -29,6 +29,7 @@ func (q *Queries) ExportEvents(ctx context.Context) ([]CareEvent, error) {
 			&i.Kind,
 			&i.LocalDate,
 			&i.SnoozeUntil,
+			&i.Reading,
 			&i.Note,
 			&i.OccurredAt,
 			&i.VoidedAt,
@@ -165,7 +166,7 @@ func (q *Queries) ExportPlants(ctx context.Context) ([]Plant, error) {
 }
 
 const exportTasks = `-- name: ExportTasks :many
-SELECT id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at, seasonal FROM care_tasks ORDER BY id
+SELECT id, plant_id, kind, label, interval_days, anchor, start_on, created_at, updated_at, seasonal, moisture_check, water_at FROM care_tasks ORDER BY id
 `
 
 func (q *Queries) ExportTasks(ctx context.Context) ([]CareTask, error) {
@@ -188,6 +189,8 @@ func (q *Queries) ExportTasks(ctx context.Context) ([]CareTask, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Seasonal,
+			&i.MoistureCheck,
+			&i.WaterAt,
 		); err != nil {
 			return nil, err
 		}

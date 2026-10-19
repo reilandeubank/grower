@@ -12,6 +12,7 @@ export { FileButton, type FileButtonProps } from "./FileButton";
 export { FilterChips, type FilterChipsProps } from "./FilterChips";
 export { IconButton, type IconButtonProps } from "./IconButton";
 export { Logo, type LogoProps } from "./Logo";
+export { MoistureScale, moistureZone, zoneWord, type MoistureScaleProps, type MoistureZone } from "./MoistureScale";
 export { PlantCard, PlantPhoto, type PlantCardProps, type PlantPhotoProps } from "./PlantCard";
 export { OfflineBanner } from "./OfflineBanner";
 export { SegmentedControl, type SegmentedControlProps } from "./SegmentedControl";

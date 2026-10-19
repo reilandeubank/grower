@@ -76,7 +76,7 @@ describe("Task form", () => {
     await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(posts).toEqual([
-      { kind: "fertilize", label: "", interval_days: 14, anchor: "fixed", start_on: "2026-10-14", seasonal: true },
+      { kind: "fertilize", label: "", interval_days: 14, anchor: "fixed", start_on: "2026-10-14", seasonal: true, moisture_check: false, water_at: 3 },
     ]);
   });
 
@@ -101,7 +101,57 @@ describe("Task form", () => {
     await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(posts).toEqual([
-      { kind: "fertilize", label: "", interval_days: 7, anchor: "from_completion", start_on: "2026-10-14", seasonal: false },
+      { kind: "fertilize", label: "", interval_days: 7, anchor: "from_completion", start_on: "2026-10-14", seasonal: false, moisture_check: false, water_at: 3 },
     ]);
+  });
+
+  it("turns a water task into a soil check, and back", async () => {
+    const posts = setup();
+    const sheet = await openSheet();
+    const mode = () => within(sheet).getByRole("group", { name: "How do you decide when to water?" });
+    await userEvent.click(within(mode()).getByRole("button", { name: "Check the soil first" }));
+
+    // The interval is a first guess, the threshold appears, and the schedule options go.
+    expect(within(sheet).getByLabelText("Check about every")).toBeTruthy();
+    expect(within(sheet).getByText("Your first guess; grower learns from your readings.")).toBeTruthy();
+    expect(within(sheet).getByText("3 · Dry")).toBeTruthy();
+    expect(within(sheet).queryByRole("switch", { name: /Adjust for seasons/ })).toBeNull();
+    expect(within(sheet).queryByRole("button", { name: "Keep a fixed schedule" })).toBeNull();
+    const threshold = within(sheet).getByRole("radiogroup", { name: "Water at or below" });
+    expect(within(threshold).getByRole("radio", { name: "3, dry" }).getAttribute("aria-checked")).toBe("true");
+    expect((within(threshold).getByRole("radio", { name: "10, wet" }) as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.click(within(threshold).getByRole("radio", { name: "4, moist" }));
+    expect(within(sheet).getByText("4 · Moist")).toBeTruthy();
+
+    // Back to a schedule restores its controls.
+    await userEvent.click(within(mode()).getByRole("button", { name: "On a schedule" }));
+    expect(within(sheet).getByLabelText("Days between")).toBeTruthy();
+    expect(within(sheet).getByRole("switch", { name: /Adjust for seasons/ })).toBeTruthy();
+    // A fixed schedule picked before switching doesn't carry into a check.
+    await userEvent.click(within(sheet).getByRole("button", { name: "Keep a fixed schedule" }));
+    await userEvent.click(within(mode()).getByRole("button", { name: "Check the soil first" }));
+
+    await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(posts).toEqual([
+      {
+        kind: "water",
+        label: "",
+        interval_days: 7,
+        anchor: "from_completion",
+        start_on: "2026-10-14",
+        seasonal: true,
+        moisture_check: true,
+        water_at: 4,
+      },
+    ]);
+  });
+
+  it("only offers soil checks for water", async () => {
+    setup();
+    const sheet = await openSheet();
+    expect(within(sheet).getByRole("group", { name: "How do you decide when to water?" })).toBeTruthy();
+    await userEvent.click(within(sheet).getByRole("button", { name: "Mist" }));
+    expect(within(sheet).queryByRole("group", { name: "How do you decide when to water?" })).toBeNull();
   });
 });

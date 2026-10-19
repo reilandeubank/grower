@@ -94,7 +94,7 @@ func TestCurrentInterval(t *testing.T) {
 		{"fixed anchor", Task{IntervalDays: 7, Anchor: Fixed, Kind: "water", Seasonal: true}, "2026-01-15", North, 7},
 	}
 	for _, tt := range tests {
-		if got := CurrentInterval(tt.task, d(tt.today), tt.h); got != tt.want {
+		if got := CurrentInterval(tt.task, nil, d(tt.today), tt.h); got != tt.want {
 			t.Errorf("%s: CurrentInterval = %d, want %d", tt.name, got, tt.want)
 		}
 	}

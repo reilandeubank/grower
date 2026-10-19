@@ -64,7 +64,7 @@ func (f *fixture) addPlant(name, kind, start string) {
 	p, err := q.CreatePlant(ctx, dbgen.CreatePlantParams{ID: db.NewID(), Name: name, CreatedAt: stamp, UpdatedAt: stamp})
 	must(f.t, err)
 	_, err = q.CreateTask(ctx, dbgen.CreateTaskParams{
-		ID: db.NewID(), PlantID: p.ID, Kind: kind, Label: "", IntervalDays: 30, Anchor: "fixed", StartOn: start, CreatedAt: stamp, UpdatedAt: stamp,
+		ID: db.NewID(), PlantID: p.ID, Kind: kind, Label: "", IntervalDays: 30, Anchor: "fixed", StartOn: start, WaterAt: 3, CreatedAt: stamp, UpdatedAt: stamp,
 	})
 	must(f.t, err)
 }

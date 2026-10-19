@@ -14,9 +14,10 @@ CREATE TABLE care_events_new (
     kind         TEXT NOT NULL CHECK (kind IN ('done', 'skipped', 'snoozed', 'checked')),
     local_date   TEXT NOT NULL,
     snooze_until TEXT CHECK ((kind = 'snoozed') = (snooze_until IS NOT NULL)),
+    -- IS NULL first: NULL AND FALSE is FALSE, which would reject every skip and snooze.
     reading      INTEGER CHECK (
-                     reading BETWEEN 1 AND 10
-                     AND kind IN ('checked', 'done')
+                     reading IS NULL
+                     OR (reading BETWEEN 1 AND 10 AND kind IN ('checked', 'done'))
                  ),
     note         TEXT NOT NULL DEFAULT '',
     occurred_at  TEXT NOT NULL,

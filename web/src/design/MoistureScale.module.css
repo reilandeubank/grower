@@ -1,0 +1,135 @@
+.scale {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  container-type: inline-size;
+}
+
+/* A phone: zone captions, then 1–5; captions, then 6–10. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  column-gap: var(--space-2);
+}
+
+.dry {
+  --zone: var(--fertilize);
+}
+
+.moist {
+  --zone: var(--brand);
+}
+
+.wet {
+  --zone: var(--water);
+}
+
+/* The zone's name over a hairline in its colour, spanning its numbers. */
+.zone {
+  padding-bottom: 2px;
+  margin-bottom: var(--space-1);
+  border-bottom: 2px solid var(--zone);
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.dry.zone {
+  grid-area: 1 / 1 / 2 / 4;
+}
+
+.moist.zone {
+  grid-area: 1 / 4 / 2 / 6;
+}
+
+.moistAgain.zone {
+  grid-area: 3 / 1 / 4 / 3;
+  margin-top: var(--space-2);
+}
+
+.wet.zone {
+  grid-area: 3 / 3 / 4 / 6;
+  margin-top: var(--space-2);
+}
+
+.reading {
+  grid-row: 2;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target-min);
+  padding: 0;
+  border: 1.5px solid var(--zone);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--dur-press) var(--ease-out);
+}
+
+.reading:nth-of-type(n + 6) {
+  grid-row: 4;
+}
+
+@media (hover: hover) {
+  .reading:hover:not(:disabled, [aria-checked="true"]) {
+    background: color-mix(in srgb, var(--surface-raised) 88%, var(--zone));
+  }
+}
+
+.reading[aria-checked="true"] {
+  background: var(--zone);
+  color: var(--on-brand);
+}
+
+.reading:disabled {
+  border-color: var(--line);
+  color: var(--ink-muted);
+  opacity: 0.6;
+}
+
+/* The threshold: a short tick under its number. */
+.reading[data-threshold]::after {
+  content: "";
+  position: absolute;
+  bottom: calc(var(--space-1) * -1 - 2px);
+  left: 30%;
+  right: 30%;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: var(--ink-muted);
+}
+
+.caption {
+  margin-top: var(--space-1);
+  color: var(--ink-muted);
+}
+
+/* Wide enough for all 10 on one row at 44px or more each. */
+@container (min-width: 520px) {
+  .grid {
+    grid-template-columns: repeat(10, 1fr);
+  }
+
+  .reading,
+  .reading:nth-of-type(n + 6) {
+    grid-row: 2;
+  }
+
+  .dry.zone {
+    grid-area: 1 / 1 / 2 / 4;
+  }
+
+  .moist.zone {
+    grid-area: 1 / 4 / 2 / 8;
+  }
+
+  .wet.zone {
+    grid-area: 1 / 8 / 2 / 11;
+    margin-top: 0;
+  }
+
+  .moistAgain.zone {
+    display: none;
+  }
+}

@@ -62,7 +62,8 @@ func (h *Handler) CreateTask(ctx context.Context, req apigen.CreateTaskRequestOb
 	now := db.FormatTime(h.auth.Now())
 	row, err := h.db.Writer().CreateTask(ctx, dbgen.CreateTaskParams{
 		ID: db.NewID(), PlantID: req.Id, Kind: in.Kind, Label: in.Label, IntervalDays: in.IntervalDays,
-		Anchor: in.Anchor, StartOn: in.StartOn, Seasonal: in.Seasonal, CreatedAt: now, UpdatedAt: now,
+		Anchor: in.Anchor, StartOn: in.StartOn, Seasonal: in.Seasonal, MoistureCheck: in.MoistureCheck, WaterAt: in.WaterAt,
+		CreatedAt: now, UpdatedAt: now,
 	})
 	switch {
 	case db.IsForeignKeyViolation(err):
@@ -117,9 +118,14 @@ func (h *Handler) DeleteTask(ctx context.Context, req apigen.DeleteTaskRequestOb
 // parseTask validates input, returning a user-facing detail when it is invalid.
 // Whether the plant exists is left to the foreign key.
 func parseTask(in apigen.CareTaskInput, today schedule.Date) (dbgen.UpdateTaskParams, string) {
-	f := dbgen.UpdateTaskParams{Kind: string(in.Kind), IntervalDays: int64(in.IntervalDays), Anchor: string(apigen.FromCompletion)}
+	f := dbgen.UpdateTaskParams{Kind: string(in.Kind), IntervalDays: int64(in.IntervalDays), Anchor: string(apigen.FromCompletion), WaterAt: 3}
 	if in.Kind == apigen.Custom {
 		f.Label = strings.TrimSpace(deref(in.Label))
+	}
+	// PUT is a full replace, so omitted soil-check fields reset to their defaults too.
+	check := in.MoistureCheck != nil && *in.MoistureCheck
+	if in.WaterAt != nil {
+		f.WaterAt = int64(*in.WaterAt)
 	}
 	switch {
 	case !in.Kind.Valid():
@@ -132,7 +138,14 @@ func parseTask(in apigen.CareTaskInput, today schedule.Date) (dbgen.UpdateTaskPa
 		return f, "Interval must be 1 to 365 days."
 	case in.Anchor != nil && !in.Anchor.Valid():
 		return f, "Anchor must be from_completion or fixed."
+	case f.WaterAt < 1 || f.WaterAt > 9:
+		return f, "Water-at must be between 1 and 9."
+	case check && in.Kind != apigen.Water:
+		return f, "Only watering tasks can use soil checks."
+	case check && in.Anchor != nil && *in.Anchor == apigen.Fixed:
+		return f, "Soil checks always count from the last watering."
 	}
+	f.MoistureCheck = boolInt(check)
 	if in.Anchor != nil {
 		f.Anchor = string(*in.Anchor)
 	}
@@ -174,10 +187,20 @@ func taskOf(row dbgen.CareTask, dates care.Dates) apigen.CareTask {
 		Id: row.ID, PlantId: row.PlantID, Kind: apigen.TaskKind(row.Kind), Label: row.Label,
 		IntervalDays: int(row.IntervalDays), Anchor: apigen.Anchor(row.Anchor),
 		StartOn: apiDate(dates.Start), NextDue: apiDate(dates.Next), Seasonal: row.Seasonal == 1, CurrentIntervalDays: dates.Interval,
+		MoistureCheck: row.MoistureCheck == 1, WaterAt: int(row.WaterAt),
 	}
 	if dates.HasLast {
 		d := apiDate(dates.Last)
 		t.LastDone = &d
+	}
+	if dates.HasDrying {
+		t.DryingDays = &dates.DryingDays
+	}
+	if r := dates.LastReading; r.Reading > 0 {
+		t.LastReading = &struct {
+			On    openapi_types.Date     `json:"on"`
+			Value apigen.MoistureReading `json:"value"`
+		}{On: apiDate(r.On), Value: r.Reading}
 	}
 	return t
 }

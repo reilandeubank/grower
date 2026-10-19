@@ -17,13 +17,22 @@ import (
 
 const eventNotFound = "Event not found."
 
-// LogTaskEvent records a done, skip or snooze and returns the task's new schedule.
+// LogTaskEvent records a done, skip, snooze or soil check and returns the task's new
+// schedule.
 func (h *Handler) LogTaskEvent(ctx context.Context, req apigen.LogTaskEventRequestObject) (apigen.LogTaskEventResponseObject, error) {
 	cal, err := h.calendar(ctx)
 	if err != nil {
 		return nil, err
 	}
-	in, detail := parseEvent(*req.Body, cal.Today)
+	// Whether a reading is allowed depends on the task.
+	task, err := h.db.Reader().GetTask(ctx, req.Id)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return apigen.LogTaskEvent404ApplicationProblemPlusJSONResponse(problem(http.StatusNotFound, taskNotFound)), nil
+	case err != nil:
+		return nil, fmt.Errorf("get task %s: %w", req.Id, err)
+	}
+	in, detail := parseEvent(*req.Body, cal.Today, task.MoistureCheck == 1)
 	if detail != "" {
 		return apigen.LogTaskEvent400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest(detail)}, nil
 	}
@@ -40,11 +49,11 @@ func (h *Handler) LogTaskEvent(ctx context.Context, req apigen.LogTaskEventReque
 	if err != nil {
 		return nil, err
 	}
-	task, err := h.reloadTask(ctx, req.Id, cal)
+	updated, err := h.careTask(ctx, task, cal)
 	if err != nil {
 		return nil, err
 	}
-	return apigen.LogTaskEvent201JSONResponse{Event: event, Task: task}, nil
+	return apigen.LogTaskEvent201JSONResponse{Event: event, Task: updated}, nil
 }
 
 // UndoEvent voids an event and returns the task's recalculated schedule. Undoing an
@@ -93,8 +102,10 @@ func (h *Handler) ListPlantEvents(ctx context.Context, req apigen.ListPlantEvent
 	return apigen.ListPlantEvents200JSONResponse{Items: items}, nil
 }
 
-// parseEvent validates input against today, returning a user-facing detail when it is invalid.
-func parseEvent(in apigen.CareEventInput, today schedule.Date) (dbgen.CreateEventParams, string) {
+// parseEvent validates input against today and the task, returning a user-facing detail
+// when it is invalid. Only a soil-check task takes readings: required on a check,
+// optional on a watering (measured just before).
+func parseEvent(in apigen.CareEventInput, today schedule.Date, soilCheck bool) (dbgen.CreateEventParams, string) {
 	f := dbgen.CreateEventParams{Kind: string(in.Kind), LocalDate: today.String(), Note: deref(in.Note)}
 	if in.LocalDate != nil {
 		on := schedule.DateOf(in.LocalDate.Time)
@@ -106,7 +117,15 @@ func parseEvent(in apigen.CareEventInput, today schedule.Date) (dbgen.CreateEven
 	}
 	switch {
 	case !in.Kind.Valid():
-		return f, "Kind must be done, skipped or snoozed."
+		return f, "Kind must be done, skipped, snoozed or checked."
+	case !soilCheck && (in.Kind == apigen.Checked || in.Reading != nil):
+		return f, "Only soil-check tasks take readings."
+	case in.Kind == apigen.Checked && in.Reading == nil:
+		return f, "Add the meter reading."
+	case in.Reading != nil && in.Kind != apigen.Checked && in.Kind != apigen.Done:
+		return f, "Only a check or a watering takes a reading."
+	case in.Reading != nil && (*in.Reading < 1 || *in.Reading > 10):
+		return f, "Reading must be 1 to 10."
 	case in.Kind == apigen.Snoozed && (in.SnoozeUntil == nil || !schedule.DateOf(in.SnoozeUntil.Time).After(today)):
 		return f, "Pick a snooze date after today."
 	case in.Kind != apigen.Snoozed && in.SnoozeUntil != nil:
@@ -116,6 +135,9 @@ func parseEvent(in apigen.CareEventInput, today schedule.Date) (dbgen.CreateEven
 	}
 	if in.SnoozeUntil != nil {
 		f.SnoozeUntil = sql.NullString{String: schedule.DateOf(in.SnoozeUntil.Time).String(), Valid: true}
+	}
+	if in.Reading != nil {
+		f.Reading = sql.NullInt64{Int64: int64(*in.Reading), Valid: true}
 	}
 	return f, ""
 }
@@ -140,6 +162,10 @@ func careEvent(r dbgen.CareEvent) (apigen.CareEvent, error) {
 	}
 	e := apigen.CareEvent{
 		Id: r.ID, TaskId: r.TaskID, Kind: apigen.EventKind(r.Kind), LocalDate: apiDate(on), Note: r.Note, OccurredAt: occurred,
+	}
+	if r.Reading.Valid {
+		reading := apigen.MoistureReading(r.Reading.Int64)
+		e.Reading = &reading
 	}
 	if r.SnoozeUntil.Valid {
 		until, err := schedule.Parse(r.SnoozeUntil.String)

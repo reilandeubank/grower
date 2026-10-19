@@ -12,8 +12,9 @@ Milestone definitions live in `PLAN.md` §2.
 | M3 Care tasks + scheduling + Today | done (v0.2.0) |
 | M4 Photos | done (v0.3.0) |
 | M5 MVP hardening, v1.0 | done (v1.0.0) |
-| M6 Web push (daily reminder) | done (not yet released) |
-| M7 Seasonal adjustment | done (not yet released) |
+| M6 Web push (daily reminder) | done (v1.1.0) |
+| M7 Seasonal adjustment | done (v1.2.0) |
+| Moisture-check watering (§5.5, backlog 6) | done (v1.3.0) |
 | M8 Species | not started |
 | M9 Import + quick-add via photo | not started |
 
@@ -28,9 +29,22 @@ Milestone definitions live in `PLAN.md` §2.
 - [x] Deployed on TrueNAS behind NPM; logged in from the installed PWA
 
 ## Owner action items
-- Update to v1.2.0 (seasonal care: existing water/mist/fertilize tasks now stretch in winter; switch off per task in its sheet). If not done yet, on the phone: Settings → Notifications → turn on Daily reminder → Allow → Send test notification; set the reminder time.
+- Snapshot, then update to v1.3.0 (migration 0008 rebuilds the care history table; your events are kept).
+- Switch watering tasks to "Check the soil first" where you use the meter, and set each plant's water-at level (e.g. 2 for succulents, 4 for ferns).
+- If not done yet: Settings → Notifications → Daily reminder.
 
 ## Checkpoints
+
+### 2026-10-19 · Moisture frontend (PLAN §5.5)
+- Done: `design/MoistureScale` (1–10 radio group: roving tab stop, arrows/Home/End, `aria-label` "3, dry"; zone colours dry `fertilize`, moist `brand`, wet `water`; 2 rows of 5 on phones, one row from 520px via a container query; optional threshold tick + "Water at 3 or below"; `max` caps it). `TaskIcon`/`taskName` take `check` (Gauge, "Check soil"); `TaskRow` `check` makes the round check open the sheet. `care/CheckSoil`: pick a reading and the verdict shows at once (`verdict()` in copy.ts, ≤ `water_at` waters); Watered = `done`+reading, Not now / Save reading = `checked`, "Watered without checking" = `done`; on Today it opens inside TaskActionsSheet ("Snooze or skip" switches to the usual actions), on the Care tab in its own sheet. `useLogEvent` sends `reading`; the checked toast names the next check from the returned task ("Saved reading 6 · Moist for Monstera. Next check Fri, Oct 23."). TaskSheet: for Water, "How do you decide when to water?" (On a schedule / Check the soil first); check mode relabels the interval "Check about every … days", adds "Water at or below" (1–9, "3 · Dry"), hides the anchor and seasons, sends `from_completion`. Care tab: "Usually dries out in N days" or "Check about every N days · learning from your readings", "Last reading 6 · Moist, Oct 18"; history "Checked soil · 6 Moist", "Watered · read 2 Dry".
+- Tests: MoistureScale, verdict/zone copy edges, TaskSheet mode mapping, CheckSoil flow on Today (mocked API); e2e `water-check.spec.ts` (clientIP 5, runs last). lint, typecheck, 112 unit tests, build and `make e2e` (7) pass.
+- Next: Today's "All caught up" line reads "Next: Check soil Monstera …"; a "for" would read better.
+
+### 2026-10-19 · Moisture backend (PLAN §5.5)
+- Done: `internal/schedule/moisture.go` (`Checked`, `Task.MoistureCheck`/`WaterAt`, `Event.Reading`; `DryingDays` = lower median of the last 3 observed cycles; `nextCheck` routes check tasks in `NextDue`, ignoring anchor and seasons, snooze on top; `CurrentInterval(t, events, today, h)` returns learned; `LastReading`). Non-check tasks unchanged; stray `checked` events are dropped for them. Table + property tests in `moisture_test.go`. Tasks read/write `moisture_check` (default false) and `water_at` (default 3; PUT resets omitted ones); responses add `drying_days`, `last_reading`. Events take `reading`; history and logged events return it. Digest says "Check soil for Monstera". Export adds `tasks[].moisture_check`, `water_at`, `events[].reading` (docs/export-format.md).
+- Fix: 0008's `reading` CHECK rejected NULL readings on skips and snoozes (`NULL AND FALSE` is false), which would also have failed the upgrade on any DB with a skip. Fixed in place (unreleased); `internal/db/migrate_moisture_test.go` round-trips up/down/up with existing events.
+- Problem details (400): "Only watering tasks can use soil checks.", "Water-at must be between 1 and 9.", "Soil checks always count from the last watering." (explicit fixed), "Add the meter reading.", "Only soil-check tasks take readings.", "Only a check or a watering takes a reading.", "Reading must be 1 to 10."; bad event kind now "Kind must be done, skipped, snoozed or checked."
+- Checks: `go generate` no drift, build, vet, golangci-lint 0 issues, `go test ./...`.
 
 ### 2026-10-19 · M7: seasonal adjustment (backend + frontend)
 - Done: `internal/schedule/season.go` (`Hemisphere`, built-in monthly curves in percent for water, mist and fertilize, south = six months on; `Task.Kind`/`Seasonal`; `NextDue(t, events, h)`; `CurrentInterval`), table + property tests in `season_test.go`. `care.Calendar` (today + hemisphere) flows from settings into task responses, Today, log/undo responses and the push digest. Tasks read/write `seasonal` (omitted = kind default on POST and PUT); responses carry `seasonal` and `current_interval_days`. Settings save `hemisphere` (400 "Hemisphere must be north or south."). Export adds `settings.hemisphere` and `tasks[].seasonal` (docs/export-format.md). Frontend: "Adjust for seasons" switch in the task sheet (default from kind on new tasks; disabled with a hint under a fixed schedule), "Every 7 days · 8 days this season" on the Care tab, Hemisphere (Northern/Southern) in Settings → General. Settings saves now also refresh plants (task lists).

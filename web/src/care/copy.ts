@@ -1,6 +1,6 @@
 // Care copy, per the design README: relative dates when close, plain verbs, no guilt.
 import type { CareTask, HistoryEntry, TaskKind } from "../api/client";
-import { taskName } from "../design";
+import { moistureZone, taskName, zoneWord } from "../design";
 import { daysBetween, formatDay, formatWeekdayDay } from "../lib/dates";
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -75,12 +75,47 @@ export function snoozeToast(until: string, today: string): string {
   return `Snoozed until ${formatWeekdayDay(until, today)}.`;
 }
 
-/** A history row's words: "Watered", "Skipped Fertilize", "Snoozed Water until Oct 17". */
+/**
+ * A history row's words: "Watered", "Skipped Fertilize", "Snoozed Water until Oct 17",
+ * "Checked soil · 6 Moist", "Watered · read 2 Dry".
+ */
 export function historyLine({ event, task_kind, task_label }: HistoryEntry, today: string): string {
+  const read = event.reading === null ? "" : `${event.reading} ${zoneWord(event.reading)}`;
+  if (event.kind === "checked") return read ? `Checked soil · ${read}` : "Checked soil";
   const name = taskName(task_kind, task_label);
   if (event.kind === "skipped") return `Skipped ${name}`;
   if (event.kind === "snoozed") {
     return event.snooze_until ? `Snoozed ${name} until ${formatDay(event.snooze_until, today)}` : `Snoozed ${name}`;
   }
-  return doneVerb(task_kind, task_label);
+  return read ? `${doneVerb(task_kind, task_label)} · read ${read}` : doneVerb(task_kind, task_label);
+}
+
+// Moisture checks (PLAN §5.5).
+
+/** "6 · Moist". */
+export function readingLine(reading: number): string {
+  return `${reading} · ${zoneWord(reading)}`;
+}
+
+/** Whether a reading says to water now, and the words for it. Mirrors the server: water at or below the threshold. */
+export function verdict(reading: number, waterAt: number): { water: boolean; message: string } {
+  if (reading <= waterAt) return { water: true, message: "Dry enough to water." };
+  return { water: false, message: `Still ${moistureZone(reading) === "wet" ? "wet" : "moist"} — no water needed.` };
+}
+
+/** "Saved reading 6 · Moist for Monstera. Next check Fri, Oct 24." */
+export function checkedToast(reading: number, plant: string, nextDue: string, today: string): string {
+  return `Saved reading ${readingLine(reading)} for ${plant}. Next check ${formatWeekdayDay(nextDue, today)}.`;
+}
+
+/** "Usually dries out in 9 days" once learned, else the first guess. */
+export function dryingLine({ drying_days, interval_days }: Pick<CareTask, "drying_days" | "interval_days">): string {
+  if (drying_days !== null) return `Usually dries out in ${plural(drying_days, "day")}`;
+  const every = interval_days === 1 ? "day" : `${interval_days} days`;
+  return `Check about every ${every} · learning from your readings`;
+}
+
+/** "Last reading 6 · Moist, Oct 18". */
+export function lastReadingLine(last: CareTask["last_reading"], today: string): string {
+  return last ? `Last reading ${readingLine(last.value)}, ${formatDay(last.on, today)}` : "No readings yet";
 }

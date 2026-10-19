@@ -4,8 +4,15 @@ import { AlarmClockOff, ArrowLeft, Check, Clock, SkipForward, Sprout } from "luc
 import type { EventKind, TodayItem } from "../api/client";
 import { BottomSheet, Button, TaskIcon, TextField, taskName } from "../design";
 import { addDays, daysBetween, formatWeekdayDay } from "../lib/dates";
+import { CheckSoil } from "./CheckSoil";
 import { dueLine } from "./copy";
 import styles from "./TaskActionsSheet.module.css";
+
+/** A snooze's date, or a soil check's reading. */
+export interface ActionExtra {
+  snoozeUntil?: string;
+  reading?: number;
+}
 
 export interface TaskActionsSheetProps {
   /** The task to act on; the sheet is open while it's set. */
@@ -13,14 +20,16 @@ export interface TaskActionsSheetProps {
   /** Today's date from the server. */
   today: string;
   onClose: () => void;
-  onAction: (item: TodayItem, kind: EventKind, snoozeUntil?: string) => void;
+  onAction: (item: TodayItem, kind: EventKind, extra?: ActionExtra) => void;
 }
 
 const icon = (Icon: typeof Check) => <Icon size={20} strokeWidth={1.75} aria-hidden="true" />;
 
-/** Done, snooze, skip or open the plant, for one task row. */
+/** Done, snooze, skip or open the plant, for one task row. A soil check opens on its reading. */
 export function TaskActionsSheet({ item, today, onClose, onAction }: TaskActionsSheetProps) {
-  const title = item ? `${taskName(item.task.kind, item.task.label)} · ${item.plant.name}` : "";
+  const title = item
+    ? `${taskName(item.task.kind, item.task.label, item.task.moisture_check)} · ${item.plant.name}`
+    : "";
   return (
     <BottomSheet open={item !== null} onClose={onClose} title={title}>
       {item && <Actions key={item.task.id} item={item} today={today} onClose={onClose} onAction={onAction} />}
@@ -29,16 +38,22 @@ export function TaskActionsSheet({ item, today, onClose, onAction }: TaskActions
 }
 
 function Actions({ item, today, onClose, onAction }: TaskActionsSheetProps & { item: TodayItem }) {
-  const [snoozing, setSnoozing] = useState(false);
+  const check = item.task.moisture_check;
+  const [view, setView] = useState<"check" | "actions" | "snooze">(check ? "check" : "actions");
   const navigate = useNavigate();
-  const act = (kind: EventKind, until?: string) => {
+  const act = (kind: EventKind, extra?: ActionExtra) => {
     onClose();
-    onAction(item, kind, until);
+    onAction(item, kind, extra);
   };
 
-  if (snoozing) {
+  if (view === "snooze") {
     return (
-      <SnoozeOptions item={item} today={today} onBack={() => setSnoozing(false)} onSnooze={(d) => act("snoozed", d)} />
+      <SnoozeOptions
+        item={item}
+        today={today}
+        onBack={() => setView("actions")}
+        onSnooze={(d) => act("snoozed", { snoozeUntil: d })}
+      />
     );
   }
 
@@ -46,32 +61,51 @@ function Actions({ item, today, onClose, onAction }: TaskActionsSheetProps & { i
   return (
     <>
       <p className={`t-caption ${styles.due} ${overdue ? styles.overdue : ""}`}>
-        {overdue ? <Clock size={16} strokeWidth={1.75} aria-hidden="true" /> : <TaskIcon kind={item.task.kind} size={16} />}
+        {overdue ? (
+          <Clock size={16} strokeWidth={1.75} aria-hidden="true" />
+        ) : (
+          <TaskIcon kind={item.task.kind} check={check} size={16} />
+        )}
         {dueLine(item.task.next_due, today)}
       </p>
-      <div className={styles.buttons}>
-        <Button fullWidth icon={icon(Check)} onClick={() => act("done")}>
-          Done
-        </Button>
-        <Button variant="secondary" fullWidth icon={icon(AlarmClockOff)} onClick={() => setSnoozing(true)}>
-          Snooze
-        </Button>
-        <div className={styles.withNote}>
-          <Button variant="secondary" fullWidth icon={icon(SkipForward)} onClick={() => act("skipped")}>
-            Skip this time
+      {view === "check" ? (
+        <CheckSoil
+          task={item.task}
+          onLog={(kind, reading) => act(kind, reading === undefined ? {} : { reading })}
+          onMore={() => setView("actions")}
+        />
+      ) : (
+        <div className={styles.buttons}>
+          {!check && (
+            <Button fullWidth icon={icon(Check)} onClick={() => act("done")}>
+              Done
+            </Button>
+          )}
+          <Button variant="secondary" fullWidth icon={icon(AlarmClockOff)} onClick={() => setView("snooze")}>
+            Snooze
           </Button>
-          <p className={`t-caption ${styles.note}`}>Skipping counts as done for the schedule.</p>
+          <div className={styles.withNote}>
+            <Button variant="secondary" fullWidth icon={icon(SkipForward)} onClick={() => act("skipped")}>
+              Skip this time
+            </Button>
+            <p className={`t-caption ${styles.note}`}>Skipping counts as done for the schedule.</p>
+          </div>
+          <Button
+            variant="ghost"
+            fullWidth
+            icon={icon(Sprout)}
+            // Takes the sheet's history entry, so Back from the plant returns to Today.
+            onClick={() => navigate(`/plants/${item.plant.id}`, { replace: true })}
+          >
+            Open plant
+          </Button>
+          {check && (
+            <Button variant="ghost" fullWidth icon={icon(ArrowLeft)} onClick={() => setView("check")}>
+              Back
+            </Button>
+          )}
         </div>
-        <Button
-          variant="ghost"
-          fullWidth
-          icon={icon(Sprout)}
-          // Takes the sheet's history entry, so Back from the plant returns to Today.
-          onClick={() => navigate(`/plants/${item.plant.id}`, { replace: true })}
-        >
-          Open plant
-        </Button>
-      </div>
+      )}
     </>
   );
 }

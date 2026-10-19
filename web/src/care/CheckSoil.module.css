@@ -1,0 +1,42 @@
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Holds one line whether or not a reading is picked, so the buttons don't jump. */
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--space-6);
+  font-weight: 700;
+}
+
+.muted {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+.water {
+  flex: none;
+  color: var(--water);
+}
+
+.fine {
+  flex: none;
+  color: var(--brand);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: calc(var(--space-2) * -1);
+}

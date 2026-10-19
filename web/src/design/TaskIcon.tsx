@@ -1,4 +1,4 @@
-import { Droplet, RotateCw, Shovel, Sparkles, SprayCan, Sprout, type LucideIcon } from "lucide-react";
+import { Droplet, Gauge, RotateCw, Shovel, Sparkles, SprayCan, Sprout, type LucideIcon } from "lucide-react";
 import styles from "./TaskIcon.module.css";
 
 export type CareKind = "water" | "fertilize" | "mist" | "repot" | "rotate" | "custom";
@@ -12,18 +12,21 @@ const KINDS: Record<CareKind, { icon: LucideIcon; name: string }> = {
   custom: { icon: Sparkles, name: "Custom" },
 };
 
-/** "Water", "Fertilize", … or the label of a custom task. */
-export function taskName(kind: CareKind, label = ""): string {
+/** "Water", "Fertilize", … the label of a custom task, or "Check soil" for a moisture-check water task. */
+export function taskName(kind: CareKind, label = "", check = false): string {
+  if (check) return "Check soil";
   return kind === "custom" ? label.trim() || KINDS.custom.name : KINDS[kind].name;
 }
 
 export interface TaskIconProps {
   kind: CareKind;
   size?: number;
+  /** A soil check: the meter's gauge, in the water accent. */
+  check?: boolean;
 }
 
 /** The care type's icon in its accent colour. Decorative: the task name always sits beside it. */
-export function TaskIcon({ kind, size = 20 }: TaskIconProps) {
-  const Icon = KINDS[kind].icon;
-  return <Icon className={styles[kind]} size={size} strokeWidth={1.75} aria-hidden="true" />;
+export function TaskIcon({ kind, size = 20, check = false }: TaskIconProps) {
+  const Icon = check ? Gauge : KINDS[kind].icon;
+  return <Icon className={styles[check ? "water" : kind]} size={size} strokeWidth={1.75} aria-hidden="true" />;
 }

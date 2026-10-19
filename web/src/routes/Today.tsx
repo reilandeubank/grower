@@ -5,7 +5,7 @@ import type { EventKind, Today as TodayData, TodayItem } from "../api/client";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { dueLine, dueWhen } from "../care/copy";
 import { useLogEvent, useToday } from "../care/queries";
-import { TaskActionsSheet } from "../care/TaskActionsSheet";
+import { TaskActionsSheet, type ActionExtra } from "../care/TaskActionsSheet";
 import { AppShell, Button, EmptyState, TaskRow, taskName } from "../design";
 import { formatCivil, formatTodayHeading, greeting } from "../lib/dates";
 import { useNow } from "../lib/useNow";
@@ -46,8 +46,8 @@ function TodayLists({ date, task_count, overdue, due, upcoming }: TodayData) {
   const [comingUpOpen, setComingUpOpen] = useState(false);
   const log = useLogEvent();
 
-  const act = (item: TodayItem, kind: EventKind, snoozeUntil?: string) =>
-    log.mutate({ task: item.task, plantName: item.plant.name, kind, snoozeUntil, today: date });
+  const act = (item: TodayItem, kind: EventKind, extra?: ActionExtra) =>
+    log.mutate({ task: item.task, plantName: item.plant.name, kind, ...extra, today: date });
 
   const rows = (items: TodayItem[], quiet = false) => (
     <ul className={styles.list}>
@@ -58,6 +58,7 @@ function TodayLists({ date, task_count, overdue, due, upcoming }: TodayData) {
           photo={item.plant.cover?.urls.small}
           kind={item.task.kind}
           label={item.task.label}
+          check={item.task.moisture_check}
           due={dueLine(item.task.next_due, date)}
           overdue={item.task.next_due < date}
           quiet={quiet}
@@ -95,7 +96,7 @@ function TodayLists({ date, task_count, overdue, due, upcoming }: TodayData) {
           <EmptyState
             icon={<CircleCheck size={28} strokeWidth={1.75} />}
             title="All caught up"
-            body={`Next: ${taskName(next.task.kind, next.task.label)} ${next.plant.name} ${dueWhen(next.task.next_due, date)}.`}
+            body={`Next: ${next.task.moisture_check ? `Check soil for ${next.plant.name}` : `${taskName(next.task.kind, next.task.label)} ${next.plant.name}`} ${dueWhen(next.task.next_due, date)}.`}
           />
         ) : log.isPending ? null : (
           // While a save is out, an empty list only means the optimistic removal; wait for the answer.

@@ -15,6 +15,8 @@ export interface TaskRowProps {
   photo?: string | undefined;
   kind: CareKind;
   label?: string;
+  /** A soil check: "Check soil" with the gauge, and the round check opens the check sheet too. */
+  check?: boolean;
   /** "Due today", "Overdue 3 days", "In 3 days"… */
   due: string;
   /** Paints the due line in `overdue` with the clock icon. */
@@ -32,9 +34,9 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? true;
 }
 
-export function TaskRow({ plantName, photo, kind, label, due, overdue = false, quiet = false, onOpen, onComplete }: TaskRowProps) {
+export function TaskRow({ plantName, photo, kind, label, check = false, due, overdue = false, quiet = false, onOpen, onComplete }: TaskRowProps) {
   const [completing, setCompleting] = useState(false);
-  const name = taskName(kind, label);
+  const name = taskName(kind, label, check);
 
   const complete = () => {
     if (prefersReducedMotion()) {
@@ -55,7 +57,7 @@ export function TaskRow({ plantName, photo, kind, label, due, overdue = false, q
             <span className={styles.text}>
               <span className={`t-body-strong ${styles.clamp}`}>{plantName}</span>
               <span className={`t-caption ${styles.meta}`}>
-                <TaskIcon kind={kind} size={16} />
+                <TaskIcon kind={kind} check={check} size={16} />
                 <span className={styles.clamp}>{name}</span>
                 <span aria-hidden="true">·</span>
                 <span className={`${styles.due} ${overdue ? styles.overdue : ""}`}>
@@ -65,7 +67,12 @@ export function TaskRow({ plantName, photo, kind, label, due, overdue = false, q
               </span>
             </span>
           </button>
-          <DoneCheck aria-label={`Mark ${name} ${plantName} done`} checked={completing} onClick={complete} />
+          {check ? (
+            // A check needs a reading first, so the round check opens the sheet that takes it.
+            <DoneCheck aria-label={`Check soil for ${plantName}`} onClick={onOpen} />
+          ) : (
+            <DoneCheck aria-label={`Mark ${name} ${plantName} done`} checked={completing} onClick={complete} />
+          )}
         </div>
       </div>
     </li>

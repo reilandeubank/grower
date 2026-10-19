@@ -32,8 +32,8 @@ Every array holds objects with the same field names and types as the API (`api/o
 |---|---|---|
 | `locations` | `Location` without `plant_count` | |
 | `plants` | `Plant` with `cover_photo_id` (string or null) in place of `cover`, and `archived_at` (date-time or null) in place of `archived` | Archived plants are included. |
-| `tasks` | `CareTask` without `next_due`, `last_done` and `current_interval_days` | Those are derived from events and the date, never stored. Older exports have no `seasonal`; treat it as false. |
-| `events` | `CareEvent` plus `voided_at` (date-time or null) | All events, including undone ones, so the log is complete. |
+| `tasks` | `CareTask` without `next_due`, `last_done`, `current_interval_days`, `drying_days` and `last_reading` | Those are derived from events and the date, never stored. Older exports have no `seasonal`; treat it as false. Older exports have no `moisture_check` or `water_at`; treat them as false and 3. |
+| `events` | `CareEvent` plus `voided_at` (date-time or null) | All events, including undone ones, so the log is complete. `reading` (1–10 or null) is set on soil checks and optionally on waterings; older exports have no `reading`, so treat it as null. |
 | `photos` | `Photo` without `urls`, plus `file` (path inside the zip) and `sha256` | |
 
 Rules:

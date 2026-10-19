@@ -60,14 +60,16 @@ type (
 		CreatedAt    time.Time           `json:"created_at"`
 	}
 	exportTask struct {
-		ID           string             `json:"id"`
-		PlantID      string             `json:"plant_id"`
-		Kind         apigen.TaskKind    `json:"kind"`
-		Label        string             `json:"label"`
-		IntervalDays int                `json:"interval_days"`
-		Anchor       apigen.Anchor      `json:"anchor"`
-		StartOn      openapi_types.Date `json:"start_on"`
-		Seasonal     bool               `json:"seasonal"`
+		ID            string             `json:"id"`
+		PlantID       string             `json:"plant_id"`
+		Kind          apigen.TaskKind    `json:"kind"`
+		Label         string             `json:"label"`
+		IntervalDays  int                `json:"interval_days"`
+		Anchor        apigen.Anchor      `json:"anchor"`
+		StartOn       openapi_types.Date `json:"start_on"`
+		Seasonal      bool               `json:"seasonal"`
+		MoistureCheck bool               `json:"moisture_check"`
+		WaterAt       int                `json:"water_at"`
 	}
 	exportEvent struct {
 		apigen.CareEvent
@@ -186,6 +188,7 @@ func exportTaskOf(r dbgen.CareTask) (exportTask, error) {
 	return exportTask{
 		ID: r.ID, PlantID: r.PlantID, Kind: apigen.TaskKind(r.Kind), Label: r.Label, IntervalDays: int(r.IntervalDays),
 		Anchor: apigen.Anchor(r.Anchor), StartOn: apiDate(start), Seasonal: r.Seasonal == 1,
+		MoistureCheck: r.MoistureCheck == 1, WaterAt: int(r.WaterAt),
 	}, nil
 }
 

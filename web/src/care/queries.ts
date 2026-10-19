@@ -13,7 +13,7 @@ import {
 import { plantHistoryKey, plantTasksKey, todayKey } from "../api/keys";
 import { useToast } from "../design";
 import { deviceToday } from "../lib/dates";
-import { doneToast, skipToast, snoozeToast } from "./copy";
+import { checkedToast, doneToast, skipToast, snoozeToast } from "./copy";
 
 export function useToday() {
   return useQuery({
@@ -78,6 +78,8 @@ export interface LogEventVars {
   kind: EventKind;
   /** Required for `snoozed`: a date after today. */
   snoozeUntil?: string;
+  /** The meter reading: required for `checked`, optional for `done` on a soil check. */
+  reading?: number;
   /** Today's date from the server, for the toast's wording. */
   today: string;
 }
@@ -88,9 +90,21 @@ function removeFromToday(today: Today | undefined, taskId: string): Today | unde
   return { ...today, overdue: keep(today.overdue), due: keep(today.due), upcoming: keep(today.upcoming) };
 }
 
+/** The toast after a save. A check names the next check from the server's rescheduled task. */
+function toastMessage(
+  { task, plantName, kind, snoozeUntil, reading, today }: LogEventVars,
+  savedSnooze: string | null,
+  nextDue: string,
+): string {
+  if (kind === "checked" && reading !== undefined) return checkedToast(reading, plantName, nextDue, today);
+  if (kind === "skipped") return skipToast(task.kind, task.label, plantName);
+  if (kind === "snoozed") return snoozeToast(snoozeUntil ?? savedSnooze ?? today, today);
+  return doneToast(task.kind, task.label, plantName);
+}
+
 /**
- * Records done, skipped or snoozed. The task leaves Today at once and comes back if the save
- * fails; on success a toast offers Undo. All the work lives in the hook's own callbacks, so a
+ * Records done, skipped, snoozed or a soil check. The task leaves Today at once and comes back if
+ * the save fails; on success a toast offers Undo. All the work lives in the hook's own callbacks, so a
  * completion still lands if the screen has moved on by the time it's sent.
  */
 export function useLogEvent() {
@@ -110,12 +124,18 @@ export function useLogEvent() {
   };
 
   return useMutation<LoggedEvent, Error, LogEventVars, { previous: Today | undefined }>({
-    mutationFn: async ({ task, kind, snoozeUntil }) =>
+    mutationFn: async ({ task, kind, snoozeUntil, reading }) =>
       unwrap(
         await api.POST("/tasks/{id}/events", {
           params: { path: { id: task.id } },
           // The device's date, so a tap just before midnight counts for that day.
-          body: { kind, note: "", local_date: deviceToday(), ...(snoozeUntil ? { snooze_until: snoozeUntil } : {}) },
+          body: {
+            kind,
+            note: "",
+            local_date: deviceToday(),
+            ...(snoozeUntil ? { snooze_until: snoozeUntil } : {}),
+            ...(reading !== undefined ? { reading } : {}),
+          },
         }),
       ),
     onMutate: async ({ task }) => {
@@ -129,14 +149,9 @@ export function useLogEvent() {
       // Offline failures get the app-wide offline toast (OfflineToast).
       if (!isOfflineError(error)) toast({ message: "Couldn't save that. Check your connection, then try again." });
     },
-    onSuccess: ({ event }, { task, plantName, kind, snoozeUntil, today }) => {
-      const message =
-        kind === "done"
-          ? doneToast(task.kind, task.label, plantName)
-          : kind === "skipped"
-            ? skipToast(task.kind, task.label, plantName)
-            : snoozeToast(snoozeUntil ?? event.snooze_until ?? today, today);
-      toast({ message, action: { label: "Undo", onClick: () => void undo(event.id, task.plant_id) } });
+    onSuccess: ({ event, task: saved }, vars) => {
+      const message = toastMessage(vars, event.snooze_until, saved.next_due);
+      toast({ message, action: { label: "Undo", onClick: () => void undo(event.id, vars.task.plant_id) } });
     },
     onSettled: (_data, _error, { task }) => refreshCare(queryClient, task.plant_id),
   });

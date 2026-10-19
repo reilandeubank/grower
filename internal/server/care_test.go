@@ -159,7 +159,7 @@ func TestCareValidation(t *testing.T) {
 		{"update unknown task", http.MethodPut, "/api/v1/tasks/nope", `{"kind":"water","interval_days":3}`, 404, "Task not found."},
 		{"delete unknown task", http.MethodDelete, "/api/v1/tasks/nope", "", 404, "Task not found."},
 
-		{"bad event kind", http.MethodPost, events, `{"kind":"watered"}`, 400, "Kind must be done, skipped or snoozed."},
+		{"bad event kind", http.MethodPost, events, `{"kind":"watered"}`, 400, "Kind must be done, skipped, snoozed or checked."},
 		{"two days ago", http.MethodPost, events, `{"kind":"done","local_date":"2026-04-29"}`, 400, "That date is too far from today."},
 		{"two days ahead", http.MethodPost, events, `{"kind":"done","local_date":"2026-05-03"}`, 400, "That date is too far from today."},
 		{"snooze without date", http.MethodPost, events, `{"kind":"snoozed"}`, 400, "Pick a snooze date after today."},

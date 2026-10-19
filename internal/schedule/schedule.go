@@ -21,35 +21,43 @@ const (
 	Done    EventKind = "done"
 	Skipped EventKind = "skipped"
 	Snoozed EventKind = "snoozed"
+	// Checked records a soil moisture reading on a moisture-check task (PLAN §5.5).
+	Checked EventKind = "checked"
 )
 
 // Task is a recurring care task. IntervalDays must be at least 1. When Seasonal is set,
-// Kind (water, mist, ...) picks the curve that adjusts the interval by month.
+// Kind (water, mist, ...) picks the curve that adjusts the interval by month. A
+// MoistureCheck task is scheduled from its readings instead (PLAN §5.5): a reading at or
+// below WaterAt means water now.
 type Task struct {
-	IntervalDays int
-	Anchor       Anchor
-	StartOn      Date
-	Kind         string
-	Seasonal     bool
+	IntervalDays  int
+	Anchor        Anchor
+	StartOn       Date
+	Kind          string
+	Seasonal      bool
+	MoistureCheck bool
+	WaterAt       int
 }
 
-// Event is one logged action. SnoozeUntil is set only for snoozes.
+// Event is one logged action. SnoozeUntil is set only for snoozes. Reading (1–10) is set
+// for checks and optionally for dones of a moisture-check task; 0 means none.
 type Event struct {
 	Kind        EventKind
 	On          Date
 	SnoozeUntil Date
+	Reading     int
 }
 
 // NextDue returns the task's next due date. events are the task's non-voided events in
 // insertion order; ties on the same date keep that order. Missed periods never stack:
 // there is one due date, and a task is overdue by today − due. h picks the seasons for a
-// seasonal task.
+// seasonal task. A moisture-check task's due date is its next check (nextCheck).
 func NextDue(t Task, events []Event, h Hemisphere) Date {
-	sorted := slices.Clone(events)
-	slices.SortStableFunc(sorted, func(a, b Event) int { return a.On.Compare(b.On) })
-
+	sorted := sortEvents(t, events)
 	due := t.StartOn
-	if i := lastCompletion(sorted); i >= 0 {
+	if t.MoistureCheck {
+		due = nextCheck(t, sorted)
+	} else if i := lastCompletion(sorted); i >= 0 {
 		last := sorted[i].On
 		switch t.Anchor {
 		case Fixed:
@@ -70,10 +78,22 @@ func NextDue(t Task, events []Event, h Hemisphere) Date {
 	return due
 }
 
+// sortEvents orders events by date, keeping insertion order within a day, without
+// touching the caller's slice. Checks left from when a task was a soil check don't
+// count once it no longer is one.
+func sortEvents(t Task, events []Event) []Event {
+	sorted := slices.Clone(events)
+	if !t.MoistureCheck {
+		sorted = slices.DeleteFunc(sorted, func(e Event) bool { return e.Kind == Checked })
+	}
+	slices.SortStableFunc(sorted, func(a, b Event) int { return a.On.Compare(b.On) })
+	return sorted
+}
+
 // lastCompletion is the index of the latest done or skipped event, or -1.
 func lastCompletion(sorted []Event) int {
 	for i := len(sorted) - 1; i >= 0; i-- {
-		if sorted[i].Kind != Snoozed {
+		if k := sorted[i].Kind; k == Done || k == Skipped {
 			return i
 		}
 	}

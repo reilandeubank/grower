@@ -47,5 +47,11 @@ func (t Task) interval(on Date, h Hemisphere) int {
 
 // CurrentInterval is the interval that would apply if the task were done today: the API's
 // current_interval_days. The next due date itself uses the month of the last completion,
-// so the two differ only briefly after a month boundary.
-func CurrentInterval(t Task, today Date, h Hemisphere) int { return t.interval(today, h) }
+// so the two differ only briefly after a month boundary. A moisture-check task has no
+// seasons: its interval is the drying time learned from its events.
+func CurrentInterval(t Task, events []Event, today Date, h Hemisphere) int {
+	if t.MoistureCheck {
+		return learned(t, sortEvents(t, events))
+	}
+	return t.interval(today, h)
+}

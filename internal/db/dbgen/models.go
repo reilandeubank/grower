@@ -14,6 +14,7 @@ type CareEvent struct {
 	Kind        string
 	LocalDate   string
 	SnoozeUntil sql.NullString
+	Reading     sql.NullInt64
 	Note        string
 	OccurredAt  string
 	VoidedAt    sql.NullString
@@ -21,16 +22,18 @@ type CareEvent struct {
 }
 
 type CareTask struct {
-	ID           string
-	PlantID      string
-	Kind         string
-	Label        string
-	IntervalDays int64
-	Anchor       string
-	StartOn      string
-	CreatedAt    string
-	UpdatedAt    string
-	Seasonal     int64
+	ID            string
+	PlantID       string
+	Kind          string
+	Label         string
+	IntervalDays  int64
+	Anchor        string
+	StartOn       string
+	CreatedAt     string
+	UpdatedAt     string
+	Seasonal      int64
+	MoistureCheck int64
+	WaterAt       int64
 }
 
 type Job struct {

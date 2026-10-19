@@ -29,6 +29,12 @@ type Dates struct {
 	// Last is the most recent completion; zero when HasLast is false.
 	Last    schedule.Date
 	HasLast bool
+	// DryingDays is the learned drying time of a moisture-check task (schedule.DryingDays);
+	// zero when HasDrying is false.
+	DryingDays int
+	HasDrying  bool
+	// LastReading is the latest event with a meter reading; Reading is 0 when there is none.
+	LastReading schedule.Event
 }
 
 // Item is one task of an active plant on the agenda.
@@ -100,7 +106,7 @@ func Schedule(row dbgen.CareTask, events []dbgen.CareEvent, cal Calendar) (Dates
 	}
 	evs := make([]schedule.Event, len(events))
 	for i, e := range events {
-		evs[i] = schedule.Event{Kind: schedule.EventKind(e.Kind)}
+		evs[i] = schedule.Event{Kind: schedule.EventKind(e.Kind), Reading: int(e.Reading.Int64)}
 		if evs[i].On, err = schedule.Parse(e.LocalDate); err != nil {
 			return Dates{}, err
 		}
@@ -112,10 +118,13 @@ func Schedule(row dbgen.CareTask, events []dbgen.CareEvent, cal Calendar) (Dates
 	}
 	task := schedule.Task{
 		IntervalDays: int(row.IntervalDays), Anchor: schedule.Anchor(row.Anchor), StartOn: start, Kind: row.Kind, Seasonal: row.Seasonal == 1,
+		MoistureCheck: row.MoistureCheck == 1, WaterAt: int(row.WaterAt),
 	}
 	d := Dates{
-		Start: start, Next: schedule.NextDue(task, evs, cal.Hemisphere), Interval: schedule.CurrentInterval(task, cal.Today, cal.Hemisphere),
+		Start: start, Next: schedule.NextDue(task, evs, cal.Hemisphere), Interval: schedule.CurrentInterval(task, evs, cal.Today, cal.Hemisphere),
 	}
 	d.Last, d.HasLast = schedule.LastDone(evs)
+	d.DryingDays, d.HasDrying = schedule.DryingDays(task, evs)
+	d.LastReading, _ = schedule.LastReading(evs)
 	return d, nil
 }

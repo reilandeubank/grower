@@ -40,8 +40,12 @@ func DigestMessage(a care.Agenda) (m Message, ok bool) {
 
 var verbs = map[string]string{"water": "Water", "fertilize": "Fertilize", "mist": "Mist", "repot": "Repot", "rotate": "Rotate"}
 
-// taskPhrase is "Water Monstera", or "Prune for Monstera" for a custom task.
+// taskPhrase is "Water Monstera", "Check soil for Monstera" for a soil-check task, or
+// "Prune for Monstera" for a custom task.
 func taskPhrase(it care.Item) string {
+	if it.Task.MoistureCheck == 1 {
+		return "Check soil for " + it.Plant.Name
+	}
 	if verb, ok := verbs[it.Task.Kind]; ok {
 		return verb + " " + it.Plant.Name
 	}
