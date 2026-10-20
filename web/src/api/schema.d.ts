@@ -174,6 +174,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/species": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Saved species, matching q in the scientific or common name when given. Never calls a provider. */
+        get: operations["listSpecies"];
+        put?: never;
+        /** Save a species by hand (source manual). */
+        post: operations["createSpecies"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/species/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search the configured online providers. Costs provider API calls; results are cached. */
+        get: operations["lookupSpecies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/species/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fetch a candidate's care details from its provider and save it (or refresh the saved copy).
+         * @description Matches saved species by scientific name. A species the user has edited keeps their
+         *     values; only raw and fetched_at are refreshed.
+         */
+        post: operations["importSpecies"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/species/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get: operations["getSpecies"];
+        /** Edit a species' names and care defaults. Marks it user_edited. */
+        put: operations["updateSpecies"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plants/{id}/apply-species": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply the linked species' care defaults to the plant's watering task.
+         * @description Updates the plant's first water task (interval_days, and water_at for a soil check),
+         *     or creates a water task starting today if it has none. Fields the species lacks are
+         *     left alone. 400 when the plant has no species or the species has no defaults.
+         */
+        post: operations["applySpeciesCare"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/locations": {
         parameters: {
             query?: never;
@@ -502,6 +601,64 @@ export interface components {
             last_backup_at: string | null;
         };
         /** @enum {string} */
+        SpeciesSource: "openplantbook" | "perenual" | "manual";
+        SpeciesInput: {
+            scientific_name: string;
+            /** @default  */
+            common_name: string;
+            water_interval_days?: number | null;
+            light?: components["schemas"]["LightLevel"] | null;
+            /** @description Moisture meter level (1–10 scale) to water at, for soil-check tasks. */
+            water_at?: number | null;
+            /** @default  */
+            notes: string;
+        };
+        Species: {
+            id: string;
+            scientific_name: string;
+            common_name: string;
+            source: components["schemas"]["SpeciesSource"];
+            source_ref: string;
+            water_interval_days: number | null;
+            light: components["schemas"]["LightLevel"] | null;
+            water_at: number | null;
+            notes: string;
+            /** Format: date-time */
+            fetched_at: string | null;
+            user_edited: boolean;
+            /** @description Active plants linked to this species. */
+            plant_count: number;
+        };
+        SpeciesList: {
+            items: components["schemas"]["Species"][];
+        };
+        SpeciesRef: {
+            /** @enum {string} */
+            source: "openplantbook" | "perenual";
+            /** @description The provider's own id for the species. */
+            ref: string;
+        };
+        SpeciesCandidate: {
+            /** @enum {string} */
+            source: "openplantbook" | "perenual";
+            ref: string;
+            scientific_name: string;
+            common_name: string;
+            /** @description The saved species with this scientific name, if any. */
+            saved_id: string | null;
+        };
+        SpeciesLookup: {
+            /** @description Configured providers and whether each answered this search. */
+            providers: {
+                /** @enum {string} */
+                source: "openplantbook" | "perenual";
+                ok: boolean;
+                /** @description Why it didn't answer (e.g. daily limit reached). */
+                detail?: string;
+            }[];
+            items: components["schemas"]["SpeciesCandidate"][];
+        };
+        /** @enum {string} */
         PotType: "plastic" | "terracotta" | "ceramic" | "fabric" | "self_watering" | "other";
         /** @enum {string} */
         LightLevel: "low" | "medium" | "bright_indirect" | "direct";
@@ -526,10 +683,12 @@ export interface components {
         PlantInput: {
             name: string;
             /**
-             * @description Free text for now, e.g. "Monstera deliciosa".
+             * @description Free text, e.g. "Monstera deliciosa". Shown when no species is linked.
              * @default
              */
             species: string;
+            /** @description A species from /species, whose care defaults the plant can apply. */
+            species_id?: string | null;
             location_id?: string | null;
             /** Format: date */
             acquired_on?: string | null;
@@ -553,6 +712,7 @@ export interface components {
             archived: boolean;
         };
         Plant: {
+            species_id: string | null;
             /** @description The cover photo, or null when the plant has none. */
             cover: components["schemas"]["Photo"] | null;
             id: string;
@@ -1051,6 +1211,186 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Problem"];
+        };
+    };
+    listSpecies: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Species, ordered by scientific name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeciesList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    createSpecies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeciesInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Species"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    lookupSpecies: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Candidates from every configured provider that answered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeciesLookup"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+        };
+    };
+    importSpecies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeciesRef"];
+            };
+        };
+        responses: {
+            /** @description The saved species. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Species"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            502: components["responses"]["Problem"];
+        };
+    };
+    getSpecies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The species. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Species"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateSpecies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeciesInput"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Species"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    applySpeciesCare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plant's tasks after applying. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CareTaskList"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
     listLocations: {

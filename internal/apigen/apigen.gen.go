@@ -134,6 +134,81 @@ func (e SettingsHemisphere) Valid() bool {
 	}
 }
 
+// Defines values for SpeciesCandidateSource.
+const (
+	SpeciesCandidateSourceOpenplantbook SpeciesCandidateSource = "openplantbook"
+	SpeciesCandidateSourcePerenual      SpeciesCandidateSource = "perenual"
+)
+
+// Valid indicates whether the value is a known member of the SpeciesCandidateSource enum.
+func (e SpeciesCandidateSource) Valid() bool {
+	switch e {
+	case SpeciesCandidateSourceOpenplantbook:
+		return true
+	case SpeciesCandidateSourcePerenual:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SpeciesLookupProvidersSource.
+const (
+	SpeciesLookupProvidersSourceOpenplantbook SpeciesLookupProvidersSource = "openplantbook"
+	SpeciesLookupProvidersSourcePerenual      SpeciesLookupProvidersSource = "perenual"
+)
+
+// Valid indicates whether the value is a known member of the SpeciesLookupProvidersSource enum.
+func (e SpeciesLookupProvidersSource) Valid() bool {
+	switch e {
+	case SpeciesLookupProvidersSourceOpenplantbook:
+		return true
+	case SpeciesLookupProvidersSourcePerenual:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SpeciesRefSource.
+const (
+	SpeciesRefSourceOpenplantbook SpeciesRefSource = "openplantbook"
+	SpeciesRefSourcePerenual      SpeciesRefSource = "perenual"
+)
+
+// Valid indicates whether the value is a known member of the SpeciesRefSource enum.
+func (e SpeciesRefSource) Valid() bool {
+	switch e {
+	case SpeciesRefSourceOpenplantbook:
+		return true
+	case SpeciesRefSourcePerenual:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SpeciesSource.
+const (
+	SpeciesSourceManual        SpeciesSource = "manual"
+	SpeciesSourceOpenplantbook SpeciesSource = "openplantbook"
+	SpeciesSourcePerenual      SpeciesSource = "perenual"
+)
+
+// Valid indicates whether the value is a known member of the SpeciesSource enum.
+func (e SpeciesSource) Valid() bool {
+	switch e {
+	case SpeciesSourceManual:
+		return true
+	case SpeciesSourceOpenplantbook:
+		return true
+	case SpeciesSourcePerenual:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TaskKind.
 const (
 	Custom    TaskKind = "custom"
@@ -416,8 +491,9 @@ type Plant struct {
 	PotType   *PotType `json:"pot_type"`
 
 	// Soil Free text, e.g. "Aroid mix".
-	Soil    string `json:"soil"`
-	Species string `json:"species"`
+	Soil      string  `json:"soil"`
+	Species   string  `json:"species"`
+	SpeciesId *string `json:"species_id"`
 }
 
 // PlantInput defines model for PlantInput.
@@ -437,8 +513,11 @@ type PlantInput struct {
 	// Soil Free text, e.g. "Aroid mix".
 	Soil *string `json:"soil,omitempty"`
 
-	// Species Free text for now, e.g. "Monstera deliciosa".
+	// Species Free text, e.g. "Monstera deliciosa". Shown when no species is linked.
 	Species *string `json:"species,omitempty"`
+
+	// SpeciesId A species from /species, whose care defaults the plant can apply.
+	SpeciesId *string `json:"species_id,omitempty"`
 }
 
 // PlantList defines model for PlantList.
@@ -464,8 +543,11 @@ type PlantUpdate struct {
 	// Soil Free text, e.g. "Aroid mix".
 	Soil *string `json:"soil,omitempty"`
 
-	// Species Free text for now, e.g. "Monstera deliciosa".
+	// Species Free text, e.g. "Monstera deliciosa". Shown when no species is linked.
 	Species *string `json:"species,omitempty"`
+
+	// SpeciesId A species from /species, whose care defaults the plant can apply.
+	SpeciesId *string `json:"species_id,omitempty"`
 }
 
 // PotType defines model for PotType.
@@ -511,6 +593,84 @@ type Settings struct {
 
 // SettingsHemisphere Decides which months count as winter for seasonal care adjustment.
 type SettingsHemisphere string
+
+// Species defines model for Species.
+type Species struct {
+	CommonName string      `json:"common_name"`
+	FetchedAt  *time.Time  `json:"fetched_at"`
+	Id         string      `json:"id"`
+	Light      *LightLevel `json:"light"`
+	Notes      string      `json:"notes"`
+
+	// PlantCount Active plants linked to this species.
+	PlantCount        int           `json:"plant_count"`
+	ScientificName    string        `json:"scientific_name"`
+	Source            SpeciesSource `json:"source"`
+	SourceRef         string        `json:"source_ref"`
+	UserEdited        bool          `json:"user_edited"`
+	WaterAt           *int          `json:"water_at"`
+	WaterIntervalDays *int          `json:"water_interval_days"`
+}
+
+// SpeciesCandidate defines model for SpeciesCandidate.
+type SpeciesCandidate struct {
+	CommonName string `json:"common_name"`
+	Ref        string `json:"ref"`
+
+	// SavedId The saved species with this scientific name, if any.
+	SavedId        *string                `json:"saved_id"`
+	ScientificName string                 `json:"scientific_name"`
+	Source         SpeciesCandidateSource `json:"source"`
+}
+
+// SpeciesCandidateSource defines model for SpeciesCandidate.Source.
+type SpeciesCandidateSource string
+
+// SpeciesInput defines model for SpeciesInput.
+type SpeciesInput struct {
+	CommonName     *string     `json:"common_name,omitempty"`
+	Light          *LightLevel `json:"light,omitempty"`
+	Notes          *string     `json:"notes,omitempty"`
+	ScientificName string      `json:"scientific_name"`
+
+	// WaterAt Moisture meter level (1–10 scale) to water at, for soil-check tasks.
+	WaterAt           *int `json:"water_at,omitempty"`
+	WaterIntervalDays *int `json:"water_interval_days,omitempty"`
+}
+
+// SpeciesList defines model for SpeciesList.
+type SpeciesList struct {
+	Items []Species `json:"items"`
+}
+
+// SpeciesLookup defines model for SpeciesLookup.
+type SpeciesLookup struct {
+	Items []SpeciesCandidate `json:"items"`
+
+	// Providers Configured providers and whether each answered this search.
+	Providers []struct {
+		// Detail Why it didn't answer (e.g. daily limit reached).
+		Detail *string                      `json:"detail,omitempty"`
+		Ok     bool                         `json:"ok"`
+		Source SpeciesLookupProvidersSource `json:"source"`
+	} `json:"providers"`
+}
+
+// SpeciesLookupProvidersSource defines model for SpeciesLookup.Providers.Source.
+type SpeciesLookupProvidersSource string
+
+// SpeciesRef defines model for SpeciesRef.
+type SpeciesRef struct {
+	// Ref The provider's own id for the species.
+	Ref    string           `json:"ref"`
+	Source SpeciesRefSource `json:"source"`
+}
+
+// SpeciesRefSource defines model for SpeciesRef.Source.
+type SpeciesRefSource string
+
+// SpeciesSource defines model for SpeciesSource.
+type SpeciesSource string
 
 // Storage defines model for Storage.
 type Storage struct {
@@ -577,6 +737,16 @@ type ListPlantEventsParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// ListSpeciesParams defines parameters for ListSpecies.
+type ListSpeciesParams struct {
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+}
+
+// LookupSpeciesParams defines parameters for LookupSpecies.
+type LookupSpeciesParams struct {
+	Q string `form:"q" json:"q"`
+}
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -615,6 +785,15 @@ type SubscribePushJSONRequestBody = PushSubscription
 
 // UpdateSettingsJSONRequestBody defines body for UpdateSettings for application/json ContentType.
 type UpdateSettingsJSONRequestBody = Settings
+
+// CreateSpeciesJSONRequestBody defines body for CreateSpecies for application/json ContentType.
+type CreateSpeciesJSONRequestBody = SpeciesInput
+
+// ImportSpeciesJSONRequestBody defines body for ImportSpecies for application/json ContentType.
+type ImportSpeciesJSONRequestBody = SpeciesRef
+
+// UpdateSpeciesJSONRequestBody defines body for UpdateSpecies for application/json ContentType.
+type UpdateSpeciesJSONRequestBody = SpeciesInput
 
 // UpdateTaskJSONRequestBody defines body for UpdateTask for application/json ContentType.
 type UpdateTaskJSONRequestBody = CareTaskInput
@@ -675,6 +854,9 @@ type ServerInterface interface {
 	// UpdatePlant Replace a plant's fields, including whether it is archived.
 	// (PUT /plants/{id})
 	UpdatePlant(w http.ResponseWriter, r *http.Request, id Id)
+	// ApplySpeciesCare Apply the linked species' care defaults to the plant's watering task.
+	// (POST /plants/{id}/apply-species)
+	ApplySpeciesCare(w http.ResponseWriter, r *http.Request, id Id)
 	// SetPlantCover Choose the plant's cover photo, or clear it with null.
 	// (PUT /plants/{id}/cover)
 	SetPlantCover(w http.ResponseWriter, r *http.Request, id Id)
@@ -708,6 +890,24 @@ type ServerInterface interface {
 	// UpdateSettings Replace the user's settings.
 	// (PUT /settings)
 	UpdateSettings(w http.ResponseWriter, r *http.Request)
+	// ListSpecies Saved species, matching q in the scientific or common name when given. Never calls a provider.
+	// (GET /species)
+	ListSpecies(w http.ResponseWriter, r *http.Request, params ListSpeciesParams)
+	// CreateSpecies Save a species by hand (source manual).
+	// (POST /species)
+	CreateSpecies(w http.ResponseWriter, r *http.Request)
+	// ImportSpecies Fetch a candidate's care details from its provider and save it (or refresh the saved copy).
+	// (POST /species/import)
+	ImportSpecies(w http.ResponseWriter, r *http.Request)
+	// LookupSpecies Search the configured online providers. Costs provider API calls; results are cached.
+	// (GET /species/lookup)
+	LookupSpecies(w http.ResponseWriter, r *http.Request, params LookupSpeciesParams)
+
+	// (GET /species/{id})
+	GetSpecies(w http.ResponseWriter, r *http.Request, id Id)
+	// UpdateSpecies Edit a species' names and care defaults. Marks it user_edited.
+	// (PUT /species/{id})
+	UpdateSpecies(w http.ResponseWriter, r *http.Request, id Id)
 	// GetStorage How much space grower uses, and when the last nightly backup ran.
 	// (GET /storage)
 	GetStorage(w http.ResponseWriter, r *http.Request)
@@ -1087,6 +1287,32 @@ func (siw *ServerInterfaceWrapper) UpdatePlant(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ApplySpeciesCare operation middleware
+func (siw *ServerInterfaceWrapper) ApplySpeciesCare(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApplySpeciesCare(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetPlantCover operation middleware
 func (siw *ServerInterfaceWrapper) SetPlantCover(w http.ResponseWriter, r *http.Request) {
 
@@ -1320,6 +1546,152 @@ func (siw *ServerInterfaceWrapper) UpdateSettings(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSpecies operation middleware
+func (siw *ServerInterfaceWrapper) ListSpecies(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSpeciesParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSpecies(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSpecies operation middleware
+func (siw *ServerInterfaceWrapper) CreateSpecies(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSpecies(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ImportSpecies operation middleware
+func (siw *ServerInterfaceWrapper) ImportSpecies(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ImportSpecies(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LookupSpecies operation middleware
+func (siw *ServerInterfaceWrapper) LookupSpecies(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params LookupSpeciesParams
+
+	// ------------- Required query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LookupSpecies(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSpecies operation middleware
+func (siw *ServerInterfaceWrapper) GetSpecies(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSpecies(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSpecies operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSpecies(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSpecies(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1566,6 +1938,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/push/subscriptions", wrapper.UnsubscribePush)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/push/subscriptions", wrapper.SubscribePush)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/push/test", wrapper.SendTestPush)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/species", wrapper.ListSpecies)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/species", wrapper.CreateSpecies)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/species/lookup", wrapper.LookupSpecies)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/species/import", wrapper.ImportSpecies)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/species/{id}", wrapper.GetSpecies)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/species/{id}", wrapper.UpdateSpecies)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plants/{id}/apply-species", wrapper.ApplySpeciesCare)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/locations", wrapper.ListLocations)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/locations", wrapper.CreateLocation)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/locations/{id}", wrapper.DeleteLocation)
@@ -2473,6 +2852,72 @@ func (response UpdatePlant404ApplicationProblemPlusJSONResponse) VisitUpdatePlan
 	return err
 }
 
+type ApplySpeciesCareRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type ApplySpeciesCareResponseObject interface {
+	VisitApplySpeciesCareResponse(w http.ResponseWriter) error
+}
+
+type ApplySpeciesCare200JSONResponse CareTaskList
+
+func (response ApplySpeciesCare200JSONResponse) VisitApplySpeciesCareResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplySpeciesCare400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ApplySpeciesCare400ApplicationProblemPlusJSONResponse) VisitApplySpeciesCareResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplySpeciesCare401ApplicationProblemPlusJSONResponse Problem
+
+func (response ApplySpeciesCare401ApplicationProblemPlusJSONResponse) VisitApplySpeciesCareResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplySpeciesCare404ApplicationProblemPlusJSONResponse Problem
+
+func (response ApplySpeciesCare404ApplicationProblemPlusJSONResponse) VisitApplySpeciesCareResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type SetPlantCoverRequestObject struct {
 	Id   Id `json:"id"`
 	Body *SetPlantCoverJSONRequestBody
@@ -3057,6 +3502,361 @@ func (response UpdateSettings401ApplicationProblemPlusJSONResponse) VisitUpdateS
 	return err
 }
 
+type ListSpeciesRequestObject struct {
+	Params ListSpeciesParams
+}
+
+type ListSpeciesResponseObject interface {
+	VisitListSpeciesResponse(w http.ResponseWriter) error
+}
+
+type ListSpecies200JSONResponse SpeciesList
+
+func (response ListSpecies200JSONResponse) VisitListSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSpecies401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListSpecies401ApplicationProblemPlusJSONResponse) VisitListSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSpeciesRequestObject struct {
+	Body *CreateSpeciesJSONRequestBody
+}
+
+type CreateSpeciesResponseObject interface {
+	VisitCreateSpeciesResponse(w http.ResponseWriter) error
+}
+
+type CreateSpecies201JSONResponse Species
+
+func (response CreateSpecies201JSONResponse) VisitCreateSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSpecies400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateSpecies400ApplicationProblemPlusJSONResponse) VisitCreateSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSpecies401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateSpecies401ApplicationProblemPlusJSONResponse) VisitCreateSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSpecies409ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateSpecies409ApplicationProblemPlusJSONResponse) VisitCreateSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportSpeciesRequestObject struct {
+	Body *ImportSpeciesJSONRequestBody
+}
+
+type ImportSpeciesResponseObject interface {
+	VisitImportSpeciesResponse(w http.ResponseWriter) error
+}
+
+type ImportSpecies200JSONResponse Species
+
+func (response ImportSpecies200JSONResponse) VisitImportSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportSpecies400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ImportSpecies400ApplicationProblemPlusJSONResponse) VisitImportSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportSpecies401ApplicationProblemPlusJSONResponse Problem
+
+func (response ImportSpecies401ApplicationProblemPlusJSONResponse) VisitImportSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportSpecies502ApplicationProblemPlusJSONResponse Problem
+
+func (response ImportSpecies502ApplicationProblemPlusJSONResponse) VisitImportSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(502)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LookupSpeciesRequestObject struct {
+	Params LookupSpeciesParams
+}
+
+type LookupSpeciesResponseObject interface {
+	VisitLookupSpeciesResponse(w http.ResponseWriter) error
+}
+
+type LookupSpecies200JSONResponse SpeciesLookup
+
+func (response LookupSpecies200JSONResponse) VisitLookupSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LookupSpecies400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response LookupSpecies400ApplicationProblemPlusJSONResponse) VisitLookupSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LookupSpecies401ApplicationProblemPlusJSONResponse Problem
+
+func (response LookupSpecies401ApplicationProblemPlusJSONResponse) VisitLookupSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSpeciesRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type GetSpeciesResponseObject interface {
+	VisitGetSpeciesResponse(w http.ResponseWriter) error
+}
+
+type GetSpecies200JSONResponse Species
+
+func (response GetSpecies200JSONResponse) VisitGetSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSpecies401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetSpecies401ApplicationProblemPlusJSONResponse) VisitGetSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSpecies404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetSpecies404ApplicationProblemPlusJSONResponse) VisitGetSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSpeciesRequestObject struct {
+	Id   Id `json:"id"`
+	Body *UpdateSpeciesJSONRequestBody
+}
+
+type UpdateSpeciesResponseObject interface {
+	VisitUpdateSpeciesResponse(w http.ResponseWriter) error
+}
+
+type UpdateSpecies200JSONResponse Species
+
+func (response UpdateSpecies200JSONResponse) VisitUpdateSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSpecies400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateSpecies400ApplicationProblemPlusJSONResponse) VisitUpdateSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSpecies401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSpecies401ApplicationProblemPlusJSONResponse) VisitUpdateSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSpecies404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSpecies404ApplicationProblemPlusJSONResponse) VisitUpdateSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSpecies409ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateSpecies409ApplicationProblemPlusJSONResponse) VisitUpdateSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetStorageRequestObject struct {
 }
 
@@ -3364,6 +4164,9 @@ type StrictServerInterface interface {
 	// UpdatePlant Replace a plant's fields, including whether it is archived.
 	// (PUT /plants/{id})
 	UpdatePlant(ctx context.Context, request UpdatePlantRequestObject) (UpdatePlantResponseObject, error)
+	// ApplySpeciesCare Apply the linked species' care defaults to the plant's watering task.
+	// (POST /plants/{id}/apply-species)
+	ApplySpeciesCare(ctx context.Context, request ApplySpeciesCareRequestObject) (ApplySpeciesCareResponseObject, error)
 	// SetPlantCover Choose the plant's cover photo, or clear it with null.
 	// (PUT /plants/{id}/cover)
 	SetPlantCover(ctx context.Context, request SetPlantCoverRequestObject) (SetPlantCoverResponseObject, error)
@@ -3397,6 +4200,24 @@ type StrictServerInterface interface {
 	// UpdateSettings Replace the user's settings.
 	// (PUT /settings)
 	UpdateSettings(ctx context.Context, request UpdateSettingsRequestObject) (UpdateSettingsResponseObject, error)
+	// ListSpecies Saved species, matching q in the scientific or common name when given. Never calls a provider.
+	// (GET /species)
+	ListSpecies(ctx context.Context, request ListSpeciesRequestObject) (ListSpeciesResponseObject, error)
+	// CreateSpecies Save a species by hand (source manual).
+	// (POST /species)
+	CreateSpecies(ctx context.Context, request CreateSpeciesRequestObject) (CreateSpeciesResponseObject, error)
+	// ImportSpecies Fetch a candidate's care details from its provider and save it (or refresh the saved copy).
+	// (POST /species/import)
+	ImportSpecies(ctx context.Context, request ImportSpeciesRequestObject) (ImportSpeciesResponseObject, error)
+	// LookupSpecies Search the configured online providers. Costs provider API calls; results are cached.
+	// (GET /species/lookup)
+	LookupSpecies(ctx context.Context, request LookupSpeciesRequestObject) (LookupSpeciesResponseObject, error)
+
+	// (GET /species/{id})
+	GetSpecies(ctx context.Context, request GetSpeciesRequestObject) (GetSpeciesResponseObject, error)
+	// UpdateSpecies Edit a species' names and care defaults. Marks it user_edited.
+	// (PUT /species/{id})
+	UpdateSpecies(ctx context.Context, request UpdateSpeciesRequestObject) (UpdateSpeciesResponseObject, error)
 	// GetStorage How much space grower uses, and when the last nightly backup ran.
 	// (GET /storage)
 	GetStorage(ctx context.Context, request GetStorageRequestObject) (GetStorageResponseObject, error)
@@ -3928,6 +4749,32 @@ func (sh *strictHandler) UpdatePlant(w http.ResponseWriter, r *http.Request, id 
 	}
 }
 
+// ApplySpeciesCare operation middleware
+func (sh *strictHandler) ApplySpeciesCare(w http.ResponseWriter, r *http.Request, id Id) {
+	var request ApplySpeciesCareRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ApplySpeciesCare(ctx, request.(ApplySpeciesCareRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApplySpeciesCare")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ApplySpeciesCareResponseObject); ok {
+		if err := validResponse.VisitApplySpeciesCareResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // SetPlantCover operation middleware
 func (sh *strictHandler) SetPlantCover(w http.ResponseWriter, r *http.Request, id Id) {
 	var request SetPlantCoverRequestObject
@@ -4240,6 +5087,179 @@ func (sh *strictHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateSettingsResponseObject); ok {
 		if err := validResponse.VisitUpdateSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSpecies operation middleware
+func (sh *strictHandler) ListSpecies(w http.ResponseWriter, r *http.Request, params ListSpeciesParams) {
+	var request ListSpeciesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSpecies(ctx, request.(ListSpeciesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSpecies")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSpeciesResponseObject); ok {
+		if err := validResponse.VisitListSpeciesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateSpecies operation middleware
+func (sh *strictHandler) CreateSpecies(w http.ResponseWriter, r *http.Request) {
+	var request CreateSpeciesRequestObject
+
+	var body CreateSpeciesJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateSpecies(ctx, request.(CreateSpeciesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateSpecies")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateSpeciesResponseObject); ok {
+		if err := validResponse.VisitCreateSpeciesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ImportSpecies operation middleware
+func (sh *strictHandler) ImportSpecies(w http.ResponseWriter, r *http.Request) {
+	var request ImportSpeciesRequestObject
+
+	var body ImportSpeciesJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ImportSpecies(ctx, request.(ImportSpeciesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ImportSpecies")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ImportSpeciesResponseObject); ok {
+		if err := validResponse.VisitImportSpeciesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// LookupSpecies operation middleware
+func (sh *strictHandler) LookupSpecies(w http.ResponseWriter, r *http.Request, params LookupSpeciesParams) {
+	var request LookupSpeciesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.LookupSpecies(ctx, request.(LookupSpeciesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LookupSpecies")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LookupSpeciesResponseObject); ok {
+		if err := validResponse.VisitLookupSpeciesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSpecies operation middleware
+func (sh *strictHandler) GetSpecies(w http.ResponseWriter, r *http.Request, id Id) {
+	var request GetSpeciesRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSpecies(ctx, request.(GetSpeciesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSpecies")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSpeciesResponseObject); ok {
+		if err := validResponse.VisitGetSpeciesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateSpecies operation middleware
+func (sh *strictHandler) UpdateSpecies(w http.ResponseWriter, r *http.Request, id Id) {
+	var request UpdateSpeciesRequestObject
+
+	request.Id = id
+
+	var body UpdateSpeciesJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateSpecies(ctx, request.(UpdateSpeciesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateSpecies")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateSpeciesResponseObject); ok {
+		if err := validResponse.VisitUpdateSpeciesResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

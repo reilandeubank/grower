@@ -180,6 +180,159 @@ paths:
           description: Sent (or there were no devices).
         "401":
           $ref: "#/components/responses/Problem"
+  /species:
+    get:
+      operationId: listSpecies
+      summary: Saved species, matching q in the scientific or common name when given. Never calls a provider.
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "200":
+          description: Species, ordered by scientific name.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpeciesList"
+        "401":
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createSpecies
+      summary: Save a species by hand (source manual).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpeciesInput"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Species"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+  /species/lookup:
+    get:
+      operationId: lookupSpecies
+      summary: Search the configured online providers. Costs provider API calls; results are cached.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+      responses:
+        "200":
+          description: Candidates from every configured provider that answered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpeciesLookup"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+  /species/import:
+    post:
+      operationId: importSpecies
+      summary: Fetch a candidate's care details from its provider and save it (or refresh the saved copy).
+      description: |
+        Matches saved species by scientific name. A species the user has edited keeps their
+        values; only raw and fetched_at are refreshed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpeciesRef"
+      responses:
+        "200":
+          description: The saved species.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Species"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "502":
+          $ref: "#/components/responses/Problem"
+  /species/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      operationId: getSpecies
+      responses:
+        "200":
+          description: The species.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Species"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: updateSpecies
+      summary: Edit a species' names and care defaults. Marks it user_edited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpeciesInput"
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Species"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+  /plants/{id}/apply-species:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: applySpeciesCare
+      summary: Apply the linked species' care defaults to the plant's watering task.
+      description: |
+        Updates the plant's first water task (interval_days, and water_at for a soil check),
+        or creates a water task starting today if it has none. Fields the species lacks are
+        left alone. 400 when the plant has no species or the species has no defaults.
+      responses:
+        "200":
+          description: The plant's tasks after applying.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CareTaskList"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
   /locations:
     get:
       operationId: listLocations
@@ -738,6 +891,135 @@ components:
           format: date-time
           nullable: true
           description: When the newest nightly backup in <data>/backups was written.
+    SpeciesSource:
+      type: string
+      enum: [openplantbook, perenual, manual]
+    SpeciesInput:
+      type: object
+      required: [scientific_name]
+      properties:
+        scientific_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        common_name:
+          type: string
+          maxLength: 120
+          default: ""
+        water_interval_days:
+          type: integer
+          minimum: 1
+          maximum: 365
+          nullable: true
+        light:
+          allOf:
+            - $ref: "#/components/schemas/LightLevel"
+          nullable: true
+        water_at:
+          type: integer
+          minimum: 1
+          maximum: 9
+          nullable: true
+          description: Moisture meter level (1–10 scale) to water at, for soil-check tasks.
+        notes:
+          type: string
+          maxLength: 2000
+          default: ""
+    Species:
+      type: object
+      required: [id, scientific_name, common_name, source, source_ref, water_interval_days, light, water_at, notes, fetched_at, user_edited, plant_count]
+      properties:
+        id:
+          type: string
+        scientific_name:
+          type: string
+        common_name:
+          type: string
+        source:
+          $ref: "#/components/schemas/SpeciesSource"
+        source_ref:
+          type: string
+        water_interval_days:
+          type: integer
+          nullable: true
+        light:
+          allOf:
+            - $ref: "#/components/schemas/LightLevel"
+          nullable: true
+        water_at:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+        fetched_at:
+          type: string
+          format: date-time
+          nullable: true
+        user_edited:
+          type: boolean
+        plant_count:
+          type: integer
+          description: Active plants linked to this species.
+    SpeciesList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Species"
+    SpeciesRef:
+      type: object
+      required: [source, ref]
+      properties:
+        source:
+          type: string
+          enum: [openplantbook, perenual]
+        ref:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: The provider's own id for the species.
+    SpeciesCandidate:
+      type: object
+      required: [source, ref, scientific_name, common_name, saved_id]
+      properties:
+        source:
+          type: string
+          enum: [openplantbook, perenual]
+        ref:
+          type: string
+        scientific_name:
+          type: string
+        common_name:
+          type: string
+        saved_id:
+          type: string
+          nullable: true
+          description: The saved species with this scientific name, if any.
+    SpeciesLookup:
+      type: object
+      required: [providers, items]
+      properties:
+        providers:
+          type: array
+          description: Configured providers and whether each answered this search.
+          items:
+            type: object
+            required: [source, ok]
+            properties:
+              source:
+                type: string
+                enum: [openplantbook, perenual]
+              ok:
+                type: boolean
+              detail:
+                type: string
+                description: Why it didn't answer (e.g. daily limit reached).
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpeciesCandidate"
     PotType:
       type: string
       enum: [plastic, terracotta, ceramic, fabric, self_watering, other]
@@ -798,7 +1080,11 @@ components:
           type: string
           maxLength: 120
           default: ""
-          description: Free text for now, e.g. "Monstera deliciosa".
+          description: Free text, e.g. "Monstera deliciosa". Shown when no species is linked.
+        species_id:
+          type: string
+          nullable: true
+          description: A species from /species, whose care defaults the plant can apply.
         location_id:
           type: string
           nullable: true
@@ -840,8 +1126,11 @@ components:
               type: boolean
     Plant:
       type: object
-      required: [id, name, species, location_id, acquired_on, notes, pot_type, pot_size_in, drainage, soil, archived, cover, created_at]
+      required: [id, name, species, species_id, location_id, acquired_on, notes, pot_type, pot_size_in, drainage, soil, archived, cover, created_at]
       properties:
+        species_id:
+          type: string
+          nullable: true
         cover:
           allOf:
             - $ref: "#/components/schemas/Photo"
