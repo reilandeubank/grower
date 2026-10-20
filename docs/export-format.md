@@ -19,6 +19,7 @@ grower-export-2026-10-14.zip
   "app_version": "v0.4.0",
   "settings": { "timezone": "America/Chicago", "digest_time": "08:00", "hemisphere": "north" },
   "locations": [ ... ],
+  "species": [ ... ],
   "plants": [ ... ],
   "tasks": [ ... ],
   "events": [ ... ],
@@ -31,14 +32,15 @@ Every array holds objects with the same field names and types as the API (`api/o
 | Key | Shape | Notes |
 |---|---|---|
 | `locations` | `Location` without `plant_count` | |
-| `plants` | `Plant` with `cover_photo_id` (string or null) in place of `cover`, and `archived_at` (date-time or null) in place of `archived` | Archived plants are included. |
+| `species` | `Species` without `plant_count` | The provider payload (`raw`) is not exported. Older exports have no `species`; treat it as empty. |
+| `plants` | `Plant` with `cover_photo_id` (string or null) in place of `cover`, and `archived_at` (date-time or null) in place of `archived` | Archived plants are included. Older exports have no `species_id`; treat it as null. |
 | `tasks` | `CareTask` without `next_due`, `last_done`, `current_interval_days`, `drying_days` and `last_reading` | Those are derived from events and the date, never stored. Older exports have no `seasonal`; treat it as false. Older exports have no `moisture_check` or `water_at`; treat them as false and 3. |
 | `events` | `CareEvent` plus `voided_at` (date-time or null) | All events, including undone ones, so the log is complete. `reading` (1–10 or null) is set on soil checks and optionally on waterings; older exports have no `reading`, so treat it as null. |
 | `photos` | `Photo` without `urls`, plus `file` (path inside the zip) and `sha256` | |
 
 Rules:
 
-- IDs are the app's own ULIDs and are stable across exports, so references (`plant_id`, `task_id`, `location_id`, `cover_photo_id`) resolve within the file.
+- IDs are the app's own ULIDs and are stable across exports, so references (`plant_id`, `task_id`, `location_id`, `species_id`, `cover_photo_id`) resolve within the file.
 - Dates are `YYYY-MM-DD` civil dates, and timestamps are RFC 3339 in UTC.
 - Accounts, password hashes, sessions and push subscriptions are never exported.
 - A breaking change bumps `version`. Additive fields don't, so readers must ignore unknown keys.

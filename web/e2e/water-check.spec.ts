@@ -3,7 +3,7 @@ import { clientIP, E2E_USER } from "../playwright.config";
 
 test.use(clientIP(5));
 
-// Runs last (smoke.spec.ts expects a fresh, empty Today), in the same data dir.
+// Runs after today.spec.ts (which expects nothing else due today), in the same data dir.
 test("a soil check: add one, read the meter, see when to check next", async ({ page }) => {
   await page.goto("/login");
   await page.getByLabel("Username").fill(E2E_USER.username);

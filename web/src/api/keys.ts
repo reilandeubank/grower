@@ -3,6 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 export const plantsKey = ["plants"] as const;
 export const locationsKey = ["locations"] as const;
 export const todayKey = ["today"] as const;
+export const speciesKey = ["species"] as const;
 
 /** A plant's tasks and history sit under its key, so refreshing the plant refreshes them too. */
 export const plantTasksKey = (plantId: string) => [...plantsKey, plantId, "tasks"] as const;

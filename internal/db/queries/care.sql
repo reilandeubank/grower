@@ -56,3 +56,7 @@ RETURNING *;
 UPDATE care_events SET voided_at = COALESCE(voided_at, sqlc.arg(voided_at))
 WHERE id = sqlc.arg(id)
 RETURNING task_id;
+
+-- The task "apply species care" changes: the plant's oldest water task.
+-- name: FirstWaterTask :one
+SELECT * FROM care_tasks WHERE plant_id = ? AND kind = 'water' ORDER BY created_at, id LIMIT 1;

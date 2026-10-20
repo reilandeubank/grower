@@ -26,6 +26,7 @@ type exported struct {
 	AppVersion string           `json:"app_version"`
 	Settings   map[string]any   `json:"settings"`
 	Locations  []map[string]any `json:"locations"`
+	Species    []map[string]any `json:"species"`
 	Plants     []map[string]any `json:"plants"`
 	Tasks      []map[string]any `json:"tasks"`
 	Events     []map[string]any `json:"events"`
@@ -38,8 +39,9 @@ func TestExport(t *testing.T) {
 	c := e.loginCookie()
 
 	loc := expectJSON[apigen.Location](t, e.call(c, http.MethodPost, "/api/v1/locations", `{"name":"Shelf","light":"medium"}`), http.StatusCreated)
+	sp := e.newSpecies(c, `{"scientific_name":"Monstera deliciosa","water_interval_days":7,"light":"bright_indirect"}`)
 	monty := expectJSON[apigen.Plant](t, e.call(c, http.MethodPost, "/api/v1/plants",
-		`{"name":"Monty","location_id":"`+loc.Id+`","acquired_on":"2026-04-12","pot_type":"terracotta","pot_size_in":6.5,"drainage":true,"soil":"Aroid mix"}`),
+		`{"name":"Monty","species_id":"`+sp.Id+`","location_id":"`+loc.Id+`","acquired_on":"2026-04-12","pot_type":"terracotta","pot_size_in":6.5,"drainage":true,"soil":"Aroid mix"}`),
 		http.StatusCreated)
 	old := e.newPlant(c, "Old fern")
 	expectJSON[apigen.Plant](t, e.call(c, http.MethodPut, "/api/v1/plants/"+old.Id, `{"name":"Old fern","archived":true}`), http.StatusOK)
@@ -92,6 +94,14 @@ func TestExport(t *testing.T) {
 			len(x.Locations), len(x.Plants), len(x.Tasks), len(x.Events), len(x.Photos))
 	}
 
+	if len(x.Species) != 1 {
+		t.Fatalf("%d species", len(x.Species))
+	}
+	wantKeys(t, "species", x.Species[0], "id", "scientific_name", "common_name", "source", "source_ref", "water_interval_days", "light",
+		"water_at", "notes", "fetched_at", "user_edited")
+	if s := x.Species[0]; s["id"] != sp.Id || s["water_interval_days"] != 7.0 || s["light"] != "bright_indirect" || s["source"] != "manual" {
+		t.Errorf("species = %v", s)
+	}
 	wantKeys(t, "location", x.Locations[0], "id", "name", "light", "notes")
 	if l := x.Locations[0]; l["light"] != "medium" {
 		t.Errorf("location = %v", l)
@@ -106,10 +116,10 @@ func TestExport(t *testing.T) {
 		return nil
 	}
 	p := byID(x.Plants, monty.Id)
-	wantKeys(t, "plant", p, "id", "name", "species", "location_id", "acquired_on", "notes", "pot_type", "pot_size_in",
+	wantKeys(t, "plant", p, "id", "name", "species", "species_id", "location_id", "acquired_on", "notes", "pot_type", "pot_size_in",
 		"drainage", "soil", "cover_photo_id", "archived_at", "created_at")
 	if p["location_id"] != loc.Id || p["acquired_on"] != "2026-04-12" || p["pot_type"] != "terracotta" || p["pot_size_in"] != 6.5 ||
-		p["drainage"] != true || p["soil"] != "Aroid mix" || p["cover_photo_id"] != cover.Id || p["archived_at"] != nil {
+		p["drainage"] != true || p["soil"] != "Aroid mix" || p["cover_photo_id"] != cover.Id || p["archived_at"] != nil || p["species_id"] != sp.Id {
 		t.Errorf("plant = %v", p)
 	}
 	if a := byID(x.Plants, old.Id); a["archived_at"] != "2026-05-01T03:00:00Z" || a["pot_type"] != nil {

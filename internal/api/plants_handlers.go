@@ -20,6 +20,7 @@ import (
 const (
 	plantNotFound   = "Plant not found."
 	unknownLocation = "That location does not exist."
+	unknownSpecies  = "That species does not exist."
 )
 
 // ListPlants returns active plants, or only archived ones when asked.
@@ -50,13 +51,13 @@ func (h *Handler) CreatePlant(ctx context.Context, req apigen.CreatePlantRequest
 	}
 	now := db.FormatTime(h.auth.Now())
 	row, err := h.db.Writer().CreatePlant(ctx, dbgen.CreatePlantParams{
-		ID: db.NewID(), Name: in.name, Species: in.species, LocationID: in.locationID, AcquiredOn: in.acquiredOn,
+		ID: db.NewID(), Name: in.name, Species: in.species, SpeciesID: in.speciesID, LocationID: in.locationID, AcquiredOn: in.acquiredOn,
 		Notes: in.notes, PotType: in.potType, PotSizeIn: in.potSizeIn, Drainage: in.drainage, Soil: in.soil,
 		CreatedAt: now, UpdatedAt: now,
 	})
 	switch {
 	case db.IsForeignKeyViolation(err):
-		return apigen.CreatePlant400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest(unknownLocation)}, nil
+		return apigen.CreatePlant400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest(h.missingReference(ctx, in))}, nil
 	case err != nil:
 		return nil, fmt.Errorf("create plant: %w", err)
 	}
@@ -87,14 +88,14 @@ func (h *Handler) GetPlant(ctx context.Context, req apigen.GetPlantRequestObject
 func (h *Handler) UpdatePlant(ctx context.Context, req apigen.UpdatePlantRequestObject) (apigen.UpdatePlantResponseObject, error) {
 	b := req.Body
 	in, detail := parsePlant(apigen.PlantInput{
-		Name: b.Name, Species: b.Species, LocationId: b.LocationId, AcquiredOn: b.AcquiredOn, Notes: b.Notes,
+		Name: b.Name, Species: b.Species, SpeciesId: b.SpeciesId, LocationId: b.LocationId, AcquiredOn: b.AcquiredOn, Notes: b.Notes,
 		PotType: b.PotType, PotSizeIn: b.PotSizeIn, Drainage: b.Drainage, Soil: b.Soil,
 	})
 	if detail != "" {
 		return apigen.UpdatePlant400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest(detail)}, nil
 	}
 	row, err := h.db.Writer().UpdatePlant(ctx, dbgen.UpdatePlantParams{
-		Name: in.name, Species: in.species, LocationID: in.locationID, AcquiredOn: in.acquiredOn, Notes: in.notes,
+		Name: in.name, Species: in.species, SpeciesID: in.speciesID, LocationID: in.locationID, AcquiredOn: in.acquiredOn, Notes: in.notes,
 		PotType: in.potType, PotSizeIn: in.potSizeIn, Drainage: in.drainage, Soil: in.soil,
 		UpdatedAt: db.FormatTime(h.auth.Now()), Archived: b.Archived, ID: req.Id,
 	})
@@ -102,7 +103,7 @@ func (h *Handler) UpdatePlant(ctx context.Context, req apigen.UpdatePlantRequest
 	case errors.Is(err, sql.ErrNoRows):
 		return apigen.UpdatePlant404ApplicationProblemPlusJSONResponse(problem(http.StatusNotFound, plantNotFound)), nil
 	case db.IsForeignKeyViolation(err):
-		return apigen.UpdatePlant400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest(unknownLocation)}, nil
+		return apigen.UpdatePlant400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest(h.missingReference(ctx, in))}, nil
 	case err != nil:
 		return nil, fmt.Errorf("update plant %s: %w", req.Id, err)
 	}
@@ -135,15 +136,27 @@ func (h *Handler) DeletePlant(ctx context.Context, req apigen.DeletePlantRequest
 	return apigen.DeletePlant204Response{}, nil
 }
 
+// missingReference names the reference behind a foreign key violation; SQLite doesn't
+// say which key failed.
+func (h *Handler) missingReference(ctx context.Context, in plantFields) string {
+	if in.speciesID.Valid {
+		if _, err := h.db.Reader().GetSpecies(ctx, in.speciesID.String); errors.Is(err, sql.ErrNoRows) {
+			return unknownSpecies
+		}
+	}
+	return unknownLocation
+}
+
 type plantFields struct {
-	name, species, notes, soil      string
-	locationID, acquiredOn, potType sql.NullString
-	potSizeIn                       sql.NullFloat64
-	drainage                        sql.NullInt64
+	name, species, notes, soil string
+	locationID, speciesID      sql.NullString
+	acquiredOn, potType        sql.NullString
+	potSizeIn                  sql.NullFloat64
+	drainage                   sql.NullInt64
 }
 
 // parsePlant validates input, returning a user-facing detail when it is invalid.
-// Whether location_id exists is left to the foreign key.
+// Whether location_id and species_id exist is left to the foreign keys.
 func parsePlant(in apigen.PlantInput) (plantFields, string) {
 	f := plantFields{
 		name: strings.TrimSpace(in.Name), species: deref(in.Species), notes: deref(in.Notes),
@@ -164,6 +177,9 @@ func parsePlant(in apigen.PlantInput) (plantFields, string) {
 		return f, "Pot size must be 0.5 to 48 inches."
 	case utf8.RuneCountInString(f.soil) > 120:
 		return f, "Soil must be 120 characters or fewer."
+	}
+	if in.SpeciesId != nil {
+		f.speciesID = sql.NullString{String: *in.SpeciesId, Valid: true}
 	}
 	if in.LocationId != nil {
 		f.locationID = sql.NullString{String: *in.LocationId, Valid: true}
@@ -206,6 +222,9 @@ func plant(r dbgen.Plant, cover *dbgen.Photo) (apigen.Plant, error) {
 	}
 	if r.LocationID.Valid {
 		p.LocationId = &r.LocationID.String
+	}
+	if r.SpeciesID.Valid {
+		p.SpeciesId = &r.SpeciesID.String
 	}
 	if r.AcquiredOn.Valid {
 		d, err := time.Parse(time.DateOnly, r.AcquiredOn.String)

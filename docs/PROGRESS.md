@@ -15,7 +15,7 @@ Milestone definitions live in `PLAN.md` §2.
 | M6 Web push (daily reminder) | done (v1.1.0) |
 | M7 Seasonal adjustment | done (v1.2.0) |
 | Moisture-check watering (§5.5, backlog 6) | done (v1.3.0) |
-| M8 Species | not started |
+| M8 Species | done (v1.4.0) |
 | M9 Import + quick-add via photo | not started |
 
 ### M1 checklist
@@ -29,11 +29,28 @@ Milestone definitions live in `PLAN.md` §2.
 - [x] Deployed on TrueNAS behind NPM; logged in from the installed PWA
 
 ## Owner action items
-- Snapshot, then update to v1.3.0 (migration 0008 rebuilds the care history table; your events are kept).
-- Switch watering tasks to "Check the soil first" where you use the meter, and set each plant's water-at level (e.g. 2 for succulents, 4 for ferns).
-- If not done yet: Settings → Notifications → Daily reminder.
+- Add the three species keys to the TrueNAS app YAML (docs/deploy.md "Species data"), then update to v1.4.0 (snapshot first: migration 0009).
+- Link species to your plants from the plant form; use "Apply to care schedule". Edit species defaults where the provider has none (e.g. Monstera has no Perenual data on the free tier).
 
 ## Checkpoints
+
+### 2026-10-19 · CP: M8 integrated, v1.4.0
+- Species with editable care defaults; Open Plantbook + Perenual lookup on request (cached, Perenual budget 90/day), import, apply to the watering task.
+- Lead fixes after a live test with the owner's keys (never printed): Open Plantbook light now maps from max_light_lux (Monstera 800–15000 lux was "low", now bright indirect); Perenual results above id 3000 are hidden (free tier serves 1–3000 only; Monstera is 5257); e2e pins server and browser to one time zone (failed after 7 pm local).
+- Live results: Open Plantbook Monstera deliciosa → bright indirect, water at 2; Perenual Aloe aristata → every 9 days, direct.
+- Verified: no drift, golangci-lint 0 issues, Go tests, 131 Vitest, 8 Playwright e2e.
+- Next: M9 (import + quick-add via photo with Pl), or owner backlog §10.
+
+### 2026-10-19 · Backend M8
+- Done: `internal/species` (Provider interface; Open Plantbook adapter with OAuth2 client credentials and a cached token; Perenual adapter with a 90-call per-UTC-day budget; `Lookup` runs providers concurrently and caches answers for 24 h, up to 200 entries; pure mapping functions with table tests). Handlers `internal/api/species_handlers.go` (list/create/get/update) and `species_lookup_handlers.go` (lookup, import, apply-species). `care.ApplySpecies` holds the apply rule. Plants take and return `species_id`. Export adds `species` and plants' `species_id`. Config: `GROWER_OPENPLANTBOOK_CLIENT_ID` + `_SECRET` (must be set together) and `GROWER_PERENUAL_API_KEY`. Docs: development.md, deploy.md ("Species data"), export-format.md, compose.yaml.
+- Checks pass: go generate (no drift), build, vet, golangci-lint (0 issues), `go test ./...`. Live smoke test (`GROWER_LIVE=1`, `internal/species/live_test.go`, skipped by default): Open Plantbook search and details work (Monstera deliciosa → light low, water_at 2, no interval). Perenual search works, but details for id 5257 answered 429 (a premium id on the free tier, or a rate limit: not confirmed).
+- Decisions: a species made by hand counts as `user_edited`, so an import with the same name keeps the person's values. The species list search is a case-insensitive substring match (`instr`), not LIKE, because sqlc's SQLite parser rejects `ESCAPE`. If a plant has no water task, apply creates one with the species' interval (or 7 if it only has water_at). Searches shorter than 3 characters don't call Open Plantbook, because its API needs at least 3. Perenual "Upgrade Plans ..." placeholders count as blank.
+- Problem details: 400 "Search for 2 to 100 characters.", "Source must be openplantbook or perenual.", "Ref must be 1 to 200 characters.", "That provider isn't set up on this server.", "Scientific name is required.", "Scientific name must be 120 characters or fewer.", "Common name must be 120 characters or fewer.", "Water interval must be 1 to 365 days.", "Light must be low, medium, bright_indirect or direct.", "Water-at must be between 1 and 9.", "Notes must be 2000 characters or fewer.", "That species does not exist.", "Link a species to this plant first.", "This species has no care defaults yet."; 404 "Species not found."; 409 "That species is already saved."; 502 "Couldn't reach <Provider>. Try again later." or "Perenual's daily limit is used up. Try again tomorrow."
+
+### 2026-10-19 · Frontend M8
+- Done: `src/species/`: hooks (`queries.ts`: saved list as you type, get, lookup as a mutation so it only runs on tap, import, create/update, apply with the tasks before and after), copy (`copy.ts`: care guide lines, source line, lookup notes, apply toast). `SpeciesPicker` replaces the plant form's Species field: an ARIA combobox (listbox/options, `aria-activedescendant`, arrows wrap, Enter, Esc, blur closes) with saved species after 250 ms (`lib/useDebounced`), online results with source and Saved badges after "Search online for “q”", per-provider notes, "No matches online.", the not-configured message, and "Save as a new species “q”" for names with no exact match. Editing the text unlinks (`species_id` null) and keeps the free text. `CareGuide` card on plant detail (only when linked): names, "Water about every 7 days" / light / "Water at 3 · Dry", "From Perenual" / "Edited by you" / "Added by you", "Apply to care schedule" (shown only with watering defaults; toast "Water task added." or "Watering set to every N days." or "Soil check set to water at N · Dry."; refreshes tasks, history and Today; a 400 shows its detail) and Edit (`SpeciesSheet`: names, water every N days, light, water-at 1–9 with Clear, notes; 409 on the name). The plant's species caption is hidden when linked. `plantUpdate` and the form now carry `species_id`.
+- Tests: copy, picker (local suggestions, online only on tap, import + link, notes, create, unlink, keyboard), care guide (copy, apply toasts, 400, edit sheet). e2e `water-species.spec.ts` (clientIP 6, runs after today.spec): manual species from the form, set 5 days, apply, "Every 5 days" on the Care tab. lint, typecheck, 131 unit tests and build pass. `make e2e`: 7 of 8 pass, including the new spec; today.spec.ts failed at 20:40 CDT because the device date (Oct 19) and the e2e server date (UTC, Oct 20) differ, a pre-existing time-of-day flake unrelated to M8.
+- Notes: an online result already saved links by `saved_id` without importing again, and is hidden when it already shows as a saved suggestion. Settings shows nothing about provider setup; the picker's not-configured message covers it.
 
 ### 2026-10-19 · Moisture frontend (PLAN §5.5)
 - Done: `design/MoistureScale` (1–10 radio group: roving tab stop, arrows/Home/End, `aria-label` "3, dry"; zone colours dry `fertilize`, moist `brand`, wet `water`; 2 rows of 5 on phones, one row from 520px via a container query; optional threshold tick + "Water at 3 or below"; `max` caps it). `TaskIcon`/`taskName` take `check` (Gauge, "Check soil"); `TaskRow` `check` makes the round check open the sheet. `care/CheckSoil`: pick a reading and the verdict shows at once (`verdict()` in copy.ts, ≤ `water_at` waters); Watered = `done`+reading, Not now / Save reading = `checked`, "Watered without checking" = `done`; on Today it opens inside TaskActionsSheet ("Snooze or skip" switches to the usual actions), on the Care tab in its own sheet. `useLogEvent` sends `reading`; the checked toast names the next check from the returned task ("Saved reading 6 · Moist for Monstera. Next check Fri, Oct 23."). TaskSheet: for Water, "How do you decide when to water?" (On a schedule / Check the soil first); check mode relabels the interval "Check about every … days", adds "Water at or below" (1–9, "3 · Dry"), hides the anchor and seasons, sends `from_completion`. Care tab: "Usually dries out in N days" or "Check about every N days · learning from your readings", "Last reading 6 · Moist, Oct 18"; history "Checked soil · 6 Moist", "Watered · read 2 Dry".

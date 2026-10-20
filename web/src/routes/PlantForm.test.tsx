@@ -37,6 +37,7 @@ describe("Plant form", () => {
       id: "p1",
       name: "Monstera",
       species: "",
+      species_id: null,
       location_id: "l1",
       acquired_on: null,
       notes: "",
@@ -63,6 +64,7 @@ describe("Plant form", () => {
     expect(body).toEqual({
       name: "Monstera",
       species: "",
+      species_id: null,
       location_id: "l1",
       acquired_on: null,
       notes: "",

@@ -15,3 +15,6 @@ SELECT * FROM care_events ORDER BY id;
 
 -- name: ExportPhotos :many
 SELECT * FROM photos ORDER BY id;
+
+-- name: ExportSpecies :many
+SELECT * FROM species ORDER BY id;

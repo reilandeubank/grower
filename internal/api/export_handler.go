@@ -33,6 +33,7 @@ type (
 		AppVersion string           `json:"app_version"`
 		Settings   apigen.Settings  `json:"settings"`
 		Locations  []exportLocation `json:"locations"`
+		Species    []exportSpecies  `json:"species"`
 		Plants     []exportPlant    `json:"plants"`
 		Tasks      []exportTask     `json:"tasks"`
 		Events     []exportEvent    `json:"events"`
@@ -44,10 +45,24 @@ type (
 		Light *apigen.LightLevel `json:"light"`
 		Notes string             `json:"notes"`
 	}
+	exportSpecies struct {
+		ID                string               `json:"id"`
+		ScientificName    string               `json:"scientific_name"`
+		CommonName        string               `json:"common_name"`
+		Source            apigen.SpeciesSource `json:"source"`
+		SourceRef         string               `json:"source_ref"`
+		WaterIntervalDays *int                 `json:"water_interval_days"`
+		Light             *apigen.LightLevel   `json:"light"`
+		WaterAt           *int                 `json:"water_at"`
+		Notes             string               `json:"notes"`
+		FetchedAt         *time.Time           `json:"fetched_at"`
+		UserEdited        bool                 `json:"user_edited"`
+	}
 	exportPlant struct {
 		ID           string              `json:"id"`
 		Name         string              `json:"name"`
 		Species      string              `json:"species"`
+		SpeciesID    *string             `json:"species_id"`
 		LocationID   *string             `json:"location_id"`
 		AcquiredOn   *openapi_types.Date `json:"acquired_on"`
 		Notes        string              `json:"notes"`
@@ -125,6 +140,9 @@ func (h *Handler) exportSnapshot(ctx context.Context, userID string) (exportFile
 	if f.Locations, err = exportRows(ctx, q.ExportLocations, exportLocationOf); err != nil {
 		return f, fmt.Errorf("export locations: %w", err)
 	}
+	if f.Species, err = exportRows(ctx, q.ExportSpecies, exportSpeciesOf); err != nil {
+		return f, fmt.Errorf("export species: %w", err)
+	}
 	if f.Plants, err = exportRows(ctx, q.ExportPlants, exportPlantOf); err != nil {
 		return f, fmt.Errorf("export plants: %w", err)
 	}
@@ -164,13 +182,27 @@ func exportLocationOf(r dbgen.Location) (exportLocation, error) {
 	return l, nil
 }
 
+// exportSpeciesOf leaves out raw: it is the provider's payload, not the user's data.
+func exportSpeciesOf(r dbgen.Species) (exportSpecies, error) {
+	s, err := speciesOf(dbgen.GetSpeciesRow{
+		ID: r.ID, ScientificName: r.ScientificName, CommonName: r.CommonName, Source: r.Source, SourceRef: r.SourceRef,
+		WaterIntervalDays: r.WaterIntervalDays, Light: r.Light, WaterAt: r.WaterAt, Notes: r.Notes, FetchedAt: r.FetchedAt,
+		UserEdited: r.UserEdited,
+	})
+	return exportSpecies{
+		ID: s.Id, ScientificName: s.ScientificName, CommonName: s.CommonName, Source: s.Source, SourceRef: s.SourceRef,
+		WaterIntervalDays: s.WaterIntervalDays, Light: s.Light, WaterAt: s.WaterAt, Notes: s.Notes, FetchedAt: s.FetchedAt,
+		UserEdited: s.UserEdited,
+	}, err
+}
+
 func exportPlantOf(r dbgen.Plant) (exportPlant, error) {
 	p, err := plant(r, nil)
 	if err != nil {
 		return exportPlant{}, err
 	}
 	e := exportPlant{
-		ID: p.Id, Name: p.Name, Species: p.Species, LocationID: p.LocationId, AcquiredOn: p.AcquiredOn, Notes: p.Notes,
+		ID: p.Id, Name: p.Name, Species: p.Species, SpeciesID: p.SpeciesId, LocationID: p.LocationId, AcquiredOn: p.AcquiredOn, Notes: p.Notes,
 		PotType: p.PotType, PotSizeIn: p.PotSizeIn, Drainage: p.Drainage, Soil: p.Soil, CreatedAt: p.CreatedAt,
 	}
 	if r.CoverPhotoID.Valid {

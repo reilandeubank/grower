@@ -7,6 +7,7 @@ const plant: Plant = {
   id: "p1",
   name: "Monstera",
   species: "",
+  species_id: null,
   location_id: null,
   acquired_on: null,
   notes: "",

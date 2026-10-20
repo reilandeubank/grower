@@ -60,6 +60,26 @@ If the setting is wrong, everything still works, but login rate limiting treats 
 - Close and reopen the installed app: you should still be signed in. Sessions last 90 days from your last visit.
 - In the installed app, **Settings → Notifications → Daily reminder** on, allow notifications, then **Send test notification**. On Android the reminder arrives even when the app is closed. Web push needs HTTPS, which the NPM proxy host already provides; over plain http the browser offers no push at all.
 
+## Species data (optional)
+
+The plant form can search online species databases for care defaults (watering interval, light, the moisture level to water at). Both providers are optional; without either, species still work by hand.
+
+1. **Open Plantbook:** on open.plantbook.io, open **API keys** and generate a client ID and secret.
+2. **Perenual:** copy your API key from perenual.com.
+3. In TrueNAS, **Apps → grower → Edit**, and in the YAML under `environment:` uncomment and fill in the lines you need (see `deploy/compose.yaml`):
+
+   ```yaml
+   GROWER_OPENPLANTBOOK_CLIENT_ID: your-client-id
+   GROWER_OPENPLANTBOOK_CLIENT_SECRET: your-client-secret
+   GROWER_PERENUAL_API_KEY: your-key
+   ```
+
+4. Save. The startup log lists `species_providers` (names only; keys are never logged).
+
+Perenual's free tier allows 100 calls a day. grower spends at most 90 a day (counted per UTC day, reset when the container restarts), caches each search for 24 hours, and only calls when you search or import. When the budget is spent, the search sheet says so and Open Plantbook still answers. Saved species are never refreshed automatically.
+
+The free tier also only serves species ids 1–3000, so many popular houseplants (Monstera deliciosa among them) never appear in Perenual results; grower hides ids it can't fetch. Open Plantbook covers them, but gives light and soil-moisture ranges rather than a watering interval. Set the interval on the species yourself when that's the only source.
+
 ## Troubleshooting
 
 - **Container restarts with a permission error:** the dataset isn't writable by 568:568. Fix the dataset ACL/owner.

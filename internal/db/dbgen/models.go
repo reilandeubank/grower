@@ -88,6 +88,7 @@ type Plant struct {
 	PotSizeIn    sql.NullFloat64
 	Drainage     sql.NullInt64
 	Soil         string
+	SpeciesID    sql.NullString
 }
 
 type PushSubscription struct {
@@ -117,6 +118,23 @@ type Setting struct {
 	DigestLocalTime string
 	CreatedAt       string
 	UpdatedAt       string
+}
+
+type Species struct {
+	ID                string
+	ScientificName    string
+	CommonName        string
+	Source            string
+	SourceRef         string
+	WaterIntervalDays sql.NullInt64
+	Light             sql.NullString
+	WaterAt           sql.NullInt64
+	Notes             string
+	Raw               string
+	FetchedAt         sql.NullString
+	UserEdited        int64
+	CreatedAt         string
+	UpdatedAt         string
 }
 
 type User struct {

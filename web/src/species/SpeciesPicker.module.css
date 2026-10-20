@@ -1,0 +1,124 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Drops over the fields below, inside the field's positioned control. */
+.list {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  z-index: 2;
+  max-height: min(60dvh, 420px);
+  margin: 0;
+  padding: var(--space-1) 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sheet);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.option[aria-selected="true"] {
+  background: var(--brand-soft);
+}
+
+@media (hover: hover) {
+  .option:hover {
+    background: var(--brand-soft);
+  }
+}
+
+/* Create and search: actions, so they read in the action colour. */
+.action {
+  border-top: 1px solid var(--line);
+  color: var(--brand);
+}
+
+.divided {
+  border-top: 1px solid var(--line);
+}
+
+.action + .action {
+  border-top: 0;
+}
+
+.action svg {
+  flex: none;
+}
+
+.names {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.scientific {
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.badges {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.saved {
+  background: var(--brand-soft);
+  color: var(--ink);
+}
+
+.note {
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink-muted);
+}
+
+.spin {
+  flex: none;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}

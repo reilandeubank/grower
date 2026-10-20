@@ -18,6 +18,7 @@ import (
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/media"
 	"github.com/reilandeubank/grower/internal/push"
+	"github.com/reilandeubank/grower/internal/species"
 )
 
 // Deps are everything the HTTP layer needs.
@@ -27,6 +28,8 @@ type Deps struct {
 	Auth   *auth.Service
 	// Push sends notifications; the daily reminder shares it.
 	Push *push.Sender
+	// Species searches the configured species providers; nil means none.
+	Species *species.Lookup
 	// SPA is the built frontend (the contents of web/dist).
 	SPA fs.FS
 	Log *slog.Logger
@@ -45,7 +48,11 @@ func New(d Deps) http.Handler {
 	withSession := sessions(d.Auth.Sessions(), cookie, d.Auth.Now, d.Log)
 
 	apiMux := http.NewServeMux()
-	apigen.HandlerWithOptions(api.New(d.Auth, d.DB, store, d.Push, cookie, d.Config.DataDir, d.Log).ServerInterface(), apigen.StdHTTPServerOptions{
+	lookup := d.Species
+	if lookup == nil {
+		lookup = species.NewLookup(d.Auth.Now)
+	}
+	apigen.HandlerWithOptions(api.New(d.Auth, d.DB, store, d.Push, lookup, cookie, d.Config.DataDir, d.Log).ServerInterface(), apigen.StdHTTPServerOptions{
 		BaseURL:     "/api/v1",
 		BaseRouter:  apiMux,
 		Middlewares: []apigen.MiddlewareFunc{requireAuth},

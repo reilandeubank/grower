@@ -4,6 +4,8 @@ import type { Plant, PlantInput, PotType } from "../api/client";
 export interface PlantValues {
   name: string;
   species: string;
+  /** The linked saved species, or "" for free text only. */
+  speciesId: string;
   locationId: string;
   acquiredOn: string;
   notes: string;
@@ -22,6 +24,7 @@ export function plantValues(plant?: Plant): PlantValues {
   return {
     name: plant?.name ?? "",
     species: plant?.species ?? "",
+    speciesId: plant?.species_id ?? "",
     locationId: plant?.location_id ?? "",
     acquiredOn: plant?.acquired_on ?? "",
     notes: plant?.notes ?? "",
@@ -49,6 +52,7 @@ export function plantInput(values: PlantValues): PlantInput {
   return {
     name: values.name.trim(),
     species: values.species.trim(),
+    species_id: values.speciesId || null,
     location_id: values.locationId || null,
     acquired_on: values.acquiredOn || null,
     notes: values.notes,

@@ -13,8 +13,10 @@ import (
 	"github.com/reilandeubank/grower/internal/auth"
 	"github.com/reilandeubank/grower/internal/backup"
 	"github.com/reilandeubank/grower/internal/buildinfo"
+	"github.com/reilandeubank/grower/internal/config"
 	"github.com/reilandeubank/grower/internal/push"
 	"github.com/reilandeubank/grower/internal/server"
+	"github.com/reilandeubank/grower/internal/species"
 	"github.com/reilandeubank/grower/web"
 )
 
@@ -64,8 +66,30 @@ func cmdServe(args []string) error {
 		runners.Wait()
 	}()
 
+	lookup := speciesLookup(cfg)
 	log.Info("starting grower", "version", buildinfo.Version, "data_dir", cfg.DataDir,
-		"base_url", cfg.BaseURL.String(), "trusted_proxies", len(cfg.TrustedProxies))
-	h := server.New(server.Deps{Config: cfg, DB: d, Auth: authSvc, Push: pusher, SPA: web.FS(), Log: log})
+		"base_url", cfg.BaseURL.String(), "trusted_proxies", len(cfg.TrustedProxies), "species_providers", speciesSources(lookup))
+	h := server.New(server.Deps{Config: cfg, DB: d, Auth: authSvc, Push: pusher, Species: lookup, SPA: web.FS(), Log: log})
 	return server.Run(ctx, cfg.Listen, h, log)
+}
+
+// speciesLookup enables each species provider whose credentials are configured.
+func speciesLookup(cfg config.Config) *species.Lookup {
+	var providers []species.Provider
+	if cfg.OpenPlantbookClientID != "" {
+		providers = append(providers, species.NewOpenPlantbook(cfg.OpenPlantbookClientID, cfg.OpenPlantbookClientSecret))
+	}
+	if cfg.PerenualAPIKey != "" {
+		providers = append(providers, species.NewPerenual(cfg.PerenualAPIKey))
+	}
+	return species.NewLookup(time.Now, providers...)
+}
+
+// speciesSources names the enabled providers for the startup log (never their keys).
+func speciesSources(l *species.Lookup) []string {
+	out := []string{}
+	for _, p := range l.Providers() {
+		out = append(out, p.Source())
+	}
+	return out
 }

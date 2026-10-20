@@ -22,8 +22,22 @@ export function usePlant(id: string) {
 
 /** A plant's writable fields with some replaced, for a PUT (which replaces them all). */
 export function plantUpdate(plant: Plant, changes: Partial<PlantUpdate> = {}): PlantUpdate {
-  const { name, species, location_id, acquired_on, notes, archived, pot_type, pot_size_in, drainage, soil } = plant;
-  return { name, species, location_id, acquired_on, notes, archived, pot_type, pot_size_in, drainage, soil, ...changes };
+  const { name, species, species_id, location_id, acquired_on, notes, archived, pot_type, pot_size_in, drainage, soil } =
+    plant;
+  return {
+    name,
+    species,
+    species_id,
+    location_id,
+    acquired_on,
+    notes,
+    archived,
+    pot_type,
+    pot_size_in,
+    drainage,
+    soil,
+    ...changes,
+  };
 }
 
 type SavePlant = { id: string; body: PlantUpdate } | { id?: undefined; body: PlantInput };

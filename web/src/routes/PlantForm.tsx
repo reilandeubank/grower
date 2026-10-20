@@ -27,6 +27,7 @@ import {
   type PlantValues,
 } from "../plants/form";
 import { plantUpdate, useDeletePlant, usePlant, useSavePlant } from "../plants/queries";
+import { SpeciesPicker } from "../species/SpeciesPicker";
 import { LoadError } from "./LoadError";
 import { Pending } from "./Pending";
 import styles from "./PlantForm.module.css";
@@ -123,13 +124,10 @@ function PlantForm({ plant }: { plant?: Plant }) {
             autoComplete="off"
             autoCapitalize="words"
           />
-          <TextField
-            label="Species"
-            hint="Optional, like Monstera deliciosa"
-            value={values.species}
-            onChange={set("species")}
-            maxLength={120}
-            autoComplete="off"
+          <SpeciesPicker
+            text={values.species}
+            speciesId={values.speciesId}
+            onChange={({ text, speciesId }) => setValues((v) => ({ ...v, species: text, speciesId }))}
           />
           <div className={styles.location}>
             <SelectField

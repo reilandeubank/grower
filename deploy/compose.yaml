@@ -10,6 +10,10 @@ services:
       GROWER_BASE_URL: https://grower.example.com # the public URL served by Nginx Proxy Manager
       GROWER_TRUSTED_PROXIES: 192.0.2.10/32
       GROWER_TZ: America/Chicago
+      # Optional species data (docs/deploy.md, "Species data"). Uncomment and fill in to enable.
+      # GROWER_OPENPLANTBOOK_CLIENT_ID: CHANGE
+      # GROWER_OPENPLANTBOOK_CLIENT_SECRET: CHANGE
+      # GROWER_PERENUAL_API_KEY: CHANGE
     volumes:
       - /mnt/vm-disk/grower:/data
     ports:

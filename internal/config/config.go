@@ -32,6 +32,11 @@ type Config struct {
 	Location  *time.Location
 	LogFormat string // "json" or "text"
 	LogLevel  slog.Level
+	// Species data providers (M8). Each is optional; empty disables it. These are
+	// secrets: never log them.
+	OpenPlantbookClientID     string
+	OpenPlantbookClientSecret string
+	PerenualAPIKey            string
 }
 
 // Load parses the environment through getenv (os.Getenv in production). It returns
@@ -42,6 +47,10 @@ func Load(getenv func(string) string) (Config, error) {
 		DataDir:   orDefault(getenv("GROWER_DATA_DIR"), "/data"),
 		Listen:    orDefault(getenv("GROWER_LISTEN"), ":8080"),
 		LogFormat: orDefault(getenv("GROWER_LOG_FORMAT"), "json"),
+
+		OpenPlantbookClientID:     strings.TrimSpace(getenv("GROWER_OPENPLANTBOOK_CLIENT_ID")),
+		OpenPlantbookClientSecret: strings.TrimSpace(getenv("GROWER_OPENPLANTBOOK_CLIENT_SECRET")),
+		PerenualAPIKey:            strings.TrimSpace(getenv("GROWER_PERENUAL_API_KEY")),
 	}
 	var errs []error
 
@@ -76,6 +85,10 @@ func Load(getenv func(string) string) (Config, error) {
 		if err := cfg.LogLevel.UnmarshalText([]byte(raw)); err != nil {
 			errs = append(errs, fmt.Errorf("GROWER_LOG_LEVEL: must be debug, info, warn or error, got %q", raw))
 		}
+	}
+
+	if (cfg.OpenPlantbookClientID == "") != (cfg.OpenPlantbookClientSecret == "") {
+		errs = append(errs, errors.New("GROWER_OPENPLANTBOOK_CLIENT_ID and GROWER_OPENPLANTBOOK_CLIENT_SECRET must be set together"))
 	}
 
 	if len(errs) > 0 {

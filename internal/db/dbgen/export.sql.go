@@ -124,7 +124,7 @@ func (q *Queries) ExportPhotos(ctx context.Context) ([]Photo, error) {
 }
 
 const exportPlants = `-- name: ExportPlants :many
-SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil FROM plants ORDER BY id
+SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id FROM plants ORDER BY id
 `
 
 func (q *Queries) ExportPlants(ctx context.Context) ([]Plant, error) {
@@ -151,6 +151,49 @@ func (q *Queries) ExportPlants(ctx context.Context) ([]Plant, error) {
 			&i.PotSizeIn,
 			&i.Drainage,
 			&i.Soil,
+			&i.SpeciesID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportSpecies = `-- name: ExportSpecies :many
+SELECT id, scientific_name, common_name, source, source_ref, water_interval_days, light, water_at, notes, raw, fetched_at, user_edited, created_at, updated_at FROM species ORDER BY id
+`
+
+func (q *Queries) ExportSpecies(ctx context.Context) ([]Species, error) {
+	rows, err := q.db.QueryContext(ctx, exportSpecies)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Species{}
+	for rows.Next() {
+		var i Species
+		if err := rows.Scan(
+			&i.ID,
+			&i.ScientificName,
+			&i.CommonName,
+			&i.Source,
+			&i.SourceRef,
+			&i.WaterIntervalDays,
+			&i.Light,
+			&i.WaterAt,
+			&i.Notes,
+			&i.Raw,
+			&i.FetchedAt,
+			&i.UserEdited,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

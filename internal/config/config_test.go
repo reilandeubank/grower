@@ -116,6 +116,18 @@ func TestLoadValues(t *testing.T) {
 		{name: "bad listen", env: map[string]string{"GROWER_LISTEN": "8080"}, wantErr: "GROWER_LISTEN"},
 		{name: "bad port", env: map[string]string{"GROWER_LISTEN": ":99999"}, wantErr: "GROWER_LISTEN"},
 		{
+			name: "species providers",
+			env: map[string]string{
+				"GROWER_OPENPLANTBOOK_CLIENT_ID": " id ", "GROWER_OPENPLANTBOOK_CLIENT_SECRET": "secret", "GROWER_PERENUAL_API_KEY": "key",
+			},
+			check: func(t *testing.T, c Config) {
+				if c.OpenPlantbookClientID != "id" || c.OpenPlantbookClientSecret != "secret" || c.PerenualAPIKey != "key" {
+					t.Errorf("providers = %q %q %q", c.OpenPlantbookClientID, c.OpenPlantbookClientSecret, c.PerenualAPIKey)
+				}
+			},
+		},
+		{name: "half of plantbook", env: map[string]string{"GROWER_OPENPLANTBOOK_CLIENT_ID": "id"}, wantErr: "GROWER_OPENPLANTBOOK_CLIENT_SECRET"},
+		{
 			name:    "reports all errors",
 			env:     map[string]string{"GROWER_TZ": "x", "GROWER_LOG_FORMAT": "y"},
 			wantErr: "GROWER_LOG_FORMAT",

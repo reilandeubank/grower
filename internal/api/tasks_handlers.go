@@ -34,9 +34,18 @@ func (h *Handler) ListPlantTasks(ctx context.Context, req apigen.ListPlantTasksR
 	if err != nil {
 		return nil, err
 	}
-	rows, err := h.db.Reader().ListPlantTasks(ctx, req.Id)
+	items, err := h.plantTasks(ctx, req.Id, cal)
 	if err != nil {
-		return nil, fmt.Errorf("list tasks of plant %s: %w", req.Id, err)
+		return nil, err
+	}
+	return apigen.ListPlantTasks200JSONResponse{Items: items}, nil
+}
+
+// plantTasks maps a plant's tasks with their schedules, soonest due first.
+func (h *Handler) plantTasks(ctx context.Context, plantID string, cal care.Calendar) ([]apigen.CareTask, error) {
+	rows, err := h.db.Reader().ListPlantTasks(ctx, plantID)
+	if err != nil {
+		return nil, fmt.Errorf("list tasks of plant %s: %w", plantID, err)
 	}
 	items := make([]apigen.CareTask, len(rows))
 	for i, r := range rows {
@@ -46,7 +55,7 @@ func (h *Handler) ListPlantTasks(ctx context.Context, req apigen.ListPlantTasksR
 	}
 	// Rows come ordered by kind, so equal due dates stay in kind order.
 	slices.SortStableFunc(items, func(a, b apigen.CareTask) int { return a.NextDue.Compare(b.NextDue.Time) })
-	return apigen.ListPlantTasks200JSONResponse{Items: items}, nil
+	return items, nil
 }
 
 // CreateTask adds a care task to a plant.

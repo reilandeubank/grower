@@ -1,0 +1,58 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+}
+
+/* The Edit button sits in the card's top right corner, its target overhanging the padding. */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: calc(var(--space-2) * -1) calc(var(--space-2) * -1) 0 0;
+}
+
+.edit {
+  padding-inline: var(--space-2);
+}
+
+.title {
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.scientific {
+  font-style: italic;
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lines li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.icon {
+  flex: none;
+  color: var(--ink-muted);
+}
+
+.actions {
+  margin-top: var(--space-2);
+}
