@@ -310,6 +310,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/identify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suggest species for a plant photo with Pl@ntNet (optional; needs GROWER_PLANTNET_API_KEY).
+         * @description The photo is forwarded to Pl@ntNet and not stored by grower. Clients should send the
+         *     same downscaled JPEG they would upload. When identification isn't configured the
+         *     answer is 200 with configured=false and no candidates, without calling anyone.
+         */
+        post: operations["identifyPlant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/locations": {
         parameters: {
             query?: never;
@@ -761,6 +783,34 @@ export interface components {
         };
         MeasurementList: {
             items: components["schemas"]["Measurement"][];
+        };
+        IdentifyRequest: {
+            /** Format: binary */
+            file: string;
+            /**
+             * @description What the photo mostly shows; helps Pl@ntNet.
+             * @default auto
+             * @enum {string}
+             */
+            organ: "auto" | "leaf" | "flower" | "fruit" | "bark";
+        };
+        Identification: {
+            /** @description Whether plant identification is set up on this server. */
+            configured: boolean;
+            /** @description Why there are no candidates when configured (e.g. daily limit reached); empty otherwise. */
+            detail: string;
+            candidates: components["schemas"]["IdentifyCandidate"][];
+        };
+        IdentifyCandidate: {
+            scientific_name: string;
+            common_name: string;
+            /**
+             * Format: double
+             * @description Pl@ntNet's confidence.
+             */
+            score: number;
+            /** @description The saved species with this scientific name, if any. */
+            saved_id: string | null;
         };
         /** @enum {string} */
         Direction: "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
@@ -1627,6 +1677,34 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+        };
+    };
+    identifyPlant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["IdentifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Suggestions, best first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Identification"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            413: components["responses"]["Problem"];
+            502: components["responses"]["Problem"];
         };
     };
     listLocations: {

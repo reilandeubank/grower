@@ -143,6 +143,33 @@ func (e GrowthStage) Valid() bool {
 	}
 }
 
+// Defines values for IdentifyRequestOrgan.
+const (
+	Auto   IdentifyRequestOrgan = "auto"
+	Bark   IdentifyRequestOrgan = "bark"
+	Flower IdentifyRequestOrgan = "flower"
+	Fruit  IdentifyRequestOrgan = "fruit"
+	Leaf   IdentifyRequestOrgan = "leaf"
+)
+
+// Valid indicates whether the value is a known member of the IdentifyRequestOrgan enum.
+func (e IdentifyRequestOrgan) Valid() bool {
+	switch e {
+	case Auto:
+		return true
+	case Bark:
+		return true
+	case Flower:
+		return true
+	case Fruit:
+		return true
+	case Leaf:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LightLevel.
 const (
 	BrightIndirect LightLevel = "bright_indirect"
@@ -494,6 +521,40 @@ type HistoryEntry struct {
 	TaskKind  TaskKind `json:"task_kind"`
 	TaskLabel string   `json:"task_label"`
 }
+
+// Identification defines model for Identification.
+type Identification struct {
+	Candidates []IdentifyCandidate `json:"candidates"`
+
+	// Configured Whether plant identification is set up on this server.
+	Configured bool `json:"configured"`
+
+	// Detail Why there are no candidates when configured (e.g. daily limit reached); empty otherwise.
+	Detail string `json:"detail"`
+}
+
+// IdentifyCandidate defines model for IdentifyCandidate.
+type IdentifyCandidate struct {
+	CommonName string `json:"common_name"`
+
+	// SavedId The saved species with this scientific name, if any.
+	SavedId        *string `json:"saved_id"`
+	ScientificName string  `json:"scientific_name"`
+
+	// Score Pl@ntNet's confidence.
+	Score float64 `json:"score"`
+}
+
+// IdentifyRequest defines model for IdentifyRequest.
+type IdentifyRequest struct {
+	File openapi_types.File `json:"file"`
+
+	// Organ What the photo mostly shows; helps Pl@ntNet.
+	Organ *IdentifyRequestOrgan `json:"organ,omitempty"`
+}
+
+// IdentifyRequestOrgan What the photo mostly shows; helps Pl@ntNet.
+type IdentifyRequestOrgan string
 
 // LightLevel defines model for LightLevel.
 type LightLevel string
@@ -965,6 +1026,9 @@ type LoginJSONRequestBody = LoginRequest
 // ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
 type ChangePasswordJSONRequestBody = PasswordChange
 
+// IdentifyPlantMultipartRequestBody defines body for IdentifyPlant for multipart/form-data ContentType.
+type IdentifyPlantMultipartRequestBody = IdentifyRequest
+
 // CreateLocationJSONRequestBody defines body for CreateLocation for application/json ContentType.
 type CreateLocationJSONRequestBody = LocationInput
 
@@ -1036,6 +1100,9 @@ type ServerInterface interface {
 	// ExportData Download everything as a zip (format in docs/export-format.md).
 	// (GET /export)
 	ExportData(w http.ResponseWriter, r *http.Request)
+	// IdentifyPlant Suggest species for a plant photo with Pl@ntNet (optional; needs GROWER_PLANTNET_API_KEY).
+	// (POST /identify)
+	IdentifyPlant(w http.ResponseWriter, r *http.Request)
 	// ListLocations All locations, ordered by name, with how many active plants each holds.
 	// (GET /locations)
 	ListLocations(w http.ResponseWriter, r *http.Request)
@@ -1237,6 +1304,20 @@ func (siw *ServerInterfaceWrapper) ExportData(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExportData(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// IdentifyPlant operation middleware
+func (siw *ServerInterfaceWrapper) IdentifyPlant(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.IdentifyPlant(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2283,6 +2364,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plants/{id}/measurements", wrapper.CreateMeasurement)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/measurements/{id}", wrapper.DeleteMeasurement)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/measurements/{id}", wrapper.UpdateMeasurement)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/identify", wrapper.IdentifyPlant)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/locations", wrapper.ListLocations)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/locations", wrapper.CreateLocation)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/locations/{id}", wrapper.DeleteLocation)
@@ -2551,6 +2633,86 @@ func (response ExportData401ApplicationProblemPlusJSONResponse) VisitExportDataR
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type IdentifyPlantRequestObject struct {
+	Body *multipart.Reader
+}
+
+type IdentifyPlantResponseObject interface {
+	VisitIdentifyPlantResponse(w http.ResponseWriter) error
+}
+
+type IdentifyPlant200JSONResponse Identification
+
+func (response IdentifyPlant200JSONResponse) VisitIdentifyPlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type IdentifyPlant400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response IdentifyPlant400ApplicationProblemPlusJSONResponse) VisitIdentifyPlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type IdentifyPlant401ApplicationProblemPlusJSONResponse Problem
+
+func (response IdentifyPlant401ApplicationProblemPlusJSONResponse) VisitIdentifyPlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type IdentifyPlant413ApplicationProblemPlusJSONResponse Problem
+
+func (response IdentifyPlant413ApplicationProblemPlusJSONResponse) VisitIdentifyPlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type IdentifyPlant502ApplicationProblemPlusJSONResponse Problem
+
+func (response IdentifyPlant502ApplicationProblemPlusJSONResponse) VisitIdentifyPlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(502)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -4698,6 +4860,9 @@ type StrictServerInterface interface {
 	// ExportData Download everything as a zip (format in docs/export-format.md).
 	// (GET /export)
 	ExportData(ctx context.Context, request ExportDataRequestObject) (ExportDataResponseObject, error)
+	// IdentifyPlant Suggest species for a plant photo with Pl@ntNet (optional; needs GROWER_PLANTNET_API_KEY).
+	// (POST /identify)
+	IdentifyPlant(ctx context.Context, request IdentifyPlantRequestObject) (IdentifyPlantResponseObject, error)
 	// ListLocations All locations, ordered by name, with how many active plants each holds.
 	// (GET /locations)
 	ListLocations(ctx context.Context, request ListLocationsRequestObject) (ListLocationsResponseObject, error)
@@ -4985,6 +5150,37 @@ func (sh *strictHandler) ExportData(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ExportDataResponseObject); ok {
 		if err := validResponse.VisitExportDataResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// IdentifyPlant operation middleware
+func (sh *strictHandler) IdentifyPlant(w http.ResponseWriter, r *http.Request) {
+	var request IdentifyPlantRequestObject
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.IdentifyPlant(ctx, request.(IdentifyPlantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "IdentifyPlant")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(IdentifyPlantResponseObject); ok {
+		if err := validResponse.VisitIdentifyPlantResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -404,6 +404,35 @@ paths:
           $ref: "#/components/responses/Problem"
         "404":
           $ref: "#/components/responses/Problem"
+  /identify:
+    post:
+      operationId: identifyPlant
+      summary: Suggest species for a plant photo with Pl@ntNet (optional; needs GROWER_PLANTNET_API_KEY).
+      description: |
+        The photo is forwarded to Pl@ntNet and not stored by grower. Clients should send the
+        same downscaled JPEG they would upload. When identification isn't configured the
+        answer is 200 with configured=false and no candidates, without calling anyone.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/IdentifyRequest"
+      responses:
+        "200":
+          description: Suggestions, best first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Identification"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "413":
+          $ref: "#/components/responses/Problem"
+        "502":
+          $ref: "#/components/responses/Problem"
   /locations:
     get:
       operationId: listLocations
@@ -1223,6 +1252,51 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Measurement"
+    IdentifyRequest:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+        organ:
+          type: string
+          enum: [auto, leaf, flower, fruit, bark]
+          default: auto
+          description: What the photo mostly shows; helps Pl@ntNet.
+    Identification:
+      type: object
+      required: [configured, detail, candidates]
+      properties:
+        configured:
+          type: boolean
+          description: Whether plant identification is set up on this server.
+        detail:
+          type: string
+          description: Why there are no candidates when configured (e.g. daily limit reached); empty otherwise.
+        candidates:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/IdentifyCandidate"
+    IdentifyCandidate:
+      type: object
+      required: [scientific_name, common_name, score, saved_id]
+      properties:
+        scientific_name:
+          type: string
+        common_name:
+          type: string
+        score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Pl@ntNet's confidence.
+        saved_id:
+          type: string
+          nullable: true
+          description: The saved species with this scientific name, if any.
     Direction:
       type: string
       enum: [n, ne, e, se, s, sw, w, nw]
