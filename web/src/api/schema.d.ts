@@ -665,17 +665,50 @@ export interface components {
         LocationInput: {
             /** @description Unique, case-insensitive. Leading and trailing spaces are trimmed. */
             name: string;
+            /** @description The room's light, set by hand. When null, suggested_light from the windows is used. */
             light?: components["schemas"]["LightLevel"] | null;
+            /**
+             * @description Windows by facing direction; at most one entry per direction.
+             * @default []
+             */
+            windows: components["schemas"]["Window"][];
             /** @default  */
             notes: string;
         };
         Location: {
+            windows: components["schemas"]["Window"][];
+            /**
+             * @description Estimated from the brightest window and the user's hemisphere (internal/light):
+             *     equator-facing (S in the north) direct; E, W, SE, SW bright_indirect;
+             *     pole-facing (N, NE, NW) medium. Null with no windows.
+             */
+            suggested_light: components["schemas"]["LightLevel"] | null;
             id: string;
             name: string;
             light: components["schemas"]["LightLevel"] | null;
             notes: string;
             /** @description Active (not archived) plants in this location. */
             plant_count: number;
+        };
+        /** @enum {string} */
+        Direction: "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
+        Window: {
+            direction: components["schemas"]["Direction"];
+            count: number;
+        };
+        /**
+         * @description at_window keeps the room's light; near (within about 3 ft) is one step dimmer; across_room two.
+         * @enum {string}
+         */
+        WindowDistance: "at_window" | "near" | "across_room";
+        EffectiveLight: {
+            level: components["schemas"]["LightLevel"];
+            /**
+             * @description plant: the plant's own light setting. location / windows: the room's set or
+             *     suggested light, dimmed by window_distance. grow_light: a grow light raised it.
+             * @enum {string}
+             */
+            source: "plant" | "location" | "windows" | "grow_light";
         };
         LocationList: {
             items: components["schemas"]["Location"][];
@@ -687,6 +720,11 @@ export interface components {
              * @default
              */
             species: string;
+            /** @description The light this plant gets, set by hand. Overrides everything derived. */
+            light?: components["schemas"]["LightLevel"] | null;
+            window_distance?: components["schemas"]["WindowDistance"] | null;
+            /** @description Hours a day under a grow light; null when it has none. */
+            grow_light_hours?: number | null;
             /** @description A species from /species, whose care defaults the plant can apply. */
             species_id?: string | null;
             location_id?: string | null;
@@ -712,6 +750,12 @@ export interface components {
             archived: boolean;
         };
         Plant: {
+            light: components["schemas"]["LightLevel"] | null;
+            window_distance: components["schemas"]["WindowDistance"] | null;
+            /** @description Hours a day under a grow light; null when it has none. */
+            grow_light_hours: number | null;
+            /** @description What the plant actually gets (internal/light). Null when nothing is known. */
+            effective_light: components["schemas"]["EffectiveLight"] | null;
             species_id: string | null;
             /** @description The cover photo, or null when the plant has none. */
             cover: components["schemas"]["Photo"] | null;

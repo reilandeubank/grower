@@ -38,6 +38,66 @@ func (e Anchor) Valid() bool {
 	}
 }
 
+// Defines values for Direction.
+const (
+	E  Direction = "e"
+	N  Direction = "n"
+	Ne Direction = "ne"
+	Nw Direction = "nw"
+	S  Direction = "s"
+	Se Direction = "se"
+	Sw Direction = "sw"
+	W  Direction = "w"
+)
+
+// Valid indicates whether the value is a known member of the Direction enum.
+func (e Direction) Valid() bool {
+	switch e {
+	case E:
+		return true
+	case N:
+		return true
+	case Ne:
+		return true
+	case Nw:
+		return true
+	case S:
+		return true
+	case Se:
+		return true
+	case Sw:
+		return true
+	case W:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EffectiveLightSource.
+const (
+	EffectiveLightSourceGrowLight EffectiveLightSource = "grow_light"
+	EffectiveLightSourceLocation  EffectiveLightSource = "location"
+	EffectiveLightSourcePlant     EffectiveLightSource = "plant"
+	EffectiveLightSourceWindows   EffectiveLightSource = "windows"
+)
+
+// Valid indicates whether the value is a known member of the EffectiveLightSource enum.
+func (e EffectiveLightSource) Valid() bool {
+	switch e {
+	case EffectiveLightSourceGrowLight:
+		return true
+	case EffectiveLightSourceLocation:
+		return true
+	case EffectiveLightSourcePlant:
+		return true
+	case EffectiveLightSourceWindows:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EventKind.
 const (
 	Checked EventKind = "checked"
@@ -239,6 +299,27 @@ func (e TaskKind) Valid() bool {
 	}
 }
 
+// Defines values for WindowDistance.
+const (
+	AcrossRoom WindowDistance = "across_room"
+	AtWindow   WindowDistance = "at_window"
+	Near       WindowDistance = "near"
+)
+
+// Valid indicates whether the value is a known member of the WindowDistance enum.
+func (e WindowDistance) Valid() bool {
+	switch e {
+	case AcrossRoom:
+		return true
+	case AtWindow:
+		return true
+	case Near:
+		return true
+	default:
+		return false
+	}
+}
+
 // Anchor from_completion: the next due date counts from when the task was last done or skipped.
 // fixed: due dates stay on start_on + k × interval_days regardless of when it was done.
 type Anchor string
@@ -355,6 +436,22 @@ type CoverInput struct {
 	PhotoId *string `json:"photo_id"`
 }
 
+// Direction defines model for Direction.
+type Direction string
+
+// EffectiveLight defines model for EffectiveLight.
+type EffectiveLight struct {
+	Level LightLevel `json:"level"`
+
+	// Source plant: the plant's own light setting. location / windows: the room's set or
+	// suggested light, dimmed by window_distance. grow_light: a grow light raised it.
+	Source EffectiveLightSource `json:"source"`
+}
+
+// EffectiveLightSource plant: the plant's own light setting. location / windows: the room's set or
+// suggested light, dimmed by window_distance. grow_light: a grow light raised it.
+type EffectiveLightSource string
+
 // EventKind checked records a soil moisture reading on a moisture-check task.
 type EventKind string
 
@@ -377,15 +474,25 @@ type Location struct {
 
 	// PlantCount Active (not archived) plants in this location.
 	PlantCount int `json:"plant_count"`
+
+	// SuggestedLight Estimated from the brightest window and the user's hemisphere (internal/light):
+	// equator-facing (S in the north) direct; E, W, SE, SW bright_indirect;
+	// pole-facing (N, NE, NW) medium. Null with no windows.
+	SuggestedLight *LightLevel `json:"suggested_light"`
+	Windows        []Window    `json:"windows"`
 }
 
 // LocationInput defines model for LocationInput.
 type LocationInput struct {
+	// Light The room's light, set by hand. When null, suggested_light from the windows is used.
 	Light *LightLevel `json:"light,omitempty"`
 
 	// Name Unique, case-insensitive. Leading and trailing spaces are trimmed.
 	Name  string  `json:"name"`
 	Notes *string `json:"notes,omitempty"`
+
+	// Windows Windows by facing direction; at most one entry per direction.
+	Windows *[]Window `json:"windows,omitempty"`
 }
 
 // LocationList defines model for LocationList.
@@ -480,20 +587,28 @@ type Plant struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	// Drainage Whether the pot has drainage holes; null when not recorded.
-	Drainage   *bool   `json:"drainage"`
-	Id         string  `json:"id"`
-	LocationId *string `json:"location_id"`
-	Name       string  `json:"name"`
-	Notes      string  `json:"notes"`
+	Drainage *bool `json:"drainage"`
+
+	// EffectiveLight What the plant actually gets (internal/light). Null when nothing is known.
+	EffectiveLight *EffectiveLight `json:"effective_light"`
+
+	// GrowLightHours Hours a day under a grow light; null when it has none.
+	GrowLightHours *int        `json:"grow_light_hours"`
+	Id             string      `json:"id"`
+	Light          *LightLevel `json:"light"`
+	LocationId     *string     `json:"location_id"`
+	Name           string      `json:"name"`
+	Notes          string      `json:"notes"`
 
 	// PotSizeIn Pot diameter in inches.
 	PotSizeIn *float64 `json:"pot_size_in"`
 	PotType   *PotType `json:"pot_type"`
 
 	// Soil Free text, e.g. "Aroid mix".
-	Soil      string  `json:"soil"`
-	Species   string  `json:"species"`
-	SpeciesId *string `json:"species_id"`
+	Soil           string          `json:"soil"`
+	Species        string          `json:"species"`
+	SpeciesId      *string         `json:"species_id"`
+	WindowDistance *WindowDistance `json:"window_distance"`
 }
 
 // PlantInput defines model for PlantInput.
@@ -501,10 +616,16 @@ type PlantInput struct {
 	AcquiredOn *openapi_types.Date `json:"acquired_on,omitempty"`
 
 	// Drainage Whether the pot has drainage holes; null when not recorded.
-	Drainage   *bool   `json:"drainage,omitempty"`
-	LocationId *string `json:"location_id,omitempty"`
-	Name       string  `json:"name"`
-	Notes      *string `json:"notes,omitempty"`
+	Drainage *bool `json:"drainage,omitempty"`
+
+	// GrowLightHours Hours a day under a grow light; null when it has none.
+	GrowLightHours *int `json:"grow_light_hours,omitempty"`
+
+	// Light The light this plant gets, set by hand. Overrides everything derived.
+	Light      *LightLevel `json:"light,omitempty"`
+	LocationId *string     `json:"location_id,omitempty"`
+	Name       string      `json:"name"`
+	Notes      *string     `json:"notes,omitempty"`
 
 	// PotSizeIn Pot diameter in inches.
 	PotSizeIn *float64 `json:"pot_size_in,omitempty"`
@@ -517,7 +638,8 @@ type PlantInput struct {
 	Species *string `json:"species,omitempty"`
 
 	// SpeciesId A species from /species, whose care defaults the plant can apply.
-	SpeciesId *string `json:"species_id,omitempty"`
+	SpeciesId      *string         `json:"species_id,omitempty"`
+	WindowDistance *WindowDistance `json:"window_distance,omitempty"`
 }
 
 // PlantList defines model for PlantList.
@@ -531,10 +653,16 @@ type PlantUpdate struct {
 	Archived   bool                `json:"archived"`
 
 	// Drainage Whether the pot has drainage holes; null when not recorded.
-	Drainage   *bool   `json:"drainage,omitempty"`
-	LocationId *string `json:"location_id,omitempty"`
-	Name       string  `json:"name"`
-	Notes      *string `json:"notes,omitempty"`
+	Drainage *bool `json:"drainage,omitempty"`
+
+	// GrowLightHours Hours a day under a grow light; null when it has none.
+	GrowLightHours *int `json:"grow_light_hours,omitempty"`
+
+	// Light The light this plant gets, set by hand. Overrides everything derived.
+	Light      *LightLevel `json:"light,omitempty"`
+	LocationId *string     `json:"location_id,omitempty"`
+	Name       string      `json:"name"`
+	Notes      *string     `json:"notes,omitempty"`
 
 	// PotSizeIn Pot diameter in inches.
 	PotSizeIn *float64 `json:"pot_size_in,omitempty"`
@@ -547,7 +675,8 @@ type PlantUpdate struct {
 	Species *string `json:"species,omitempty"`
 
 	// SpeciesId A species from /species, whose care defaults the plant can apply.
-	SpeciesId *string `json:"species_id,omitempty"`
+	SpeciesId      *string         `json:"species_id,omitempty"`
+	WindowDistance *WindowDistance `json:"window_distance,omitempty"`
 }
 
 // PotType defines model for PotType.
@@ -722,6 +851,15 @@ type VapidKey struct {
 	// PublicKey The server's VAPID public key, URL-safe base64, for PushManager.subscribe.
 	PublicKey string `json:"public_key"`
 }
+
+// Window defines model for Window.
+type Window struct {
+	Count     int       `json:"count"`
+	Direction Direction `json:"direction"`
+}
+
+// WindowDistance at_window keeps the room's light; near (within about 3 ft) is one step dimmer; across_room two.
+type WindowDistance string
 
 // Id defines model for Id.
 type Id = string

@@ -1039,14 +1039,34 @@ components:
           allOf:
             - $ref: "#/components/schemas/LightLevel"
           nullable: true
+          description: The room's light, set by hand. When null, suggested_light from the windows is used.
+        windows:
+          type: array
+          maxItems: 8
+          default: []
+          description: Windows by facing direction; at most one entry per direction.
+          items:
+            $ref: "#/components/schemas/Window"
         notes:
           type: string
           maxLength: 2000
           default: ""
     Location:
       type: object
-      required: [id, name, light, notes, plant_count]
+      required: [id, name, light, windows, suggested_light, notes, plant_count]
       properties:
+        windows:
+          type: array
+          items:
+            $ref: "#/components/schemas/Window"
+        suggested_light:
+          allOf:
+            - $ref: "#/components/schemas/LightLevel"
+          nullable: true
+          description: |
+            Estimated from the brightest window and the user's hemisphere (internal/light):
+            equator-facing (S in the north) direct; E, W, SE, SW bright_indirect;
+            pole-facing (N, NE, NW) medium. Null with no windows.
         id:
           type: string
         name:
@@ -1060,6 +1080,35 @@ components:
         plant_count:
           type: integer
           description: Active (not archived) plants in this location.
+    Direction:
+      type: string
+      enum: [n, ne, e, se, s, sw, w, nw]
+    Window:
+      type: object
+      required: [direction, count]
+      properties:
+        direction:
+          $ref: "#/components/schemas/Direction"
+        count:
+          type: integer
+          minimum: 1
+          maximum: 9
+    WindowDistance:
+      type: string
+      enum: [at_window, near, across_room]
+      description: at_window keeps the room's light; near (within about 3 ft) is one step dimmer; across_room two.
+    EffectiveLight:
+      type: object
+      required: [level, source]
+      properties:
+        level:
+          $ref: "#/components/schemas/LightLevel"
+        source:
+          type: string
+          enum: [plant, location, windows, grow_light]
+          description: |
+            plant: the plant's own light setting. location / windows: the room's set or
+            suggested light, dimmed by window_distance. grow_light: a grow light raised it.
     LocationList:
       type: object
       required: [items]
@@ -1081,6 +1130,21 @@ components:
           maxLength: 120
           default: ""
           description: Free text, e.g. "Monstera deliciosa". Shown when no species is linked.
+        light:
+          allOf:
+            - $ref: "#/components/schemas/LightLevel"
+          nullable: true
+          description: The light this plant gets, set by hand. Overrides everything derived.
+        window_distance:
+          allOf:
+            - $ref: "#/components/schemas/WindowDistance"
+          nullable: true
+        grow_light_hours:
+          type: integer
+          minimum: 1
+          maximum: 24
+          nullable: true
+          description: Hours a day under a grow light; null when it has none.
         species_id:
           type: string
           nullable: true
@@ -1126,8 +1190,25 @@ components:
               type: boolean
     Plant:
       type: object
-      required: [id, name, species, species_id, location_id, acquired_on, notes, pot_type, pot_size_in, drainage, soil, archived, cover, created_at]
+      required: [id, name, species, species_id, light, window_distance, grow_light_hours, effective_light, location_id, acquired_on, notes, pot_type, pot_size_in, drainage, soil, archived, cover, created_at]
       properties:
+        light:
+          allOf:
+            - $ref: "#/components/schemas/LightLevel"
+          nullable: true
+        window_distance:
+          allOf:
+            - $ref: "#/components/schemas/WindowDistance"
+          nullable: true
+        grow_light_hours:
+          type: integer
+          nullable: true
+          description: Hours a day under a grow light; null when it has none.
+        effective_light:
+          allOf:
+            - $ref: "#/components/schemas/EffectiveLight"
+          nullable: true
+          description: What the plant actually gets (internal/light). Null when nothing is known.
         species_id:
           type: string
           nullable: true

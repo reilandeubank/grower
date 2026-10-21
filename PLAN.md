@@ -279,6 +279,19 @@ Events: `checked` carries a required reading. `done` may carry the reading taken
 
 `current_interval_days` for check tasks is `learned`. Today and the digest call these "Check soil".
 
+### 5.6 Light environment (owner ideas 1, 2, 9)
+
+`internal/light` is pure and table-tested. Levels are ordered low < medium < bright_indirect < direct.
+
+- **Suggested room light** (from windows; hemisphere from settings): the best window decides. Equator-facing (S in the north, N in the south) gives direct. E, W and the equator-side diagonals (SE, SW in the north; NE, NW in the south) give bright_indirect. Pole-facing (N, NE, NW in the north; S, SE, SW in the south) gives medium. Two or more windows in total raise a medium result to bright_indirect. No windows gives null.
+- **Room light** = the location's `light` if set, else the suggested light (source `location` or `windows`).
+- **Effective plant light**, in order:
+  1. The plant's own `light` → that level, source `plant`.
+  2. Else room light, dimmed by `window_distance`: at_window 0 steps, near 1, across_room 2, null 0. Never below low.
+  3. A grow light then raises it to at least bright_indirect (≥ 10 h a day) or at least medium (< 10 h). Source becomes `grow_light` only if it raised the level.
+  4. Nothing known (no plant light, no room light, no grow light) → null.
+- **Species hint:** if a linked species has `light` and the effective light is two or more steps below it, the plant page says it likely needs more light (one step below says nothing).
+
 ---
 
 ## 6. Repo layout, conventions, tests, CI/CD
