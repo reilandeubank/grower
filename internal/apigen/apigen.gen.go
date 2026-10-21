@@ -122,6 +122,27 @@ func (e EventKind) Valid() bool {
 	}
 }
 
+// Defines values for GrowthStage.
+const (
+	Mature   GrowthStage = "mature"
+	Seedling GrowthStage = "seedling"
+	Young    GrowthStage = "young"
+)
+
+// Valid indicates whether the value is a known member of the GrowthStage enum.
+func (e GrowthStage) Valid() bool {
+	switch e {
+	case Mature:
+		return true
+	case Seedling:
+		return true
+	case Young:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for LightLevel.
 const (
 	BrightIndirect LightLevel = "bright_indirect"
@@ -271,6 +292,7 @@ func (e SpeciesSource) Valid() bool {
 
 // Defines values for TaskKind.
 const (
+	CheckIn   TaskKind = "check_in"
 	Custom    TaskKind = "custom"
 	Fertilize TaskKind = "fertilize"
 	Mist      TaskKind = "mist"
@@ -282,6 +304,8 @@ const (
 // Valid indicates whether the value is a known member of the TaskKind enum.
 func (e TaskKind) Valid() bool {
 	switch e {
+	case CheckIn:
+		return true
 	case Custom:
 		return true
 	case Fertilize:
@@ -374,11 +398,13 @@ type CareTask struct {
 
 	// DryingDays Moisture-check tasks: the learned days from watering until the soil reads dry
 	// (median of recent cycles). Null until a cycle has been observed.
-	DryingDays   *int     `json:"drying_days"`
-	Id           string   `json:"id"`
-	IntervalDays int      `json:"interval_days"`
-	Kind         TaskKind `json:"kind"`
-	Label        string   `json:"label"`
+	DryingDays   *int   `json:"drying_days"`
+	Id           string `json:"id"`
+	IntervalDays int    `json:"interval_days"`
+
+	// Kind check_in is a periodic reminder to log how the plant is doing (photo, measurement, note).
+	Kind  TaskKind `json:"kind"`
+	Label string   `json:"label"`
 
 	// LastDone The last date it was done (skips and snoozes don't count).
 	LastDone *openapi_types.Date `json:"last_done"`
@@ -400,9 +426,11 @@ type CareTask struct {
 
 // CareTaskInput defines model for CareTaskInput.
 type CareTaskInput struct {
-	Anchor       *Anchor  `json:"anchor,omitempty"`
-	IntervalDays int      `json:"interval_days"`
-	Kind         TaskKind `json:"kind"`
+	Anchor       *Anchor `json:"anchor,omitempty"`
+	IntervalDays int     `json:"interval_days"`
+
+	// Kind check_in is a periodic reminder to log how the plant is doing (photo, measurement, note).
+	Kind TaskKind `json:"kind"`
 
 	// Label Required for custom tasks; ignored otherwise.
 	Label *string `json:"label,omitempty"`
@@ -455,11 +483,16 @@ type EffectiveLightSource string
 // EventKind checked records a soil moisture reading on a moisture-check task.
 type EventKind string
 
+// GrowthStage defines model for GrowthStage.
+type GrowthStage string
+
 // HistoryEntry defines model for HistoryEntry.
 type HistoryEntry struct {
-	Event     CareEvent `json:"event"`
-	TaskKind  TaskKind  `json:"task_kind"`
-	TaskLabel string    `json:"task_label"`
+	Event CareEvent `json:"event"`
+
+	// TaskKind check_in is a periodic reminder to log how the plant is doing (photo, measurement, note).
+	TaskKind  TaskKind `json:"task_kind"`
+	TaskLabel string   `json:"task_label"`
 }
 
 // LightLevel defines model for LightLevel.
@@ -521,6 +554,37 @@ type Me struct {
 	//
 	// Example: v0.1.0
 	Version string `json:"version"`
+}
+
+// Measurement defines model for Measurement.
+type Measurement struct {
+	HeightIn   *float64           `json:"height_in"`
+	Id         string             `json:"id"`
+	MeasuredOn openapi_types.Date `json:"measured_on"`
+	Note       string             `json:"note"`
+	Photo      *Photo             `json:"photo"`
+	PlantId    string             `json:"plant_id"`
+	Stage      *GrowthStage       `json:"stage"`
+	WidthIn    *float64           `json:"width_in"`
+}
+
+// MeasurementInput At least one of height_in, width_in, stage, note or photo_id.
+type MeasurementInput struct {
+	HeightIn *float64 `json:"height_in,omitempty"`
+
+	// MeasuredOn Defaults to today in the user's time zone. Not in the future.
+	MeasuredOn *openapi_types.Date `json:"measured_on,omitempty"`
+	Note       *string             `json:"note,omitempty"`
+
+	// PhotoId A photo of this plant taken with the measurement.
+	PhotoId *string      `json:"photo_id,omitempty"`
+	Stage   *GrowthStage `json:"stage,omitempty"`
+	WidthIn *float64     `json:"width_in,omitempty"`
+}
+
+// MeasurementList defines model for MeasurementList.
+type MeasurementList struct {
+	Items []Measurement `json:"items"`
 }
 
 // MoistureReading Moisture meter reading. 1–3 dry, 4–7 moist, 8–10 wet.
@@ -593,12 +657,22 @@ type Plant struct {
 	EffectiveLight *EffectiveLight `json:"effective_light"`
 
 	// GrowLightHours Hours a day under a grow light; null when it has none.
-	GrowLightHours *int        `json:"grow_light_hours"`
-	Id             string      `json:"id"`
-	Light          *LightLevel `json:"light"`
-	LocationId     *string     `json:"location_id"`
-	Name           string      `json:"name"`
-	Notes          string      `json:"notes"`
+	GrowLightHours *int `json:"grow_light_hours"`
+
+	// Growth The latest known size and stage, each from its most recent measurement. Null with no measurements.
+	Growth *struct {
+		HeightIn *float64 `json:"height_in"`
+
+		// MeasuredOn The newest measurement's date.
+		MeasuredOn openapi_types.Date `json:"measured_on"`
+		Stage      *GrowthStage       `json:"stage"`
+		WidthIn    *float64           `json:"width_in"`
+	} `json:"growth"`
+	Id         string      `json:"id"`
+	Light      *LightLevel `json:"light"`
+	LocationId *string     `json:"location_id"`
+	Name       string      `json:"name"`
+	Notes      string      `json:"notes"`
 
 	// PotSizeIn Pot diameter in inches.
 	PotSizeIn *float64 `json:"pot_size_in"`
@@ -813,7 +887,7 @@ type Storage struct {
 	PhotoCount int   `json:"photo_count"`
 }
 
-// TaskKind defines model for TaskKind.
+// TaskKind check_in is a periodic reminder to log how the plant is doing (photo, measurement, note).
 type TaskKind string
 
 // Today defines model for Today.
@@ -897,6 +971,9 @@ type CreateLocationJSONRequestBody = LocationInput
 // UpdateLocationJSONRequestBody defines body for UpdateLocation for application/json ContentType.
 type UpdateLocationJSONRequestBody = LocationInput
 
+// UpdateMeasurementJSONRequestBody defines body for UpdateMeasurement for application/json ContentType.
+type UpdateMeasurementJSONRequestBody = MeasurementInput
+
 // UpdatePhotoJSONRequestBody defines body for UpdatePhoto for application/json ContentType.
 type UpdatePhotoJSONRequestBody = PhotoInput
 
@@ -908,6 +985,9 @@ type UpdatePlantJSONRequestBody = PlantUpdate
 
 // SetPlantCoverJSONRequestBody defines body for SetPlantCover for application/json ContentType.
 type SetPlantCoverJSONRequestBody = CoverInput
+
+// CreateMeasurementJSONRequestBody defines body for CreateMeasurement for application/json ContentType.
+type CreateMeasurementJSONRequestBody = MeasurementInput
 
 // UploadPhotoMultipartRequestBody defines body for UploadPhoto for multipart/form-data ContentType.
 type UploadPhotoMultipartRequestBody = PhotoUpload
@@ -971,6 +1051,12 @@ type ServerInterface interface {
 	// GetMe The signed-in user, their settings and the server version.
 	// (GET /me)
 	GetMe(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /measurements/{id})
+	DeleteMeasurement(w http.ResponseWriter, r *http.Request, id Id)
+
+	// (PUT /measurements/{id})
+	UpdateMeasurement(w http.ResponseWriter, r *http.Request, id Id)
 	// DeletePhoto Delete a photo and its files. If it was the cover, the newest remaining photo becomes the cover.
 	// (DELETE /photos/{id})
 	DeletePhoto(w http.ResponseWriter, r *http.Request, id Id)
@@ -1001,6 +1087,12 @@ type ServerInterface interface {
 	// ListPlantEvents A plant's care history, newest first. Undone events are left out.
 	// (GET /plants/{id}/events)
 	ListPlantEvents(w http.ResponseWriter, r *http.Request, id Id, params ListPlantEventsParams)
+	// ListMeasurements A plant's measurements, newest measured_on first.
+	// (GET /plants/{id}/measurements)
+	ListMeasurements(w http.ResponseWriter, r *http.Request, id Id)
+
+	// (POST /plants/{id}/measurements)
+	CreateMeasurement(w http.ResponseWriter, r *http.Request, id Id)
 	// ListPlantPhotos A plant's photos, newest taken_at first.
 	// (GET /plants/{id}/photos)
 	ListPlantPhotos(w http.ResponseWriter, r *http.Request, id Id)
@@ -1239,6 +1331,58 @@ func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteMeasurement operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMeasurement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteMeasurement(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateMeasurement operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMeasurement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateMeasurement(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1510,6 +1654,58 @@ func (siw *ServerInterfaceWrapper) ListPlantEvents(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListPlantEvents(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMeasurements operation middleware
+func (siw *ServerInterfaceWrapper) ListMeasurements(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMeasurements(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateMeasurement operation middleware
+func (siw *ServerInterfaceWrapper) CreateMeasurement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateMeasurement(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2083,6 +2279,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/species/{id}", wrapper.GetSpecies)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/species/{id}", wrapper.UpdateSpecies)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plants/{id}/apply-species", wrapper.ApplySpeciesCare)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/plants/{id}/measurements", wrapper.ListMeasurements)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/plants/{id}/measurements", wrapper.CreateMeasurement)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/measurements/{id}", wrapper.DeleteMeasurement)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/measurements/{id}", wrapper.UpdateMeasurement)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/locations", wrapper.ListLocations)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/locations", wrapper.CreateLocation)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/locations/{id}", wrapper.DeleteLocation)
@@ -2618,6 +2818,119 @@ func (response GetMe401ApplicationProblemPlusJSONResponse) VisitGetMeResponse(w 
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteMeasurementRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type DeleteMeasurementResponseObject interface {
+	VisitDeleteMeasurementResponse(w http.ResponseWriter) error
+}
+
+type DeleteMeasurement204Response struct {
+}
+
+func (response DeleteMeasurement204Response) VisitDeleteMeasurementResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteMeasurement401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DeleteMeasurement401ApplicationProblemPlusJSONResponse) VisitDeleteMeasurementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteMeasurement404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteMeasurement404ApplicationProblemPlusJSONResponse) VisitDeleteMeasurementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateMeasurementRequestObject struct {
+	Id   Id `json:"id"`
+	Body *UpdateMeasurementJSONRequestBody
+}
+
+type UpdateMeasurementResponseObject interface {
+	VisitUpdateMeasurementResponse(w http.ResponseWriter) error
+}
+
+type UpdateMeasurement200JSONResponse Measurement
+
+func (response UpdateMeasurement200JSONResponse) VisitUpdateMeasurementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateMeasurement400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response UpdateMeasurement400ApplicationProblemPlusJSONResponse) VisitUpdateMeasurementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateMeasurement401ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateMeasurement401ApplicationProblemPlusJSONResponse) VisitUpdateMeasurementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateMeasurement404ApplicationProblemPlusJSONResponse Problem
+
+func (response UpdateMeasurement404ApplicationProblemPlusJSONResponse) VisitUpdateMeasurementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -3165,6 +3478,125 @@ func (response ListPlantEvents401ApplicationProblemPlusJSONResponse) VisitListPl
 type ListPlantEvents404ApplicationProblemPlusJSONResponse Problem
 
 func (response ListPlantEvents404ApplicationProblemPlusJSONResponse) VisitListPlantEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMeasurementsRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type ListMeasurementsResponseObject interface {
+	VisitListMeasurementsResponse(w http.ResponseWriter) error
+}
+
+type ListMeasurements200JSONResponse MeasurementList
+
+func (response ListMeasurements200JSONResponse) VisitListMeasurementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMeasurements401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListMeasurements401ApplicationProblemPlusJSONResponse) VisitListMeasurementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMeasurements404ApplicationProblemPlusJSONResponse Problem
+
+func (response ListMeasurements404ApplicationProblemPlusJSONResponse) VisitListMeasurementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMeasurementRequestObject struct {
+	Id   Id `json:"id"`
+	Body *CreateMeasurementJSONRequestBody
+}
+
+type CreateMeasurementResponseObject interface {
+	VisitCreateMeasurementResponse(w http.ResponseWriter) error
+}
+
+type CreateMeasurement201JSONResponse Measurement
+
+func (response CreateMeasurement201JSONResponse) VisitCreateMeasurementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMeasurement400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateMeasurement400ApplicationProblemPlusJSONResponse) VisitCreateMeasurementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMeasurement401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateMeasurement401ApplicationProblemPlusJSONResponse) VisitCreateMeasurementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMeasurement404ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateMeasurement404ApplicationProblemPlusJSONResponse) VisitCreateMeasurementResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -4281,6 +4713,12 @@ type StrictServerInterface interface {
 	// GetMe The signed-in user, their settings and the server version.
 	// (GET /me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
+
+	// (DELETE /measurements/{id})
+	DeleteMeasurement(ctx context.Context, request DeleteMeasurementRequestObject) (DeleteMeasurementResponseObject, error)
+
+	// (PUT /measurements/{id})
+	UpdateMeasurement(ctx context.Context, request UpdateMeasurementRequestObject) (UpdateMeasurementResponseObject, error)
 	// DeletePhoto Delete a photo and its files. If it was the cover, the newest remaining photo becomes the cover.
 	// (DELETE /photos/{id})
 	DeletePhoto(ctx context.Context, request DeletePhotoRequestObject) (DeletePhotoResponseObject, error)
@@ -4311,6 +4749,12 @@ type StrictServerInterface interface {
 	// ListPlantEvents A plant's care history, newest first. Undone events are left out.
 	// (GET /plants/{id}/events)
 	ListPlantEvents(ctx context.Context, request ListPlantEventsRequestObject) (ListPlantEventsResponseObject, error)
+	// ListMeasurements A plant's measurements, newest measured_on first.
+	// (GET /plants/{id}/measurements)
+	ListMeasurements(ctx context.Context, request ListMeasurementsRequestObject) (ListMeasurementsResponseObject, error)
+
+	// (POST /plants/{id}/measurements)
+	CreateMeasurement(ctx context.Context, request CreateMeasurementRequestObject) (CreateMeasurementResponseObject, error)
 	// ListPlantPhotos A plant's photos, newest taken_at first.
 	// (GET /plants/{id}/photos)
 	ListPlantPhotos(ctx context.Context, request ListPlantPhotosRequestObject) (ListPlantPhotosResponseObject, error)
@@ -4686,6 +5130,65 @@ func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DeleteMeasurement operation middleware
+func (sh *strictHandler) DeleteMeasurement(w http.ResponseWriter, r *http.Request, id Id) {
+	var request DeleteMeasurementRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteMeasurement(ctx, request.(DeleteMeasurementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteMeasurement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteMeasurementResponseObject); ok {
+		if err := validResponse.VisitDeleteMeasurementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateMeasurement operation middleware
+func (sh *strictHandler) UpdateMeasurement(w http.ResponseWriter, r *http.Request, id Id) {
+	var request UpdateMeasurementRequestObject
+
+	request.Id = id
+
+	var body UpdateMeasurementJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateMeasurement(ctx, request.(UpdateMeasurementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateMeasurement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateMeasurementResponseObject); ok {
+		if err := validResponse.VisitUpdateMeasurementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // DeletePhoto operation middleware
 func (sh *strictHandler) DeletePhoto(w http.ResponseWriter, r *http.Request, id Id) {
 	var request DeletePhotoRequestObject
@@ -4966,6 +5469,65 @@ func (sh *strictHandler) ListPlantEvents(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListPlantEventsResponseObject); ok {
 		if err := validResponse.VisitListPlantEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMeasurements operation middleware
+func (sh *strictHandler) ListMeasurements(w http.ResponseWriter, r *http.Request, id Id) {
+	var request ListMeasurementsRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMeasurements(ctx, request.(ListMeasurementsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMeasurements")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMeasurementsResponseObject); ok {
+		if err := validResponse.VisitListMeasurementsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateMeasurement operation middleware
+func (sh *strictHandler) CreateMeasurement(w http.ResponseWriter, r *http.Request, id Id) {
+	var request CreateMeasurementRequestObject
+
+	request.Id = id
+
+	var body CreateMeasurementJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateMeasurement(ctx, request.(CreateMeasurementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateMeasurement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateMeasurementResponseObject); ok {
+		if err := validResponse.VisitCreateMeasurementResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -273,6 +273,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/plants/{id}/measurements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** A plant's measurements, newest measured_on first. */
+        get: operations["listMeasurements"];
+        put?: never;
+        post: operations["createMeasurement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/measurements/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateMeasurement"];
+        post?: never;
+        delete: operations["deleteMeasurement"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/locations": {
         parameters: {
             query?: never;
@@ -691,6 +728,41 @@ export interface components {
             plant_count: number;
         };
         /** @enum {string} */
+        GrowthStage: "seedling" | "young" | "mature";
+        /** @description At least one of height_in, width_in, stage, note or photo_id. */
+        MeasurementInput: {
+            /**
+             * Format: date
+             * @description Defaults to today in the user's time zone. Not in the future.
+             */
+            measured_on?: string;
+            /** Format: double */
+            height_in?: number | null;
+            /** Format: double */
+            width_in?: number | null;
+            stage?: components["schemas"]["GrowthStage"] | null;
+            /** @default  */
+            note: string;
+            /** @description A photo of this plant taken with the measurement. */
+            photo_id?: string | null;
+        };
+        Measurement: {
+            id: string;
+            plant_id: string;
+            /** Format: date */
+            measured_on: string;
+            /** Format: double */
+            height_in: number | null;
+            /** Format: double */
+            width_in: number | null;
+            stage: components["schemas"]["GrowthStage"] | null;
+            note: string;
+            photo: components["schemas"]["Photo"] | null;
+        };
+        MeasurementList: {
+            items: components["schemas"]["Measurement"][];
+        };
+        /** @enum {string} */
         Direction: "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
         Window: {
             direction: components["schemas"]["Direction"];
@@ -754,6 +826,19 @@ export interface components {
             window_distance: components["schemas"]["WindowDistance"] | null;
             /** @description Hours a day under a grow light; null when it has none. */
             grow_light_hours: number | null;
+            /** @description The latest known size and stage, each from its most recent measurement. Null with no measurements. */
+            growth: {
+                /** Format: double */
+                height_in: number | null;
+                /** Format: double */
+                width_in: number | null;
+                stage: components["schemas"]["GrowthStage"] | null;
+                /**
+                 * Format: date
+                 * @description The newest measurement's date.
+                 */
+                measured_on: string;
+            } | null;
             /** @description What the plant actually gets (internal/light). Null when nothing is known. */
             effective_light: components["schemas"]["EffectiveLight"] | null;
             species_id: string | null;
@@ -825,8 +910,11 @@ export interface components {
         CoverInput: {
             photo_id: string | null;
         };
-        /** @enum {string} */
-        TaskKind: "water" | "fertilize" | "mist" | "repot" | "rotate" | "custom";
+        /**
+         * @description check_in is a periodic reminder to log how the plant is doing (photo, measurement, note).
+         * @enum {string}
+         */
+        TaskKind: "water" | "fertilize" | "mist" | "repot" | "rotate" | "custom" | "check_in";
         /**
          * @description from_completion: the next due date counts from when the task was last done or skipped.
          *     fixed: due dates stay on start_on + k × interval_days regardless of when it was done.
@@ -1433,6 +1521,110 @@ export interface operations {
                 };
             };
             400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listMeasurements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Measurements. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasurementList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    createMeasurement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MeasurementInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Measurement"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateMeasurement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MeasurementInput"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Measurement"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    deleteMeasurement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. A linked photo is kept. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
         };

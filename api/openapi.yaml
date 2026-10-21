@@ -333,6 +333,77 @@ paths:
           $ref: "#/components/responses/Problem"
         "404":
           $ref: "#/components/responses/Problem"
+  /plants/{id}/measurements:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      operationId: listMeasurements
+      summary: A plant's measurements, newest measured_on first.
+      responses:
+        "200":
+          description: Measurements.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementList"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createMeasurement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeasurementInput"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Measurement"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+  /measurements/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      operationId: updateMeasurement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeasurementInput"
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Measurement"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deleteMeasurement
+      responses:
+        "204":
+          description: Deleted. A linked photo is kept.
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
   /locations:
     get:
       operationId: listLocations
@@ -1080,6 +1151,78 @@ components:
         plant_count:
           type: integer
           description: Active (not archived) plants in this location.
+    GrowthStage:
+      type: string
+      enum: [seedling, young, mature]
+    MeasurementInput:
+      type: object
+      description: At least one of height_in, width_in, stage, note or photo_id.
+      properties:
+        measured_on:
+          type: string
+          format: date
+          description: Defaults to today in the user's time zone. Not in the future.
+        height_in:
+          type: number
+          format: double
+          minimum: 0.1
+          maximum: 600
+          nullable: true
+        width_in:
+          type: number
+          format: double
+          minimum: 0.1
+          maximum: 600
+          nullable: true
+        stage:
+          allOf:
+            - $ref: "#/components/schemas/GrowthStage"
+          nullable: true
+        note:
+          type: string
+          maxLength: 2000
+          default: ""
+        photo_id:
+          type: string
+          nullable: true
+          description: A photo of this plant taken with the measurement.
+    Measurement:
+      type: object
+      required: [id, plant_id, measured_on, height_in, width_in, stage, note, photo]
+      properties:
+        id:
+          type: string
+        plant_id:
+          type: string
+        measured_on:
+          type: string
+          format: date
+        height_in:
+          type: number
+          format: double
+          nullable: true
+        width_in:
+          type: number
+          format: double
+          nullable: true
+        stage:
+          allOf:
+            - $ref: "#/components/schemas/GrowthStage"
+          nullable: true
+        note:
+          type: string
+        photo:
+          allOf:
+            - $ref: "#/components/schemas/Photo"
+          nullable: true
+    MeasurementList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Measurement"
     Direction:
       type: string
       enum: [n, ne, e, se, s, sw, w, nw]
@@ -1190,7 +1333,7 @@ components:
               type: boolean
     Plant:
       type: object
-      required: [id, name, species, species_id, light, window_distance, grow_light_hours, effective_light, location_id, acquired_on, notes, pot_type, pot_size_in, drainage, soil, archived, cover, created_at]
+      required: [id, name, species, species_id, growth, light, window_distance, grow_light_hours, effective_light, location_id, acquired_on, notes, pot_type, pot_size_in, drainage, soil, archived, cover, created_at]
       properties:
         light:
           allOf:
@@ -1204,6 +1347,28 @@ components:
           type: integer
           nullable: true
           description: Hours a day under a grow light; null when it has none.
+        growth:
+          type: object
+          nullable: true
+          description: The latest known size and stage, each from its most recent measurement. Null with no measurements.
+          required: [height_in, width_in, stage, measured_on]
+          properties:
+            height_in:
+              type: number
+              format: double
+              nullable: true
+            width_in:
+              type: number
+              format: double
+              nullable: true
+            stage:
+              allOf:
+                - $ref: "#/components/schemas/GrowthStage"
+              nullable: true
+            measured_on:
+              type: string
+              format: date
+              description: The newest measurement's date.
         effective_light:
           allOf:
             - $ref: "#/components/schemas/EffectiveLight"
@@ -1339,7 +1504,8 @@ components:
           nullable: true
     TaskKind:
       type: string
-      enum: [water, fertilize, mist, repot, rotate, custom]
+      enum: [water, fertilize, mist, repot, rotate, custom, check_in]
+      description: check_in is a periodic reminder to log how the plant is doing (photo, measurement, note).
     Anchor:
       type: string
       enum: [from_completion, fixed]
