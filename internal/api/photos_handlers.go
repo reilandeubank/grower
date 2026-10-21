@@ -266,7 +266,7 @@ func (h *Handler) SetPlantCover(ctx context.Context, req apigen.SetPlantCoverReq
 	case err != nil:
 		return nil, fmt.Errorf("set cover of plant %s: %w", req.Id, err)
 	}
-	p, err := h.plantWithCover(ctx, row)
+	p, err := h.plantOf(ctx, row)
 	if err != nil {
 		return nil, err
 	}
@@ -286,16 +286,20 @@ func (h *Handler) covers(ctx context.Context) (map[string]*dbgen.Photo, error) {
 	return m, nil
 }
 
-// plantWithCover maps a single plant, loading its cover.
-func (h *Handler) plantWithCover(ctx context.Context, r dbgen.Plant) (apigen.Plant, error) {
+// plantOf maps a single plant, loading its cover and room light.
+func (h *Handler) plantOf(ctx context.Context, r dbgen.Plant) (apigen.Plant, error) {
+	rooms, err := h.rooms(ctx)
+	if err != nil {
+		return apigen.Plant{}, err
+	}
 	if !r.CoverPhotoID.Valid {
-		return plant(r, nil)
+		return plant(r, nil, rooms)
 	}
 	c, err := h.db.Reader().GetPhoto(ctx, r.CoverPhotoID.String)
 	if err != nil {
 		return apigen.Plant{}, fmt.Errorf("get cover of plant %s: %w", r.ID, err)
 	}
-	return plant(r, &c)
+	return plant(r, &c, rooms)
 }
 
 // removeFiles deletes photos' files after their rows are gone. A failure only leaves

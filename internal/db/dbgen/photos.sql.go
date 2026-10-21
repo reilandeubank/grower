@@ -277,7 +277,7 @@ func (q *Queries) SetCoverIfNone(ctx context.Context, arg SetCoverIfNoneParams) 
 const setPlantCover = `-- name: SetPlantCover :one
 UPDATE plants SET cover_photo_id = ?1, updated_at = ?2
 WHERE id = ?3
-RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id
+RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id, light, window_distance, grow_light_hours
 `
 
 type SetPlantCoverParams struct {
@@ -305,6 +305,9 @@ func (q *Queries) SetPlantCover(ctx context.Context, arg SetPlantCoverParams) (P
 		&i.Drainage,
 		&i.Soil,
 		&i.SpeciesID,
+		&i.Light,
+		&i.WindowDistance,
+		&i.GrowLightHours,
 	)
 	return i, err
 }

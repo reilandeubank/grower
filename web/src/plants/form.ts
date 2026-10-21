@@ -1,4 +1,4 @@
-import type { Plant, PlantInput, PotType } from "../api/client";
+import type { LightLevel, Plant, PlantInput, PotType, WindowDistance } from "../api/client";
 
 /** The plant form's fields as the inputs hold them: strings, "" for not set. */
 export interface PlantValues {
@@ -13,12 +13,18 @@ export interface PlantValues {
   potSize: string;
   drainage: "" | "yes" | "no";
   soil: string;
+  light: LightLevel | "";
+  windowDistance: WindowDistance | "";
+  growLight: boolean;
+  /** Kept while the switch is off, so turning it back on restores it. */
+  growLightHours: string;
 }
 
-export type PlantErrors = Partial<Record<"name" | "potSize", string>>;
+export type PlantErrors = Partial<Record<"name" | "potSize" | "growLightHours", string>>;
 
 export const POT_SIZE_MIN = 0.5;
 export const POT_SIZE_MAX = 48;
+export const GROW_LIGHT_DEFAULT_HOURS = 12;
 
 export function plantValues(plant?: Plant): PlantValues {
   return {
@@ -32,6 +38,10 @@ export function plantValues(plant?: Plant): PlantValues {
     potSize: plant?.pot_size_in == null ? "" : String(plant.pot_size_in),
     drainage: plant?.drainage == null ? "" : plant.drainage ? "yes" : "no",
     soil: plant?.soil ?? "",
+    light: plant?.light ?? "",
+    windowDistance: plant?.window_distance ?? "",
+    growLight: plant?.grow_light_hours != null,
+    growLightHours: String(plant?.grow_light_hours ?? GROW_LIGHT_DEFAULT_HOURS),
   };
 }
 
@@ -43,6 +53,10 @@ export function validatePlant(values: PlantValues): PlantErrors {
     if (!Number.isFinite(size) || size < POT_SIZE_MIN || size > POT_SIZE_MAX) {
       errors.potSize = `Use a size from ${POT_SIZE_MIN} to ${POT_SIZE_MAX} inches.`;
     }
+  }
+  if (values.growLight) {
+    const hours = Number(values.growLightHours);
+    if (!Number.isInteger(hours) || hours < 1 || hours > 24) errors.growLightHours = "Use whole hours from 1 to 24.";
   }
   return errors;
 }
@@ -60,5 +74,8 @@ export function plantInput(values: PlantValues): PlantInput {
     pot_size_in: values.potSize.trim() ? Number(values.potSize) : null,
     drainage: values.drainage === "" ? null : values.drainage === "yes",
     soil: values.soil.trim(),
+    light: values.light || null,
+    window_distance: values.windowDistance || null,
+    grow_light_hours: values.growLight ? Number(values.growLightHours) : null,
   };
 }

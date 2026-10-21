@@ -15,6 +15,7 @@ import (
 	"github.com/reilandeubank/grower/internal/apigen"
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
+	"github.com/reilandeubank/grower/internal/light"
 )
 
 const (
@@ -34,9 +35,13 @@ func (h *Handler) ListPlants(ctx context.Context, req apigen.ListPlantsRequestOb
 	if err != nil {
 		return nil, err
 	}
+	rooms, err := h.rooms(ctx)
+	if err != nil {
+		return nil, err
+	}
 	items := make([]apigen.Plant, len(rows))
 	for i, r := range rows {
-		if items[i], err = plant(r, covers[r.ID]); err != nil {
+		if items[i], err = plant(r, covers[r.ID], rooms); err != nil {
 			return nil, err
 		}
 	}
@@ -53,7 +58,7 @@ func (h *Handler) CreatePlant(ctx context.Context, req apigen.CreatePlantRequest
 	row, err := h.db.Writer().CreatePlant(ctx, dbgen.CreatePlantParams{
 		ID: db.NewID(), Name: in.name, Species: in.species, SpeciesID: in.speciesID, LocationID: in.locationID, AcquiredOn: in.acquiredOn,
 		Notes: in.notes, PotType: in.potType, PotSizeIn: in.potSizeIn, Drainage: in.drainage, Soil: in.soil,
-		CreatedAt: now, UpdatedAt: now,
+		Light: in.light, WindowDistance: in.windowDistance, GrowLightHours: in.growLightHours, CreatedAt: now, UpdatedAt: now,
 	})
 	switch {
 	case db.IsForeignKeyViolation(err):
@@ -61,7 +66,7 @@ func (h *Handler) CreatePlant(ctx context.Context, req apigen.CreatePlantRequest
 	case err != nil:
 		return nil, fmt.Errorf("create plant: %w", err)
 	}
-	p, err := plant(row, nil)
+	p, err := h.plantOf(ctx, row)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +82,7 @@ func (h *Handler) GetPlant(ctx context.Context, req apigen.GetPlantRequestObject
 	case err != nil:
 		return nil, fmt.Errorf("get plant %s: %w", req.Id, err)
 	}
-	p, err := h.plantWithCover(ctx, row)
+	p, err := h.plantOf(ctx, row)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +95,7 @@ func (h *Handler) UpdatePlant(ctx context.Context, req apigen.UpdatePlantRequest
 	in, detail := parsePlant(apigen.PlantInput{
 		Name: b.Name, Species: b.Species, SpeciesId: b.SpeciesId, LocationId: b.LocationId, AcquiredOn: b.AcquiredOn, Notes: b.Notes,
 		PotType: b.PotType, PotSizeIn: b.PotSizeIn, Drainage: b.Drainage, Soil: b.Soil,
+		Light: b.Light, WindowDistance: b.WindowDistance, GrowLightHours: b.GrowLightHours,
 	})
 	if detail != "" {
 		return apigen.UpdatePlant400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest(detail)}, nil
@@ -97,6 +103,7 @@ func (h *Handler) UpdatePlant(ctx context.Context, req apigen.UpdatePlantRequest
 	row, err := h.db.Writer().UpdatePlant(ctx, dbgen.UpdatePlantParams{
 		Name: in.name, Species: in.species, SpeciesID: in.speciesID, LocationID: in.locationID, AcquiredOn: in.acquiredOn, Notes: in.notes,
 		PotType: in.potType, PotSizeIn: in.potSizeIn, Drainage: in.drainage, Soil: in.soil,
+		Light: in.light, WindowDistance: in.windowDistance, GrowLightHours: in.growLightHours,
 		UpdatedAt: db.FormatTime(h.auth.Now()), Archived: b.Archived, ID: req.Id,
 	})
 	switch {
@@ -107,7 +114,7 @@ func (h *Handler) UpdatePlant(ctx context.Context, req apigen.UpdatePlantRequest
 	case err != nil:
 		return nil, fmt.Errorf("update plant %s: %w", req.Id, err)
 	}
-	p, err := h.plantWithCover(ctx, row)
+	p, err := h.plantOf(ctx, row)
 	if err != nil {
 		return nil, err
 	}
@@ -151,8 +158,9 @@ type plantFields struct {
 	name, species, notes, soil string
 	locationID, speciesID      sql.NullString
 	acquiredOn, potType        sql.NullString
+	light, windowDistance      sql.NullString
 	potSizeIn                  sql.NullFloat64
-	drainage                   sql.NullInt64
+	drainage, growLightHours   sql.NullInt64
 }
 
 // parsePlant validates input, returning a user-facing detail when it is invalid.
@@ -177,6 +185,12 @@ func parsePlant(in apigen.PlantInput) (plantFields, string) {
 		return f, "Pot size must be 0.5 to 48 inches."
 	case utf8.RuneCountInString(f.soil) > 120:
 		return f, "Soil must be 120 characters or fewer."
+	case in.Light != nil && !in.Light.Valid():
+		return f, "Light must be low, medium, bright_indirect or direct."
+	case in.WindowDistance != nil && !in.WindowDistance.Valid():
+		return f, "Window distance must be at_window, near or across_room."
+	case in.GrowLightHours != nil && (*in.GrowLightHours < 1 || *in.GrowLightHours > 24):
+		return f, "Grow light hours must be 1 to 24."
 	}
 	if in.SpeciesId != nil {
 		f.speciesID = sql.NullString{String: *in.SpeciesId, Valid: true}
@@ -196,11 +210,21 @@ func parsePlant(in apigen.PlantInput) (plantFields, string) {
 	if in.Drainage != nil {
 		f.drainage = sql.NullInt64{Int64: boolInt(*in.Drainage), Valid: true}
 	}
+	if in.Light != nil {
+		f.light = sql.NullString{String: string(*in.Light), Valid: true}
+	}
+	if in.WindowDistance != nil {
+		f.windowDistance = sql.NullString{String: string(*in.WindowDistance), Valid: true}
+	}
+	if in.GrowLightHours != nil {
+		f.growLightHours = sql.NullInt64{Int64: int64(*in.GrowLightHours), Valid: true}
+	}
 	return f, ""
 }
 
-// plant maps a row and its cover photo, which is nil when it has none.
-func plant(r dbgen.Plant, cover *dbgen.Photo) (apigen.Plant, error) {
+// plant maps a row with its cover photo (nil when it has none) and its effective light,
+// given every room's light from rooms.
+func plant(r dbgen.Plant, cover *dbgen.Photo, rooms map[string]light.Light) (apigen.Plant, error) {
 	created, err := db.ParseTime(r.CreatedAt)
 	if err != nil {
 		return apigen.Plant{}, err
@@ -208,6 +232,7 @@ func plant(r dbgen.Plant, cover *dbgen.Photo) (apigen.Plant, error) {
 	p := apigen.Plant{
 		Id: r.ID, Name: r.Name, Species: r.Species, Notes: r.Notes,
 		Archived: r.ArchivedAt.Valid, CreatedAt: created, Soil: r.Soil,
+		EffectiveLight: effectiveLight(r, rooms),
 	}
 	if r.PotType.Valid {
 		t := apigen.PotType(r.PotType.String)
@@ -219,6 +244,18 @@ func plant(r dbgen.Plant, cover *dbgen.Photo) (apigen.Plant, error) {
 	if r.Drainage.Valid {
 		d := r.Drainage.Int64 == 1
 		p.Drainage = &d
+	}
+	if r.Light.Valid {
+		l := apigen.LightLevel(r.Light.String)
+		p.Light = &l
+	}
+	if r.WindowDistance.Valid {
+		d := apigen.WindowDistance(r.WindowDistance.String)
+		p.WindowDistance = &d
+	}
+	if r.GrowLightHours.Valid {
+		hours := int(r.GrowLightHours.Int64)
+		p.GrowLightHours = &hours
 	}
 	if r.LocationID.Valid {
 		p.LocationId = &r.LocationID.String

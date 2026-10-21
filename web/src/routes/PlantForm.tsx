@@ -9,13 +9,15 @@ import {
   ErrorText,
   IconButton,
   SelectField,
+  Switch,
   TextAreaField,
   TextField,
   TopBar,
 } from "../design";
+import { DISTANCE_LABELS } from "../light/copy";
 import { useBack } from "../lib/useBack";
 import { LocationSheet } from "../locations/LocationSheet";
-import { useLocations } from "../locations/queries";
+import { LIGHT_LABELS, useLocations } from "../locations/queries";
 import { POT_LABELS } from "../plants/copy";
 import {
   plantInput,
@@ -35,6 +37,16 @@ import styles from "./PlantForm.module.css";
 const POT_OPTIONS = [
   { value: "", label: "Not set" },
   ...Object.entries(POT_LABELS).map(([value, label]) => ({ value, label })),
+];
+
+const DISTANCE_OPTIONS = [
+  { value: "", label: "Not set" },
+  ...Object.entries(DISTANCE_LABELS).map(([value, label]) => ({ value, label })),
+];
+
+const LIGHT_OPTIONS = [
+  { value: "", label: "Not set" },
+  ...Object.entries(LIGHT_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
 const DRAINAGE_OPTIONS = [
@@ -74,6 +86,7 @@ function PlantForm({ plant }: { plant?: Plant }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const potSizeRef = useRef<HTMLInputElement>(null);
+  const hoursRef = useRef<HTMLInputElement>(null);
   const locations = useLocations();
   const save = useSavePlant();
   const archive = useSavePlant();
@@ -89,6 +102,7 @@ function PlantForm({ plant }: { plant?: Plant }) {
     const found = validatePlant(values);
     setErrors(found);
     if (found.name) nameRef.current?.focus();
+    else if (found.growLightHours) hoursRef.current?.focus();
     else if (found.potSize) potSizeRef.current?.focus();
     if (Object.keys(found).length > 0) return;
     const body = plantInput(values);
@@ -147,6 +161,45 @@ function PlantForm({ plant }: { plant?: Plant }) {
           </div>
           <TextField label="Acquired" type="date" value={values.acquiredOn} onChange={set("acquiredOn")} />
           <TextAreaField label="Notes" value={values.notes} onChange={set("notes")} maxLength={4000} />
+
+          <fieldset className={styles.group}>
+            <legend className={`t-heading ${styles.legend}`}>Light</legend>
+            <SelectField
+              label="Distance from the window"
+              value={values.windowDistance}
+              options={DISTANCE_OPTIONS}
+              onChange={set("windowDistance")}
+            />
+            <div>
+              <Switch
+                label="Grow light"
+                checked={values.growLight}
+                onChange={(growLight) => setValues((v) => ({ ...v, growLight }))}
+              />
+              {values.growLight && (
+                <TextField
+                  ref={hoursRef}
+                  label="Hours a day"
+                  suffix="h"
+                  type="number"
+                  inputMode="numeric"
+                  step={1}
+                  min={1}
+                  max={24}
+                  value={values.growLightHours}
+                  onChange={set("growLightHours")}
+                  error={errors.growLightHours}
+                />
+              )}
+            </div>
+            <SelectField
+              label="Light level (optional)"
+              hint="Overrides the room's light."
+              value={values.light}
+              options={LIGHT_OPTIONS}
+              onChange={set("light")}
+            />
+          </fieldset>
 
           <fieldset className={styles.group}>
             <legend className={`t-heading ${styles.legend}`}>Pot and soil</legend>

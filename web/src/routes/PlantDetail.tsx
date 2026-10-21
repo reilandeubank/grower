@@ -3,6 +3,7 @@ import { Archive, ArrowLeft, SearchX } from "lucide-react";
 import { ApiError, problemMessage } from "../api/client";
 import { CareTab } from "../care/CareTab";
 import { AppShell, Button, EmptyState, ErrorText, IconButton, PlantPhoto, Tabs, TopBar } from "../design";
+import { lightLine } from "../light/copy";
 import { formatMonthYear } from "../lib/dates";
 import { useBack } from "../lib/useBack";
 import { useLocations } from "../locations/queries";
@@ -60,6 +61,7 @@ export function PlantDetail() {
   const p = plant.data;
   const location = locations.data?.find((l) => l.id === p.location_id);
   const pot = potLine(p);
+  const light = lightLine(p);
 
   return (
     <AppShell
@@ -86,6 +88,7 @@ export function PlantDetail() {
               {p.acquired_on && <span className="t-caption">Since {formatMonthYear(p.acquired_on)}</span>}
             </p>
           )}
+          {light && <p className={`t-caption ${styles.muted}`}>{light}</p>}
           {pot && <p className={`t-caption ${styles.muted}`}>{pot}</p>}
         </div>
 

@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { json, me, mockApi, renderApp } from "../test/render";
 
-const kitchen = { id: "l1", name: "Kitchen", light: "bright_indirect", notes: "", plant_count: 0 };
+const kitchen = { id: "l1", name: "Kitchen", light: "bright_indirect", windows: [], suggested_light: null, notes: "", plant_count: 0 };
 const base = {
   "GET /api/v1/me": () => json(200, me),
   "GET /api/v1/locations": () => json(200, { items: [kitchen] }),
@@ -72,6 +72,9 @@ describe("Plant form", () => {
       pot_size_in: null,
       drainage: null,
       soil: "",
+      light: null,
+      window_distance: null,
+      grow_light_hours: null,
     });
     expect(await screen.findByRole("heading", { level: 1, name: "Monstera" })).toBeTruthy();
   });
@@ -113,6 +116,40 @@ describe("Plant form", () => {
     await screen.findByRole("heading", { level: 1, name: "Calathea" });
     expect(body).toMatchObject({ pot_type: "terracotta", pot_size_in: 6.5, drainage: true, soil: "Aroid mix" });
     expect(screen.getByText("6.5 in terracotta pot · drains · Aroid mix")).toBeTruthy();
+  });
+
+  it("saves the light group, with a grow light at 12 hours unless changed", async () => {
+    let body: Record<string, unknown> = {};
+    mockApi({
+      ...base,
+      "POST /api/v1/plants": async (req) => {
+        body = (await req.json()) as Record<string, unknown>;
+        return json(400, { title: "Bad Request", status: 400, detail: "Stop here." });
+      },
+    });
+    renderApp("/plants/new");
+    await userEvent.type(await screen.findByLabelText("Name"), "Fern");
+    await userEvent.selectOptions(screen.getByLabelText("Distance from the window"), "Across the room");
+    expect(screen.queryByLabelText("Hours a day")).toBeNull();
+    await userEvent.click(screen.getByRole("switch", { name: "Grow light" }));
+    expect((screen.getByLabelText("Hours a day") as HTMLInputElement).value).toBe("12");
+    await userEvent.selectOptions(screen.getByLabelText("Light level (optional)"), "Medium light");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("alert");
+    expect(body).toMatchObject({ window_distance: "across_room", grow_light_hours: 12, light: "medium" });
+  });
+
+  it("checks the grow light hours", async () => {
+    const fetchMock = mockApi(base);
+    renderApp("/plants/new");
+    await userEvent.type(await screen.findByLabelText("Name"), "Fern");
+    await userEvent.click(screen.getByRole("switch", { name: "Grow light" }));
+    await userEvent.clear(screen.getByLabelText("Hours a day"));
+    await userEvent.type(screen.getByLabelText("Hours a day"), "25");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByText("Use whole hours from 1 to 24.")).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByLabelText("Hours a day"));
+    expect(fetchMock.mock.calls.some(([req]) => (req as Request).method === "POST")).toBe(false);
   });
 
   it("checks the pot size range", async () => {

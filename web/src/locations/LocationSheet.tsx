@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from "react";
-import { ApiError, problemMessage, type LightLevel, type Location } from "../api/client";
+import { ApiError, problemMessage, type LightLevel, type Location, type Window } from "../api/client";
+import { useCurrentUser } from "../auth/useCurrentUser";
 import { BottomSheet, Button, ConfirmButton, ErrorText, SelectField, TextAreaField, TextField } from "../design";
+import { CompassPicker } from "../light/CompassPicker";
+import { suggestLight } from "../light/rules";
 import { LIGHT_LABELS, useDeleteLocation, useSaveLocation } from "./queries";
 import styles from "./LocationSheet.module.css";
 
-const LIGHT_OPTIONS = [
-  { value: "", label: "Not set" },
-  ...Object.entries(LIGHT_LABELS).map(([value, label]) => ({ value, label })),
-];
+const LEVEL_OPTIONS = Object.entries(LIGHT_LABELS).map(([value, label]) => ({ value, label }));
 
 export interface LocationSheetProps {
   open: boolean;
@@ -44,10 +44,14 @@ function LocationForm({
 }) {
   const [name, setName] = useState(location?.name ?? "");
   const [light, setLight] = useState<string>(location?.light ?? "");
+  const [windows, setWindows] = useState<Window[]>(location?.windows ?? []);
   const [notes, setNotes] = useState(location?.notes ?? "");
   const [nameError, setNameError] = useState<string>();
   const save = useSaveLocation();
   const remove = useDeleteLocation();
+  const { hemisphere } = useCurrentUser().settings;
+  // Estimated as you tap, by the same rules the server uses once saved.
+  const suggested = suggestLight(windows, hemisphere);
 
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -56,7 +60,7 @@ function LocationForm({
       return;
     }
     setNameError(undefined);
-    const body = { name: name.trim(), light: (light || null) as LightLevel | null, notes };
+    const body = { name: name.trim(), light: (light || null) as LightLevel | null, windows, notes };
     save.mutate({ id: location?.id, body }, { onSuccess: onSaved });
   };
 
@@ -77,7 +81,23 @@ function LocationForm({
         }}
         error={nameError ?? (conflict ? "A location with that name already exists." : undefined)}
       />
-      <SelectField label="Light" value={light} options={LIGHT_OPTIONS} onChange={(e) => setLight(e.target.value)} />
+      <div className={styles.windows}>
+        <CompassPicker value={windows} onChange={setWindows} />
+        {/* Always mounted so screen readers hear the estimate change. */}
+        <p className={`t-body ${styles.suggested}`} aria-live="polite">
+          {suggested && (
+            <>
+              Suggested light: <strong>{LIGHT_LABELS[suggested]}</strong>
+            </>
+          )}
+        </p>
+      </div>
+      <SelectField
+        label="Light (optional)"
+        value={light}
+        options={[{ value: "", label: suggested ? "Use the windows' estimate" : "Not set" }, ...LEVEL_OPTIONS]}
+        onChange={(e) => setLight(e.target.value)}
+      />
       <TextAreaField
         label="Notes"
         rows={3}

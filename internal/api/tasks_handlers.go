@@ -14,7 +14,6 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/reilandeubank/grower/internal/apigen"
-	"github.com/reilandeubank/grower/internal/auth"
 	"github.com/reilandeubank/grower/internal/care"
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
@@ -216,17 +215,13 @@ func taskOf(row dbgen.CareTask, dates care.Dates) apigen.CareTask {
 
 // calendar is today in the signed-in user's time zone, with their hemisphere.
 func (h *Handler) calendar(ctx context.Context) (care.Calendar, error) {
-	p, ok := auth.PrincipalFrom(ctx)
-	if !ok {
-		return care.Calendar{}, errors.New("no signed-in user")
-	}
-	settings, err := h.db.Reader().GetSettings(ctx, p.UserID)
+	settings, err := h.settings(ctx)
 	if err != nil {
-		return care.Calendar{}, fmt.Errorf("load settings for user %s: %w", p.UserID, err)
+		return care.Calendar{}, err
 	}
 	loc, err := time.LoadLocation(settings.Timezone)
 	if err != nil {
-		return care.Calendar{}, fmt.Errorf("user %s time zone: %w", p.UserID, err)
+		return care.Calendar{}, fmt.Errorf("user %s time zone: %w", settings.UserID, err)
 	}
 	return care.Calendar{Today: schedule.Today(h.auth.Now(), loc), Hemisphere: schedule.Hemisphere(settings.Hemisphere)}, nil
 }

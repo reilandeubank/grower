@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -38,10 +39,10 @@ func TestExport(t *testing.T) {
 	e.clock.t = time.Date(2026, 5, 1, 3, 0, 0, 0, time.UTC) // April 30 in Chicago
 	c := e.loginCookie()
 
-	loc := expectJSON[apigen.Location](t, e.call(c, http.MethodPost, "/api/v1/locations", `{"name":"Shelf","light":"medium"}`), http.StatusCreated)
+	loc := expectJSON[apigen.Location](t, e.call(c, http.MethodPost, "/api/v1/locations", `{"name":"Shelf","light":"medium","windows":[{"direction":"w","count":2},{"direction":"e","count":1}]}`), http.StatusCreated)
 	sp := e.newSpecies(c, `{"scientific_name":"Monstera deliciosa","water_interval_days":7,"light":"bright_indirect"}`)
 	monty := expectJSON[apigen.Plant](t, e.call(c, http.MethodPost, "/api/v1/plants",
-		`{"name":"Monty","species_id":"`+sp.Id+`","location_id":"`+loc.Id+`","acquired_on":"2026-04-12","pot_type":"terracotta","pot_size_in":6.5,"drainage":true,"soil":"Aroid mix"}`),
+		`{"name":"Monty","species_id":"`+sp.Id+`","location_id":"`+loc.Id+`","acquired_on":"2026-04-12","pot_type":"terracotta","pot_size_in":6.5,"drainage":true,"soil":"Aroid mix","light":"low","window_distance":"near","grow_light_hours":12}`),
 		http.StatusCreated)
 	old := e.newPlant(c, "Old fern")
 	expectJSON[apigen.Plant](t, e.call(c, http.MethodPut, "/api/v1/plants/"+old.Id, `{"name":"Old fern","archived":true}`), http.StatusOK)
@@ -102,8 +103,8 @@ func TestExport(t *testing.T) {
 	if s := x.Species[0]; s["id"] != sp.Id || s["water_interval_days"] != 7.0 || s["light"] != "bright_indirect" || s["source"] != "manual" {
 		t.Errorf("species = %v", s)
 	}
-	wantKeys(t, "location", x.Locations[0], "id", "name", "light", "notes")
-	if l := x.Locations[0]; l["light"] != "medium" {
+	wantKeys(t, "location", x.Locations[0], "id", "name", "light", "windows", "notes")
+	if l := x.Locations[0]; l["light"] != "medium" || fmt.Sprint(l["windows"]) != "[map[count:1 direction:e] map[count:2 direction:w]]" {
 		t.Errorf("location = %v", l)
 	}
 	byID := func(items []map[string]any, id string) map[string]any {
@@ -117,12 +118,13 @@ func TestExport(t *testing.T) {
 	}
 	p := byID(x.Plants, monty.Id)
 	wantKeys(t, "plant", p, "id", "name", "species", "species_id", "location_id", "acquired_on", "notes", "pot_type", "pot_size_in",
-		"drainage", "soil", "cover_photo_id", "archived_at", "created_at")
+		"drainage", "soil", "light", "window_distance", "grow_light_hours", "cover_photo_id", "archived_at", "created_at")
 	if p["location_id"] != loc.Id || p["acquired_on"] != "2026-04-12" || p["pot_type"] != "terracotta" || p["pot_size_in"] != 6.5 ||
-		p["drainage"] != true || p["soil"] != "Aroid mix" || p["cover_photo_id"] != cover.Id || p["archived_at"] != nil || p["species_id"] != sp.Id {
+		p["drainage"] != true || p["soil"] != "Aroid mix" || p["cover_photo_id"] != cover.Id || p["archived_at"] != nil || p["species_id"] != sp.Id ||
+		p["light"] != "low" || p["window_distance"] != "near" || p["grow_light_hours"] != 12.0 {
 		t.Errorf("plant = %v", p)
 	}
-	if a := byID(x.Plants, old.Id); a["archived_at"] != "2026-05-01T03:00:00Z" || a["pot_type"] != nil {
+	if a := byID(x.Plants, old.Id); a["archived_at"] != "2026-05-01T03:00:00Z" || a["pot_type"] != nil || a["light"] != nil || a["grow_light_hours"] != nil {
 		t.Errorf("archived plant = %v", a)
 	}
 	wantKeys(t, "task", x.Tasks[0], "id", "plant_id", "kind", "label", "interval_days", "anchor", "start_on", "seasonal", "moisture_check", "water_at")

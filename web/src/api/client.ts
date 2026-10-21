@@ -32,6 +32,10 @@ export class ApiError extends Error {
 export type Location = components["schemas"]["Location"];
 export type LocationInput = components["schemas"]["LocationInput"];
 export type LightLevel = components["schemas"]["LightLevel"];
+export type Direction = components["schemas"]["Direction"];
+export type Window = components["schemas"]["Window"];
+export type WindowDistance = components["schemas"]["WindowDistance"];
+export type EffectiveLight = components["schemas"]["EffectiveLight"];
 export type Plant = components["schemas"]["Plant"];
 export type PlantInput = components["schemas"]["PlantInput"];
 export type PlantUpdate = components["schemas"]["PlantUpdate"];

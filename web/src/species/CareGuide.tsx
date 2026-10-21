@@ -2,7 +2,8 @@ import { useId, useState } from "react";
 import { CalendarCheck, Droplet, Gauge, Pencil, Sun } from "lucide-react";
 import { problemMessage, type Plant } from "../api/client";
 import { Button, ErrorText, useToast } from "../design";
-import { applyToast, careGuideLines, hasCareDefaults, sourceLine, type GuideLine } from "./copy";
+import { needsMoreLight } from "../light/rules";
+import { applyToast, careGuideLines, hasCareDefaults, LIGHT_LINES, sourceLine, type GuideLine } from "./copy";
 import { useApplySpecies, useSpecies } from "./queries";
 import { SpeciesSheet } from "./SpeciesSheet";
 import styles from "./CareGuide.module.css";
@@ -58,6 +59,12 @@ export function CareGuide({ plant }: { plant: Plant }) {
         </ul>
       ) : (
         <p className={`t-body ${styles.muted}`}>No care details yet. Edit to add them.</p>
+      )}
+      {s.light && needsMoreLight(plant.effective_light?.level, s.light) && (
+        <p className={`t-body ${styles.hint}`}>
+          <Sun className={styles.icon} size={20} strokeWidth={1.75} aria-hidden="true" />
+          Likely needs more light: {s.scientific_name} prefers {LIGHT_LINES[s.light].toLowerCase()}.
+        </p>
       )}
       <p className={`t-caption ${styles.muted}`}>{sourceLine(s)}</p>
       {hasCareDefaults(s) && (

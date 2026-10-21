@@ -1,0 +1,63 @@
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* A compass rose: N at the top, the room in the middle. Each cell is a full tap target. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, calc(var(--target-min) + var(--space-6)));
+  grid-auto-rows: var(--target-min);
+  gap: var(--space-1);
+}
+
+.direction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--dur-press) var(--ease-out);
+}
+
+.direction[aria-pressed="true"] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.count {
+  font-weight: 400;
+}
+
+.centre {
+  display: grid;
+  place-items: center;
+  color: var(--ink-muted);
+}
+
+.hint {
+  color: var(--ink-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .direction {
+    transition: none;
+  }
+}

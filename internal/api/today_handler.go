@@ -7,6 +7,7 @@ import (
 	"github.com/reilandeubank/grower/internal/apigen"
 	"github.com/reilandeubank/grower/internal/care"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
+	"github.com/reilandeubank/grower/internal/light"
 )
 
 // GetToday sorts every task of an active plant into overdue, due today or upcoming.
@@ -23,23 +24,27 @@ func (h *Handler) GetToday(ctx context.Context, _ apigen.GetTodayRequestObject) 
 	if err != nil {
 		return nil, err
 	}
+	rooms, err := h.rooms(ctx)
+	if err != nil {
+		return nil, err
+	}
 	res := apigen.Today{Date: apiDate(cal.Today), TaskCount: agenda.TaskCount}
-	if res.Overdue, err = todayItems(agenda.Overdue, covers); err != nil {
+	if res.Overdue, err = todayItems(agenda.Overdue, covers, rooms); err != nil {
 		return nil, err
 	}
-	if res.Due, err = todayItems(agenda.Due, covers); err != nil {
+	if res.Due, err = todayItems(agenda.Due, covers, rooms); err != nil {
 		return nil, err
 	}
-	if res.Upcoming, err = todayItems(agenda.Upcoming, covers); err != nil {
+	if res.Upcoming, err = todayItems(agenda.Upcoming, covers, rooms); err != nil {
 		return nil, err
 	}
 	return apigen.GetToday200JSONResponse(res), nil
 }
 
-func todayItems(items []care.Item, covers map[string]*dbgen.Photo) ([]apigen.TodayItem, error) {
+func todayItems(items []care.Item, covers map[string]*dbgen.Photo, rooms map[string]light.Light) ([]apigen.TodayItem, error) {
 	out := make([]apigen.TodayItem, len(items))
 	for i, it := range items {
-		p, err := plant(it.Plant, covers[it.Plant.ID])
+		p, err := plant(it.Plant, covers[it.Plant.ID], rooms)
 		if err != nil {
 			return nil, fmt.Errorf("map plant %s: %w", it.Plant.ID, err)
 		}

@@ -96,4 +96,18 @@ describe("Care guide", () => {
     expect(within(guide).getByText("Water about every 5 days")).toBeTruthy();
     expect(within(guide).getByText("Edited by you")).toBeTruthy();
   });
+
+  it("says the plant likely needs more light two steps below the species", async () => {
+    setup({ plant: { ...plant, effective_light: { level: "low", source: "windows" } } });
+    const guide = await card();
+    expect(
+      within(guide).getByText("Likely needs more light: Monstera deliciosa prefers bright, indirect light."),
+    ).toBeTruthy();
+  });
+
+  it("says nothing about light one step below", async () => {
+    setup({ plant: { ...plant, effective_light: { level: "medium", source: "windows" } } });
+    const guide = await card();
+    expect(within(guide).queryByText(/Likely needs more light/)).toBeNull();
+  });
 });

@@ -59,6 +59,12 @@ type Location struct {
 	UpdatedAt string
 }
 
+type LocationWindow struct {
+	LocationID string
+	Direction  string
+	Count      int64
+}
+
 type Photo struct {
 	ID        string
 	PlantID   string
@@ -74,21 +80,24 @@ type Photo struct {
 }
 
 type Plant struct {
-	ID           string
-	Name         string
-	Species      string
-	LocationID   sql.NullString
-	AcquiredOn   sql.NullString
-	Notes        string
-	ArchivedAt   sql.NullString
-	CreatedAt    string
-	UpdatedAt    string
-	CoverPhotoID sql.NullString
-	PotType      sql.NullString
-	PotSizeIn    sql.NullFloat64
-	Drainage     sql.NullInt64
-	Soil         string
-	SpeciesID    sql.NullString
+	ID             string
+	Name           string
+	Species        string
+	LocationID     sql.NullString
+	AcquiredOn     sql.NullString
+	Notes          string
+	ArchivedAt     sql.NullString
+	CreatedAt      string
+	UpdatedAt      string
+	CoverPhotoID   sql.NullString
+	PotType        sql.NullString
+	PotSizeIn      sql.NullFloat64
+	Drainage       sql.NullInt64
+	Soil           string
+	SpeciesID      sql.NullString
+	Light          sql.NullString
+	WindowDistance sql.NullString
+	GrowLightHours sql.NullInt64
 }
 
 type PushSubscription struct {

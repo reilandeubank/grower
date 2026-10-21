@@ -16,6 +16,8 @@ Milestone definitions live in `PLAN.md` §2.
 | M7 Seasonal adjustment | done (v1.2.0) |
 | Moisture-check watering (§5.5, backlog 6) | done (v1.3.0) |
 | M8 Species | done (v1.4.0) |
+| Light environment (§5.6, backlog 1, 2, 9) | done (v1.5.0) |
+| Journal: measurements + check-ins (backlog 4, 7) | next |
 | M9 Import + quick-add via photo | not started |
 
 ### M1 checklist
@@ -29,10 +31,18 @@ Milestone definitions live in `PLAN.md` §2.
 - [x] Deployed on TrueNAS behind NPM; logged in from the installed PWA
 
 ## Owner action items
-- Add the three species keys to the TrueNAS app YAML (docs/deploy.md "Species data"), then update to v1.4.0 (snapshot first: migration 0009).
-- Link species to your plants from the plant form; use "Apply to care schedule". Edit species defaults where the provider has none (e.g. Monstera has no Perenual data on the free tier).
+- Update to v1.5.0 (snapshot first: migration 0010). Add windows to your locations (Settings → Locations), then set each plant's distance from the window and any grow lights.
 
 ## Checkpoints
+
+### 2026-10-21 · Light frontend (PLAN §5.6)
+- Done: `web/src/light/`: `rules.ts` (client mirror of `internal/light`: `suggestLight` for both hemispheres, `needsMoreLight`), `copy.ts` (`windowsLine`, `lightLine`, distance labels) and `CompassPicker` (3×3 grid of 48px toggle buttons; taps count 0→1→2→3→0; `aria-pressed` and "East windows: 1" labels). Location sheet: Windows picker, live "Suggested light", "Light (optional)" with "Use the windows' estimate". Locations rows: "1 N · 1 E · Bright, indirect (est.) · 2 plants". Plant form: a Light group (distance, grow light switch with hours 1–24 defaulting to 12, light level override). `plantUpdate` carries the new fields, so archiving keeps them. Plant detail: a light line under the location ("Low light · across the room", "… · grow light 12 h", "… · set by you"). The Care guide adds a calm, sunken "Likely needs more light" hint at two or more steps below the species.
+- Checks: lint, typecheck, 168 Vitest, build and `make e2e` (9, including the new `window-light.spec.ts`, clientIP 7) all pass.
+- Deviations: the light line leaves out the room name, because the location label sits right above it. Direct reads "Direct sun" to match the care guide. The picker caps taps at 3 per direction (the API allows 9); higher counts still display and clear on the next tap.
+
+### 2026-10-21 · Light backend
+- Done: `internal/light` (pure, table-tested): level ordering and steps, `Suggested` (best window, hemisphere-mirrored, two or more windows raise medium), `Room` (set light, else windows) and `Effective` (plant light overrides; room light dimmed by distance, never below low; a grow light raises to medium below 10 h, bright_indirect from 10 h, and only then becomes the source). Reuses `schedule.Hemisphere`. Locations create/update replace their windows in the same transaction and return `windows` (compass order) and `suggested_light`. Plants store `light`, `window_distance` and `grow_light_hours`; every Plant response (lists, get, create/update, Today, cover) carries `effective_light`, from a fixed three queries (`h.rooms`) however many plants. Export adds location `windows` and the plant fields (docs/export-format.md).
+- Deviations: none to the contract. Omitting `windows` on a location PUT clears them (schema default `[]`). A plant's own light also wins over its grow light.
 
 ### 2026-10-19 · CP: M8 integrated, v1.4.0
 - Species with editable care defaults; Open Plantbook + Perenual lookup on request (cached, Perenual budget 90/day), import, apply to the watering task.

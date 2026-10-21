@@ -31,6 +31,10 @@ export const plant: Plant = {
   pot_size_in: null,
   drainage: null,
   soil: "",
+  light: null,
+  window_distance: null,
+  grow_light_hours: null,
+  effective_light: null,
 };
 
 export const waterTask: CareTask = {

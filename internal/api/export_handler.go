@@ -19,6 +19,7 @@ import (
 	"github.com/reilandeubank/grower/internal/buildinfo"
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
+	"github.com/reilandeubank/grower/internal/light"
 	"github.com/reilandeubank/grower/internal/media"
 	"github.com/reilandeubank/grower/internal/schedule"
 )
@@ -40,10 +41,11 @@ type (
 		Photos     []exportPhoto    `json:"photos"`
 	}
 	exportLocation struct {
-		ID    string             `json:"id"`
-		Name  string             `json:"name"`
-		Light *apigen.LightLevel `json:"light"`
-		Notes string             `json:"notes"`
+		ID      string             `json:"id"`
+		Name    string             `json:"name"`
+		Light   *apigen.LightLevel `json:"light"`
+		Windows []apigen.Window    `json:"windows"`
+		Notes   string             `json:"notes"`
 	}
 	exportSpecies struct {
 		ID                string               `json:"id"`
@@ -59,20 +61,23 @@ type (
 		UserEdited        bool                 `json:"user_edited"`
 	}
 	exportPlant struct {
-		ID           string              `json:"id"`
-		Name         string              `json:"name"`
-		Species      string              `json:"species"`
-		SpeciesID    *string             `json:"species_id"`
-		LocationID   *string             `json:"location_id"`
-		AcquiredOn   *openapi_types.Date `json:"acquired_on"`
-		Notes        string              `json:"notes"`
-		PotType      *apigen.PotType     `json:"pot_type"`
-		PotSizeIn    *float64            `json:"pot_size_in"`
-		Drainage     *bool               `json:"drainage"`
-		Soil         string              `json:"soil"`
-		CoverPhotoID *string             `json:"cover_photo_id"`
-		ArchivedAt   *time.Time          `json:"archived_at"`
-		CreatedAt    time.Time           `json:"created_at"`
+		ID             string                 `json:"id"`
+		Name           string                 `json:"name"`
+		Species        string                 `json:"species"`
+		SpeciesID      *string                `json:"species_id"`
+		LocationID     *string                `json:"location_id"`
+		AcquiredOn     *openapi_types.Date    `json:"acquired_on"`
+		Notes          string                 `json:"notes"`
+		PotType        *apigen.PotType        `json:"pot_type"`
+		PotSizeIn      *float64               `json:"pot_size_in"`
+		Drainage       *bool                  `json:"drainage"`
+		Soil           string                 `json:"soil"`
+		Light          *apigen.LightLevel     `json:"light"`
+		WindowDistance *apigen.WindowDistance `json:"window_distance"`
+		GrowLightHours *int                   `json:"grow_light_hours"`
+		CoverPhotoID   *string                `json:"cover_photo_id"`
+		ArchivedAt     *time.Time             `json:"archived_at"`
+		CreatedAt      time.Time              `json:"created_at"`
 	}
 	exportTask struct {
 		ID            string             `json:"id"`
@@ -137,7 +142,12 @@ func (h *Handler) exportSnapshot(ctx context.Context, userID string) (exportFile
 		return f, fmt.Errorf("export settings: %w", err)
 	}
 	f.Settings = settingsOf(settings)
-	if f.Locations, err = exportRows(ctx, q.ExportLocations, exportLocationOf); err != nil {
+	windows, err := allWindows(ctx, q)
+	if err != nil {
+		return f, fmt.Errorf("export windows: %w", err)
+	}
+	locationOf := func(r dbgen.Location) (exportLocation, error) { return exportLocationOf(r, windows[r.ID]), nil }
+	if f.Locations, err = exportRows(ctx, q.ExportLocations, locationOf); err != nil {
 		return f, fmt.Errorf("export locations: %w", err)
 	}
 	if f.Species, err = exportRows(ctx, q.ExportSpecies, exportSpeciesOf); err != nil {
@@ -173,13 +183,13 @@ func exportRows[R, T any](ctx context.Context, query func(context.Context) ([]R,
 	return out, nil
 }
 
-func exportLocationOf(r dbgen.Location) (exportLocation, error) {
-	l := exportLocation{ID: r.ID, Name: r.Name, Notes: r.Notes}
+func exportLocationOf(r dbgen.Location, windows []light.Window) exportLocation {
+	l := exportLocation{ID: r.ID, Name: r.Name, Windows: apiWindows(windows), Notes: r.Notes}
 	if r.Light.Valid {
-		light := apigen.LightLevel(r.Light.String)
-		l.Light = &light
+		lv := apigen.LightLevel(r.Light.String)
+		l.Light = &lv
 	}
-	return l, nil
+	return l
 }
 
 // exportSpeciesOf leaves out raw: it is the provider's payload, not the user's data.
@@ -197,13 +207,14 @@ func exportSpeciesOf(r dbgen.Species) (exportSpecies, error) {
 }
 
 func exportPlantOf(r dbgen.Plant) (exportPlant, error) {
-	p, err := plant(r, nil)
+	p, err := plant(r, nil, nil)
 	if err != nil {
 		return exportPlant{}, err
 	}
 	e := exportPlant{
 		ID: p.Id, Name: p.Name, Species: p.Species, SpeciesID: p.SpeciesId, LocationID: p.LocationId, AcquiredOn: p.AcquiredOn, Notes: p.Notes,
-		PotType: p.PotType, PotSizeIn: p.PotSizeIn, Drainage: p.Drainage, Soil: p.Soil, CreatedAt: p.CreatedAt,
+		PotType: p.PotType, PotSizeIn: p.PotSizeIn, Drainage: p.Drainage, Soil: p.Soil,
+		Light: p.Light, WindowDistance: p.WindowDistance, GrowLightHours: p.GrowLightHours, CreatedAt: p.CreatedAt,
 	}
 	if r.CoverPhotoID.Valid {
 		e.CoverPhotoID = &r.CoverPhotoID.String

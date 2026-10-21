@@ -11,25 +11,29 @@ import (
 )
 
 const createPlant = `-- name: CreatePlant :one
-INSERT INTO plants (id, name, species, species_id, location_id, acquired_on, notes, pot_type, pot_size_in, drainage, soil, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id
+INSERT INTO plants (id, name, species, species_id, location_id, acquired_on, notes, pot_type, pot_size_in, drainage, soil,
+                    light, window_distance, grow_light_hours, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id, light, window_distance, grow_light_hours
 `
 
 type CreatePlantParams struct {
-	ID         string
-	Name       string
-	Species    string
-	SpeciesID  sql.NullString
-	LocationID sql.NullString
-	AcquiredOn sql.NullString
-	Notes      string
-	PotType    sql.NullString
-	PotSizeIn  sql.NullFloat64
-	Drainage   sql.NullInt64
-	Soil       string
-	CreatedAt  string
-	UpdatedAt  string
+	ID             string
+	Name           string
+	Species        string
+	SpeciesID      sql.NullString
+	LocationID     sql.NullString
+	AcquiredOn     sql.NullString
+	Notes          string
+	PotType        sql.NullString
+	PotSizeIn      sql.NullFloat64
+	Drainage       sql.NullInt64
+	Soil           string
+	Light          sql.NullString
+	WindowDistance sql.NullString
+	GrowLightHours sql.NullInt64
+	CreatedAt      string
+	UpdatedAt      string
 }
 
 func (q *Queries) CreatePlant(ctx context.Context, arg CreatePlantParams) (Plant, error) {
@@ -45,6 +49,9 @@ func (q *Queries) CreatePlant(ctx context.Context, arg CreatePlantParams) (Plant
 		arg.PotSizeIn,
 		arg.Drainage,
 		arg.Soil,
+		arg.Light,
+		arg.WindowDistance,
+		arg.GrowLightHours,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -65,6 +72,9 @@ func (q *Queries) CreatePlant(ctx context.Context, arg CreatePlantParams) (Plant
 		&i.Drainage,
 		&i.Soil,
 		&i.SpeciesID,
+		&i.Light,
+		&i.WindowDistance,
+		&i.GrowLightHours,
 	)
 	return i, err
 }
@@ -82,7 +92,7 @@ func (q *Queries) DeletePlant(ctx context.Context, id string) (int64, error) {
 }
 
 const getPlant = `-- name: GetPlant :one
-SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id FROM plants WHERE id = ?
+SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id, light, window_distance, grow_light_hours FROM plants WHERE id = ?
 `
 
 func (q *Queries) GetPlant(ctx context.Context, id string) (Plant, error) {
@@ -104,12 +114,15 @@ func (q *Queries) GetPlant(ctx context.Context, id string) (Plant, error) {
 		&i.Drainage,
 		&i.Soil,
 		&i.SpeciesID,
+		&i.Light,
+		&i.WindowDistance,
+		&i.GrowLightHours,
 	)
 	return i, err
 }
 
 const listPlants = `-- name: ListPlants :many
-SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id FROM plants
+SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id, light, window_distance, grow_light_hours FROM plants
 WHERE (archived_at IS NOT NULL) = CAST(?1 AS BOOLEAN)
 ORDER BY name COLLATE NOCASE
 `
@@ -139,6 +152,9 @@ func (q *Queries) ListPlants(ctx context.Context, archived bool) ([]Plant, error
 			&i.Drainage,
 			&i.Soil,
 			&i.SpeciesID,
+			&i.Light,
+			&i.WindowDistance,
+			&i.GrowLightHours,
 		); err != nil {
 			return nil, err
 		}
@@ -158,26 +174,30 @@ UPDATE plants
 SET name = ?1, species = ?2, species_id = ?3, location_id = ?4,
     acquired_on = ?5, notes = ?6, pot_type = ?7,
     pot_size_in = ?8, drainage = ?9, soil = ?10,
-    updated_at = ?11,
-    archived_at = CASE WHEN CAST(?12 AS BOOLEAN) THEN COALESCE(archived_at, ?11) END
-WHERE id = ?13
-RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id
+    light = ?11, window_distance = ?12, grow_light_hours = ?13,
+    updated_at = ?14,
+    archived_at = CASE WHEN CAST(?15 AS BOOLEAN) THEN COALESCE(archived_at, ?14) END
+WHERE id = ?16
+RETURNING id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id, light, window_distance, grow_light_hours
 `
 
 type UpdatePlantParams struct {
-	Name       string
-	Species    string
-	SpeciesID  sql.NullString
-	LocationID sql.NullString
-	AcquiredOn sql.NullString
-	Notes      string
-	PotType    sql.NullString
-	PotSizeIn  sql.NullFloat64
-	Drainage   sql.NullInt64
-	Soil       string
-	UpdatedAt  string
-	Archived   bool
-	ID         string
+	Name           string
+	Species        string
+	SpeciesID      sql.NullString
+	LocationID     sql.NullString
+	AcquiredOn     sql.NullString
+	Notes          string
+	PotType        sql.NullString
+	PotSizeIn      sql.NullFloat64
+	Drainage       sql.NullInt64
+	Soil           string
+	Light          sql.NullString
+	WindowDistance sql.NullString
+	GrowLightHours sql.NullInt64
+	UpdatedAt      string
+	Archived       bool
+	ID             string
 }
 
 // Archiving stamps archived_at with the update time but keeps an existing stamp.
@@ -193,6 +213,9 @@ func (q *Queries) UpdatePlant(ctx context.Context, arg UpdatePlantParams) (Plant
 		arg.PotSizeIn,
 		arg.Drainage,
 		arg.Soil,
+		arg.Light,
+		arg.WindowDistance,
+		arg.GrowLightHours,
 		arg.UpdatedAt,
 		arg.Archived,
 		arg.ID,
@@ -214,6 +237,9 @@ func (q *Queries) UpdatePlant(ctx context.Context, arg UpdatePlantParams) (Plant
 		&i.Drainage,
 		&i.Soil,
 		&i.SpeciesID,
+		&i.Light,
+		&i.WindowDistance,
+		&i.GrowLightHours,
 	)
 	return i, err
 }

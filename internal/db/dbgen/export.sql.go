@@ -124,7 +124,7 @@ func (q *Queries) ExportPhotos(ctx context.Context) ([]Photo, error) {
 }
 
 const exportPlants = `-- name: ExportPlants :many
-SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id FROM plants ORDER BY id
+SELECT id, name, species, location_id, acquired_on, notes, archived_at, created_at, updated_at, cover_photo_id, pot_type, pot_size_in, drainage, soil, species_id, light, window_distance, grow_light_hours FROM plants ORDER BY id
 `
 
 func (q *Queries) ExportPlants(ctx context.Context) ([]Plant, error) {
@@ -152,6 +152,9 @@ func (q *Queries) ExportPlants(ctx context.Context) ([]Plant, error) {
 			&i.Drainage,
 			&i.Soil,
 			&i.SpeciesID,
+			&i.Light,
+			&i.WindowDistance,
+			&i.GrowLightHours,
 		); err != nil {
 			return nil, err
 		}

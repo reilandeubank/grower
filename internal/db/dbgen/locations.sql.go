@@ -36,6 +36,21 @@ func (q *Queries) CreateLocation(ctx context.Context, arg CreateLocationParams) 
 	return err
 }
 
+const createLocationWindow = `-- name: CreateLocationWindow :exec
+INSERT INTO location_windows (location_id, direction, count) VALUES (?, ?, ?)
+`
+
+type CreateLocationWindowParams struct {
+	LocationID string
+	Direction  string
+	Count      int64
+}
+
+func (q *Queries) CreateLocationWindow(ctx context.Context, arg CreateLocationWindowParams) error {
+	_, err := q.db.ExecContext(ctx, createLocationWindow, arg.LocationID, arg.Direction, arg.Count)
+	return err
+}
+
 const deleteLocation = `-- name: DeleteLocation :execrows
 DELETE FROM locations WHERE id = ?
 `
@@ -46,6 +61,15 @@ func (q *Queries) DeleteLocation(ctx context.Context, id string) (int64, error) 
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const deleteLocationWindows = `-- name: DeleteLocationWindows :exec
+DELETE FROM location_windows WHERE location_id = ?
+`
+
+func (q *Queries) DeleteLocationWindows(ctx context.Context, locationID string) error {
+	_, err := q.db.ExecContext(ctx, deleteLocationWindows, locationID)
+	return err
 }
 
 const getLocation = `-- name: GetLocation :one
@@ -74,6 +98,66 @@ func (q *Queries) GetLocation(ctx context.Context, id string) (GetLocationRow, e
 		&i.PlantCount,
 	)
 	return i, err
+}
+
+const listLocationLights = `-- name: ListLocationLights :many
+SELECT id, light FROM locations
+`
+
+type ListLocationLightsRow struct {
+	ID    string
+	Light sql.NullString
+}
+
+// Every location's set light, for deriving plants' effective light.
+func (q *Queries) ListLocationLights(ctx context.Context) ([]ListLocationLightsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listLocationLights)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLocationLightsRow{}
+	for rows.Next() {
+		var i ListLocationLightsRow
+		if err := rows.Scan(&i.ID, &i.Light); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLocationWindows = `-- name: ListLocationWindows :many
+SELECT location_id, direction, count FROM location_windows WHERE location_id = ?
+`
+
+func (q *Queries) ListLocationWindows(ctx context.Context, locationID string) ([]LocationWindow, error) {
+	rows, err := q.db.QueryContext(ctx, listLocationWindows, locationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LocationWindow{}
+	for rows.Next() {
+		var i LocationWindow
+		if err := rows.Scan(&i.LocationID, &i.Direction, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listLocations = `-- name: ListLocations :many
@@ -107,6 +191,34 @@ func (q *Queries) ListLocations(ctx context.Context) ([]ListLocationsRow, error)
 			&i.Notes,
 			&i.PlantCount,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWindows = `-- name: ListWindows :many
+SELECT location_id, direction, count FROM location_windows
+`
+
+// Every location's windows; callers group them by location and order them by direction.
+func (q *Queries) ListWindows(ctx context.Context) ([]LocationWindow, error) {
+	rows, err := q.db.QueryContext(ctx, listWindows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LocationWindow{}
+	for rows.Next() {
+		var i LocationWindow
+		if err := rows.Scan(&i.LocationID, &i.Direction, &i.Count); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -18,6 +18,10 @@ const plant: Plant = {
   pot_size_in: 8,
   drainage: false,
   soil: "Chunky mix",
+  light: null,
+  window_distance: null,
+  grow_light_hours: null,
+  effective_light: null,
 };
 
 describe("plant form mapping", () => {
@@ -35,6 +39,30 @@ describe("plant form mapping", () => {
   it("sends null for pot fields left unset", () => {
     const input = plantInput({ ...plantValues(), name: "Fern", soil: "  " });
     expect(input).toMatchObject({ pot_type: null, pot_size_in: null, drainage: null, soil: "" });
+  });
+
+  it("round-trips light, distance and grow light hours", () => {
+    const lit = { ...plant, light: "direct" as const, window_distance: "near" as const, grow_light_hours: 8 };
+    const values = plantValues(lit);
+    expect(values).toMatchObject({ light: "direct", windowDistance: "near", growLight: true, growLightHours: "8" });
+    expect(plantInput(values)).toMatchObject({ light: "direct", window_distance: "near", grow_light_hours: 8 });
+  });
+
+  it("defaults the grow light to 12 hours and sends null while it is off", () => {
+    const values = plantValues(plant);
+    expect(values).toMatchObject({ light: "", windowDistance: "", growLight: false, growLightHours: "12" });
+    expect(plantInput(values)).toMatchObject({ light: null, window_distance: null, grow_light_hours: null });
+  });
+
+  it("allows grow light hours from 1 to 24, whole hours only", () => {
+    const check = (growLightHours: string, growLight = true) =>
+      validatePlant({ ...plantValues(), name: "Fern", growLight, growLightHours }).growLightHours;
+    expect(check("1")).toBeUndefined();
+    expect(check("24")).toBeUndefined();
+    expect(check("0")).toBe("Use whole hours from 1 to 24.");
+    expect(check("25")).toBe("Use whole hours from 1 to 24.");
+    expect(check("2.5")).toBe("Use whole hours from 1 to 24.");
+    expect(check("", false)).toBeUndefined();
   });
 
   it("allows pot sizes from 0.5 to 48 inches", () => {

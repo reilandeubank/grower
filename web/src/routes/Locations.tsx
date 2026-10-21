@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowLeft, ChevronRight, MapPin, Plus } from "lucide-react";
 import type { Location } from "../api/client";
 import { AppShell, Button, EmptyState, IconButton, TopBar } from "../design";
+import { windowsLine } from "../light/copy";
 import { useBack } from "../lib/useBack";
 import { LocationSheet } from "../locations/LocationSheet";
 import { LIGHT_LABELS, useLocations } from "../locations/queries";
@@ -12,6 +13,14 @@ import styles from "./Locations.module.css";
 function plantCount(n: number) {
   if (n === 0) return "No plants";
   return n === 1 ? "1 plant" : `${n} plants`;
+}
+
+/** "1 N · 1 E · Bright, indirect (est.) · 2 plants": a set light, else the windows' estimate. */
+function summary(l: Location) {
+  const light = l.light
+    ? LIGHT_LABELS[l.light]
+    : l.suggested_light && `${LIGHT_LABELS[l.suggested_light]} (est.)`;
+  return [windowsLine(l.windows), light, plantCount(l.plant_count)].filter(Boolean).join(" · ");
 }
 
 export function Locations() {
@@ -52,7 +61,7 @@ export function Locations() {
                 <span className={styles.text}>
                   <span className="t-body-strong">{l.name}</span>
                   <span className={`t-caption ${styles.muted}`}>
-                    {[l.light && LIGHT_LABELS[l.light], plantCount(l.plant_count)].filter(Boolean).join(" · ")}
+                    {summary(l)}
                   </span>
                 </span>
                 <ChevronRight size={20} strokeWidth={1.75} aria-hidden="true" className={styles.muted} />
