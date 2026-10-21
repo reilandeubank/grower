@@ -37,6 +37,8 @@ type Config struct {
 	OpenPlantbookClientID     string
 	OpenPlantbookClientSecret string
 	PerenualAPIKey            string
+	// Pl@ntNet plant identification (M9), also optional.
+	PlantNetAPIKey string
 }
 
 // Load parses the environment through getenv (os.Getenv in production). It returns
@@ -51,6 +53,7 @@ func Load(getenv func(string) string) (Config, error) {
 		OpenPlantbookClientID:     strings.TrimSpace(getenv("GROWER_OPENPLANTBOOK_CLIENT_ID")),
 		OpenPlantbookClientSecret: strings.TrimSpace(getenv("GROWER_OPENPLANTBOOK_CLIENT_SECRET")),
 		PerenualAPIKey:            strings.TrimSpace(getenv("GROWER_PERENUAL_API_KEY")),
+		PlantNetAPIKey:            strings.TrimSpace(getenv("GROWER_PLANTNET_API_KEY")),
 	}
 	var errs []error
 

@@ -1,6 +1,6 @@
 # Export format (version 1)
 
-`GET /api/v1/export` (Settings → Export data) downloads `grower-export-YYYY-MM-DD.zip`. It holds everything needed to rebuild your data elsewhere, in plain JSON and the original photo files. Import (M9) reads the same format.
+`GET /api/v1/export` (Settings → Export data) downloads `grower-export-YYYY-MM-DD.zip`. It holds everything needed to rebuild your data elsewhere, in plain JSON and the original photo files. `grower import` reads the same format (see [Import](#import)).
 
 ```
 grower-export-2026-10-14.zip
@@ -46,3 +46,14 @@ Rules:
 - Dates are `YYYY-MM-DD` civil dates, and timestamps are RFC 3339 in UTC.
 - Accounts, password hashes, sessions and push subscriptions are never exported.
 - A breaking change bumps `version`. Additive fields don't, so readers must ignore unknown keys.
+
+## Import
+
+`grower import [--username NAME] FILE.zip` loads an export into an empty grower (no locations, plants, species, tasks, events, photos or measurements); see [backup.md](backup.md#moving-to-a-new-server). It:
+
+- reads `export.json` and refuses any `format` other than `grower-export` or any `version` other than 1;
+- checks every id and reference listed under Rules, and that each photo's `file` is in the zip with a matching `sha256`. A photo listed without its file fails the import: the export itself lacked it (exports skip photo files missing on the server);
+- only then writes the photos (thumbnails are regenerated) and inserts every row in one transaction, keeping ids and timestamps. Voided events stay voided. If the transaction fails, the photos it wrote are removed, so nothing is half-loaded;
+- applies `settings` to the user (the only one, or `--username`).
+
+Fields missing from older exports take the defaults listed above, and settings an export lacks keep the user's current values. Timestamps the format doesn't carry (`created_at` of most rows) come from the ULID ids; `updated_at` is the import time. The provider payload of species (`raw`) isn't exported, so it starts empty.

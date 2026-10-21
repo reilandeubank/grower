@@ -119,10 +119,11 @@ func TestLoadValues(t *testing.T) {
 			name: "species providers",
 			env: map[string]string{
 				"GROWER_OPENPLANTBOOK_CLIENT_ID": " id ", "GROWER_OPENPLANTBOOK_CLIENT_SECRET": "secret", "GROWER_PERENUAL_API_KEY": "key",
+				"GROWER_PLANTNET_API_KEY": " pn ",
 			},
 			check: func(t *testing.T, c Config) {
-				if c.OpenPlantbookClientID != "id" || c.OpenPlantbookClientSecret != "secret" || c.PerenualAPIKey != "key" {
-					t.Errorf("providers = %q %q %q", c.OpenPlantbookClientID, c.OpenPlantbookClientSecret, c.PerenualAPIKey)
+				if c.OpenPlantbookClientID != "id" || c.OpenPlantbookClientSecret != "secret" || c.PerenualAPIKey != "key" || c.PlantNetAPIKey != "pn" {
+					t.Errorf("providers = %q %q %q %q", c.OpenPlantbookClientID, c.OpenPlantbookClientSecret, c.PerenualAPIKey, c.PlantNetAPIKey)
 				}
 			},
 		},

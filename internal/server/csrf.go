@@ -12,8 +12,8 @@ import (
 // POSTs; this also blocks them from sibling subdomains and old browsers:
 //   - Origin, when sent, must equal the configured public origin;
 //   - without Origin, Sec-Fetch-Site must say same-origin;
-//   - bodies must be JSON, which a plain HTML form cannot send. The photo upload is
-//     multipart, which a form can send, so it relies on the two checks above.
+//   - bodies must be JSON, which a plain HTML form cannot send. Photo uploads and
+//     identification are multipart, which a form can send, so they rely on the two checks above.
 func csrf(origin string, isUpload func(*http.Request) bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

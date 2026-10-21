@@ -27,7 +27,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -43,9 +42,7 @@ type Perenual struct {
 	Now     func() time.Time
 	Budget  int // calls per UTC day
 
-	mu    sync.Mutex
-	day   string
-	calls int
+	spent dailyCount
 }
 
 // NewPerenual returns the adapter for the public service.
@@ -121,7 +118,7 @@ func (p *Perenual) Details(ctx context.Context, ref string) (Care, error) {
 // get spends one call of today's budget, then calls the API. A spent budget returns
 // ErrDailyLimit without calling.
 func (p *Perenual) get(ctx context.Context, path string, query url.Values, out any) ([]byte, error) {
-	if !p.spend() {
+	if !p.spent.spend(p.Now(), p.Budget) {
 		return nil, ErrDailyLimit
 	}
 	if query == nil {
@@ -133,20 +130,6 @@ func (p *Perenual) get(ctx context.Context, path string, query url.Values, out a
 		return nil, fmt.Errorf("perenual %s: %w", path, err)
 	}
 	return getJSON(p.Client, req, p.Name(), out)
-}
-
-// spend counts a call against the current UTC day's budget, reporting whether one was left.
-func (p *Perenual) spend() bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if day := p.Now().UTC().Format(time.DateOnly); day != p.day {
-		p.day, p.calls = day, 0
-	}
-	if p.calls >= p.Budget {
-		return false
-	}
-	p.calls++
-	return true
 }
 
 // stringsOf reads a JSON array of strings, or a single string as a list of one.

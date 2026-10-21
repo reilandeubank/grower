@@ -52,6 +52,23 @@ A snapshot brings back the database and photos together, as of the snapshot time
 - **Whole dataset:** stop the app, then Datasets → grower → Snapshots → the snapshot → **Rollback**. Rollback destroys newer snapshots, so clone first if you might need them. Start the app.
 - **Single files:** every snapshot is readable under `/mnt/tank/apps/grower/.zfs/snapshot/<name>/`. With the app stopped, either take a `backups/` file from there and follow the steps above, or copy `grower.db` **together with** its `grower.db-wal` (if present) from the same snapshot over the live ones and delete `grower.db-shm`.
 
+## Moving to a new server
+
+Settings → Export data downloads a zip of everything ([export-format.md](export-format.md)). `grower import` loads it into a new, empty grower. It runs from the command line, because a big zip won't fit through the reverse proxy's upload limit.
+
+1. Set up the new grower ([deploy.md](deploy.md)) and create your user, but don't add any plants: import only works into an empty grower.
+2. Copy the zip into the container's data directory and import it:
+
+   ```sh
+   sudo docker cp grower-export-YYYY-MM-DD.zip ix-grower-grower-1:/data/
+   sudo docker exec ix-grower-grower-1 /usr/local/bin/grower import /data/grower-export-YYYY-MM-DD.zip
+   ```
+
+   It prints what it loaded, e.g. `Imported 12 plants, 3 locations, 48 tasks, 512 events, 40 photos, 6 measurements, 4 species.` With several users, add `--username NAME`; that user gets the export's settings (time zone, reminder time, hemisphere).
+3. Delete the zip from the dataset (the image has no shell or `rm`): `sudo rm /mnt/tank/apps/grower/grower-export-YYYY-MM-DD.zip`.
+
+The import checks the whole file first (format, every reference, every photo's checksum) and then writes everything at once, so a failed import leaves the new grower empty; fix the cause and run it again. Accounts, sessions and push subscriptions aren't in the export: sign in again and turn Daily reminder back on in Settings.
+
 ## Test it
 
 Do a restore drill once after setting up, and after big changes: restore the newest nightly copy into a scratch directory and open it.

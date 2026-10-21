@@ -13,7 +13,8 @@ test("the core loop: add a task, do it, undo, snooze, see history", async ({ pag
 
   // A plant with a Water task every 7 days, first due today (the form's defaults).
   await nav.getByRole("link", { name: "Plants" }).click();
-  await page.getByRole("link", { name: "Add plant" }).click();
+  await page.getByRole("button", { name: "Add plant" }).click();
+  await page.getByRole("link", { name: "Enter details" }).click();
   await page.getByLabel("Name").fill("Calathea");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Calathea" })).toBeVisible();

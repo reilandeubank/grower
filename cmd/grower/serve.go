@@ -67,9 +67,13 @@ func cmdServe(args []string) error {
 	}()
 
 	lookup := speciesLookup(cfg)
+	var identify *species.PlantNet
+	if cfg.PlantNetAPIKey != "" {
+		identify = species.NewPlantNet(cfg.PlantNetAPIKey)
+	}
 	log.Info("starting grower", "version", buildinfo.Version, "data_dir", cfg.DataDir,
-		"base_url", cfg.BaseURL.String(), "trusted_proxies", len(cfg.TrustedProxies), "species_providers", speciesSources(lookup))
-	h := server.New(server.Deps{Config: cfg, DB: d, Auth: authSvc, Push: pusher, Species: lookup, SPA: web.FS(), Log: log})
+		"base_url", cfg.BaseURL.String(), "trusted_proxies", len(cfg.TrustedProxies), "species_providers", speciesSources(lookup), "plant_identification", identify != nil)
+	h := server.New(server.Deps{Config: cfg, DB: d, Auth: authSvc, Push: pusher, Species: lookup, Identify: identify, SPA: web.FS(), Log: log})
 	return server.Run(ctx, cfg.Listen, h, log)
 }
 

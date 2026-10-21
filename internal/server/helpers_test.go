@@ -46,6 +46,8 @@ type envOptions struct {
 	spa    fstest.MapFS
 	// species are the species providers to configure (none by default).
 	species []species.Provider
+	// plantnet is the identification adapter (none by default).
+	plantnet *species.PlantNet
 }
 
 func newEnv(t *testing.T, opts envOptions) *env {
@@ -82,7 +84,7 @@ func newEnv(t *testing.T, opts envOptions) *env {
 	}
 	fake := pushtest.New(t)
 	pusher := &push.Sender{DB: d, Keys: keys, Subject: "http://grower.test", Client: fake.Client(), Now: clock.Now, Log: log}
-	h := New(Deps{Config: cfg, DB: d, Auth: svc, Push: pusher, Species: species.NewLookup(clock.Now, opts.species...), SPA: spa, Log: log})
+	h := New(Deps{Config: cfg, DB: d, Auth: svc, Push: pusher, Species: species.NewLookup(clock.Now, opts.species...), Identify: opts.plantnet, SPA: spa, Log: log})
 	return &env{t: t, handler: h, db: d, clock: clock, cfg: cfg, pushService: fake}
 }
 

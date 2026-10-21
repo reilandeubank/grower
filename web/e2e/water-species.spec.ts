@@ -14,7 +14,8 @@ test("a species by hand: save it from the plant form, set its watering, apply it
 
   // A new plant whose typed species is saved as a new one and linked.
   await nav.getByRole("link", { name: "Plants" }).click();
-  await page.getByRole("link", { name: "Add plant" }).click();
+  await page.getByRole("button", { name: "Add plant" }).click();
+  await page.getByRole("link", { name: "Enter details" }).click();
   await page.getByLabel("Name").fill("Pothos");
   await page.getByRole("combobox", { name: "Species" }).fill("Epipremnum aureum");
   await page.getByRole("option", { name: "Save as a new species “Epipremnum aureum”" }).click();

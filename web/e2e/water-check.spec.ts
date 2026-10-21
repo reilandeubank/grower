@@ -13,7 +13,8 @@ test("a soil check: add one, read the meter, see when to check next", async ({ p
 
   // A plant whose water task checks the soil first, about every 7 days, first check today.
   await nav.getByRole("link", { name: "Plants" }).click();
-  await page.getByRole("link", { name: "Add plant" }).click();
+  await page.getByRole("button", { name: "Add plant" }).click();
+  await page.getByRole("link", { name: "Enter details" }).click();
   await page.getByLabel("Name").fill("Ficus");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Ficus" })).toBeVisible();

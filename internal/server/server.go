@@ -30,6 +30,8 @@ type Deps struct {
 	Push *push.Sender
 	// Species searches the configured species providers; nil means none.
 	Species *species.Lookup
+	// Identify is Pl@ntNet plant identification; nil means not configured.
+	Identify *species.PlantNet
 	// SPA is the built frontend (the contents of web/dist).
 	SPA fs.FS
 	Log *slog.Logger
@@ -52,7 +54,7 @@ func New(d Deps) http.Handler {
 	if lookup == nil {
 		lookup = species.NewLookup(d.Auth.Now)
 	}
-	apigen.HandlerWithOptions(api.New(d.Auth, d.DB, store, d.Push, lookup, cookie, d.Config.DataDir, d.Log).ServerInterface(), apigen.StdHTTPServerOptions{
+	apigen.HandlerWithOptions(api.New(d.Auth, d.DB, store, d.Push, lookup, d.Identify, cookie, d.Config.DataDir, d.Log).ServerInterface(), apigen.StdHTTPServerOptions{
 		BaseURL:     "/api/v1",
 		BaseRouter:  apiMux,
 		Middlewares: []apigen.MiddlewareFunc{requireAuth},
@@ -65,10 +67,10 @@ func New(d Deps) http.Handler {
 		api.WriteProblem(w, http.StatusNotFound, "No such API endpoint.")
 	})
 
-	// The photo upload is the one route with a multipart body and a larger size cap.
+	// Photo uploads and identification are the routes with a multipart body and a larger size cap.
 	isUpload := func(r *http.Request) bool {
 		_, pattern := apiMux.Handler(r)
-		return pattern == "POST /api/v1/plants/{id}/photos"
+		return pattern == "POST /api/v1/plants/{id}/photos" || pattern == "POST /api/v1/identify"
 	}
 	apiHandler := chain(apiMux,
 		noStore,

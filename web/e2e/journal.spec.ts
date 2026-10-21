@@ -13,7 +13,8 @@ test("journal: a monthly check-in logs a size, then the Growth tab charts it", a
 
   // A plant with a check-in every 30 days, starting today.
   await nav.getByRole("link", { name: "Plants" }).click();
-  await page.getByRole("link", { name: "Add plant" }).click();
+  await page.getByRole("button", { name: "Add plant" }).click();
+  await page.getByRole("link", { name: "Enter details" }).click();
   await page.getByLabel("Name").fill("Calathea");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Calathea" })).toBeVisible();

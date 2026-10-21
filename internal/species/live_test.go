@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"net/http"
 	"os"
 	"testing"
 )
@@ -57,5 +58,28 @@ func TestLive(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestLivePlantNet identifies one real photo (one call). It is skipped unless
+// GROWER_LIVE=1, GROWER_PLANTNET_API_KEY and GROWER_LIVE_IMAGE (a JPEG or PNG of a real
+// plant) are set, and it prints only the mapped candidates:
+//
+//	set -a; . ~/.secrets/grower.env; set +a; GROWER_LIVE=1 GROWER_LIVE_IMAGE=leaf.jpg go test ./internal/species -run TestLivePlantNet -v
+func TestLivePlantNet(t *testing.T) {
+	key, path := os.Getenv("GROWER_PLANTNET_API_KEY"), os.Getenv("GROWER_LIVE_IMAGE")
+	if os.Getenv("GROWER_LIVE") != "1" || key == "" || path == "" {
+		t.Skip("set GROWER_LIVE=1, GROWER_PLANTNET_API_KEY and GROWER_LIVE_IMAGE to call Pl@ntNet")
+	}
+	image, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found, err := NewPlantNet(key).Identify(context.Background(), image, http.DetectContentType(image), cmp.Or(os.Getenv("GROWER_LIVE_ORGAN"), "leaf"))
+	if err != nil {
+		t.Fatalf("identify: %v", redactKey(err, key))
+	}
+	for _, f := range found {
+		t.Logf("candidate: %q (%q) score %.3f", f.ScientificName, f.CommonName, f.Score)
 	}
 }

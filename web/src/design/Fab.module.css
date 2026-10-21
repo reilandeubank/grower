@@ -11,6 +11,7 @@
   background: var(--brand);
   color: var(--on-brand);
   box-shadow: var(--shadow-sheet);
+  border: 0;
   transition:
     transform var(--dur-press) var(--ease-out),
     background-color var(--dur-press) var(--ease-out);

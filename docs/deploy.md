@@ -62,23 +62,27 @@ If the setting is wrong, everything still works, but login rate limiting treats 
 
 ## Species data (optional)
 
-The plant form can search online species databases for care defaults (watering interval, light, the moisture level to water at). Both providers are optional; without either, species still work by hand.
+The plant form can search online species databases for care defaults (watering interval, light, the moisture level to water at), and quick add can suggest a species from a photo. Every provider is optional; without them, species still work by hand.
 
 1. **Open Plantbook:** on open.plantbook.io, open **API keys** and generate a client ID and secret.
 2. **Perenual:** copy your API key from perenual.com.
-3. In TrueNAS, **Apps → grower → Edit**, and in the YAML under `environment:` uncomment and fill in the lines you need (see `deploy/compose.yaml`):
+3. **Pl@ntNet:** create a free account on my.plantnet.org and copy your API key (it identifies plants from a photo).
+4. In TrueNAS, **Apps → grower → Edit**, and in the YAML under `environment:` uncomment and fill in the lines you need (see `deploy/compose.yaml`):
 
    ```yaml
    GROWER_OPENPLANTBOOK_CLIENT_ID: your-client-id
    GROWER_OPENPLANTBOOK_CLIENT_SECRET: your-client-secret
    GROWER_PERENUAL_API_KEY: your-key
+   GROWER_PLANTNET_API_KEY: your-key
    ```
 
-4. Save. The startup log lists `species_providers` (names only; keys are never logged).
+5. Save. The startup log lists `species_providers` (names only; keys are never logged) and `plant_identification` (true when Pl@ntNet is set up).
 
 Perenual's free tier allows 100 calls a day. grower spends at most 90 a day (counted per UTC day, reset when the container restarts), caches each search for 24 hours, and only calls when you search or import. When the budget is spent, the search sheet says so and Open Plantbook still answers. Saved species are never refreshed automatically.
 
 The free tier also only serves species ids 1–3000, so many popular houseplants (Monstera deliciosa among them) never appear in Perenual results; grower hides ids it can't fetch. Open Plantbook covers them, but gives light and soil-moisture ranges rather than a watering interval. Set the interval on the species yourself when that's the only source.
+
+Pl@ntNet's free tier allows 500 identifications a day. grower spends at most 450 (counted per UTC day, reset when the container restarts) and only calls when you ask it to identify a photo. The photo is forwarded and never stored by grower; Pl@ntNet's terms say submitted images aren't kept either. Suggestions only fill in the name: care defaults still come from the providers above or from you.
 
 ## Troubleshooting
 

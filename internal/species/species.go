@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/reilandeubank/grower/internal/buildinfo"
@@ -69,7 +70,7 @@ const maxBody = 1 << 20
 func do(client *http.Client, req *http.Request, provider string) ([]byte, error) {
 	req.Header.Set("User-Agent", "grower/"+buildinfo.Version)
 	req.Header.Set("Accept", "application/json")
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) //nolint:gosec // G704: adapters build URLs from their own base URL; user input only fills the query or body
 	if err != nil {
 		var uerr *url.Error
 		if errors.As(err, &uerr) {
@@ -98,4 +99,25 @@ func getJSON(client *http.Client, req *http.Request, provider string, out any) (
 		return nil, fmt.Errorf("%s %s: decode: %w", provider, req.URL.Path, err)
 	}
 	return body, nil
+}
+
+// dailyCount counts calls per UTC day, the period providers' free quotas reset on.
+type dailyCount struct {
+	mu    sync.Mutex
+	day   string
+	calls int
+}
+
+// spend counts a call against limit for now's UTC day, reporting whether one was left.
+func (c *dailyCount) spend(now time.Time, limit int) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if day := now.UTC().Format(time.DateOnly); day != c.day {
+		c.day, c.calls = day, 0
+	}
+	if c.calls >= limit {
+		return false
+	}
+	c.calls++
+	return true
 }

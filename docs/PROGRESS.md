@@ -18,7 +18,7 @@ Milestone definitions live in `PLAN.md` §2.
 | M8 Species | done (v1.4.0) |
 | Light environment (§5.6, backlog 1, 2, 9) | done (v1.5.0) |
 | Journal: measurements + check-ins (backlog 4, 7) | done (v1.6.0) |
-| M9 Import + quick-add via photo | not started |
+| M9 Import + quick-add via photo | backend done; frontend in progress |
 
 ### M1 checklist
 - [x] Repo, conventions (`AGENTS.md`), API contract for auth (`api/openapi.yaml`), logo (`assets/brand/`)
@@ -31,9 +31,21 @@ Milestone definitions live in `PLAN.md` §2.
 - [x] Deployed on TrueNAS behind NPM; logged in from the installed PWA
 
 ## Owner action items
-- Snapshot, then update to v1.6.0 (migration 0011 rebuilds the care tasks table; verified to keep all history). Add a "Check in" task (e.g. every 30 days) to plants you want to track, and log sizes on the Growth tab.
+- Add GROWER_PLANTNET_API_KEY to the TrueNAS app YAML (docs/deploy.md "Species data"), then update to v1.7.0. Try Plants → + → Add from photo.
+- Moving servers later: docs/backup.md "Moving to a new server" (grower import).
 
 ## Checkpoints
+
+### 2026-10-21 · Frontend M9
+- Done: the Plants FAB (and the empty state's button) opens an "Add plant" sheet: "Add from photo" (camera/gallery input, `preparePhoto`) or "Enter details". The prepared photo is staged in `plants/photoDraft.ts` (one in-memory draft; only its id rides in router state, so a reload opens an empty form). `/plants/new` with a draft first shows `IdentifyStep`: photo, "Photo shows" chips (Not sure · Leaf · Flower · Fruit · Bark; a query per organ, so going back to one reuses its answer), "Identifying…", up to 5 rows (common or italic scientific name, "Likely · 82%" / "Possible" ≥ 25 / "Unlikely", Saved badge), the detail text, "None of these" (or "Continue without a species"), Try again on errors, and the Pl@ntNet privacy line. `configured: false` skips straight to the form. The form shows a "Cover photo" figure with Remove photo and is prefilled (capitalised common name, scientific name, `species_id`). `useCreatePlant` saves in order: manual species (only if the field still names it; remembered across a retry), plant, then photo upload; a failed upload still opens the plant with a toast. `useSavePlant` is now update-only; `uploadPhoto` is shared with the Photos tab; `Fab` is a button.
+- Checks: lint, typecheck, 210 Vitest (`identify.test.ts`, `AddFromPhoto.test.tsx`), build, and all 11 e2e specs pass (new `quick-add.spec.ts`, clientIP 9, not-configured path; other specs now open the sheet and pick "Enter details").
+- Deviations: the sheet's form choice reads "Enter details" (under a sheet titled "Add plant"); "Not sure" leads the organ chips since it's the default. The FAB hides on the empty state, which has its own button.
+
+### 2026-10-21 · Backend M9
+- Done: `grower import [--username NAME] FILE.zip` (`cmd/grower/import.go`, `internal/api/import{,_write}.go`, queries `import.sql`). It refuses unless the instance has no user content ("grower already has data; import only works into an empty grower"), validates format/version, ids, every reference (covers and measurement photos must belong to the same plant), settings, and each photo file and sha256 (a missing file names it and says the export itself lacked it). Only then it saves photos through `media.Store.Save` (thumbnails regenerated) and inserts every row in one transaction with ids and timestamps kept; a failed transaction removes the photos it wrote. Older exports get defaults (`water_at` 3; blank settings keep the user's). Prints "Imported N plants, ... N species." Pl@ntNet: `internal/species/plantnet.go` (budget 450 per UTC day, shared `dailyCount` with Perenual; 404 = no match, 429 = daily limit), `POST /identify` (multipart allowed by CSRF, 15 MB cap), `GROWER_PLANTNET_API_KEY`. Docs: backup.md "Moving to a new server", export-format.md "Import", deploy.md, development.md, compose.yaml.
+- Tests: round trip (rich dataset through the API, export, import into a fresh grower, re-export: export.json equal apart from exported_at/app_version, photo bytes equal, thumbnails present), refusals (not a zip, version, format, broken task and photo references, sha mismatch, missing photo file, bad settings), atomicity (a trigger fails the last insert: no rows, no photo dirs, settings unchanged), non-empty and user choice, old export. Identify: fake Pl@ntNet adapter test (mapping, 404, 429, 5xx, budget, key never in errors) and handler tests (not configured, saved_id, organ forwarding, details, 400s, 413, CSRF). The real binary imported a zip and refused a second import. Live: one call with a Wikimedia Commons Monstera leaf → Monstera deliciosa 0.885 first.
+- Problem details: 200 detail "Plant identification's daily limit is used up. Try again tomorrow.", "No match found. Try a clearer photo of a leaf or flower."; 502 "Couldn't reach Pl@ntNet. Try again later."; 413 "Photos must be 15 MB or smaller."; 400 "Choose a photo to identify.", "Organ must be auto, leaf, flower, fruit or bark.", "Only JPEG and PNG photos are supported.", "The upload is not valid multipart form data."
+- Deviations: Pl@ntNet 429 maps to the daily-limit detail (its quota may be spent elsewhere), not 502. Imported `updated_at` is the import time and `created_at` comes from the ULID where the export has none. Import lives in `internal/api` to reuse the export types.
 
 ### 2026-10-21 · Journal frontend (PLAN §10)
 - Done: `check_in` kind (NotebookPen, custom accent, "Check in", toast "Checked in on Monstera."), in the task sheet's kinds with a 30-day default and no seasons switch. `web/src/journal/`: `CheckIn` (photo, height/width in inches, stage prefilled from `plant.growth`, note; save = upload → measurement → log done, opened from the row, its round button, and the Care tab), `GrowthTab` (new tab Care · Growth · Photos · Notes: hand-rolled SVG height chart from 2+ heights with an aria summary, timeline with photo thumbs into the PhotoViewer, add/edit/delete sheet with a date), `copy.ts`, `chart.ts`, `form.ts` (pure), `useSaveEntry`. Plant meta line "18 in tall · Mature". Today's "Next:" line uses `taskWithPlant`.

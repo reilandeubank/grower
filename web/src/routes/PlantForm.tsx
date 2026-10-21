@@ -1,7 +1,7 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useCallback, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { Archive, ArchiveRestore, ArrowLeft, Plus, X } from "lucide-react";
-import { problemMessage, type Plant } from "../api/client";
+import { problemMessage, type IdentifyCandidate, type Plant } from "../api/client";
 import {
   AppShell,
   Button,
@@ -13,6 +13,7 @@ import {
   TextAreaField,
   TextField,
   TopBar,
+  useToast,
 } from "../design";
 import { DISTANCE_LABELS } from "../light/copy";
 import { useBack } from "../lib/useBack";
@@ -28,7 +29,11 @@ import {
   type PlantErrors,
   type PlantValues,
 } from "../plants/form";
-import { plantUpdate, useDeletePlant, usePlant, useSavePlant } from "../plants/queries";
+import { CoverPhotoField } from "../plants/CoverPhotoField";
+import { candidatePrefill, type CandidatePrefill } from "../plants/identify";
+import { IdentifyStep } from "../plants/IdentifyStep";
+import { clearDraft, getDraft, type PhotoDraft } from "../plants/photoDraft";
+import { plantUpdate, useCreatePlant, useDeletePlant, usePlant, useSavePlant } from "../plants/queries";
 import { SpeciesPicker } from "../species/SpeciesPicker";
 import { LoadError } from "./LoadError";
 import { Pending } from "./Pending";
@@ -55,8 +60,18 @@ const DRAINAGE_OPTIONS = [
   { value: "no", label: "No" },
 ];
 
+/** Add plant; from "Add from photo" it first identifies the staged photo (see photoDraft). */
 export function NewPlant() {
-  return <PlantForm />;
+  const { state } = useLocation();
+  const [draft] = useState(() => getDraft(state));
+  // undefined until the identify step answers; null for no species.
+  const [prefill, setPrefill] = useState<CandidatePrefill | null | undefined>(draft ? undefined : null);
+  const onIdentified = useCallback(
+    (c: IdentifyCandidate | null) => setPrefill(c ? candidatePrefill(c) : null),
+    [],
+  );
+  if (draft && prefill === undefined) return <IdentifyStep draft={draft} onDone={onIdentified} />;
+  return <PlantForm draft={draft} prefill={prefill} />;
 }
 
 export function EditPlant() {
@@ -80,14 +95,25 @@ export function EditPlant() {
 }
 
 /** Full-screen add/edit page: Close at the top left, Save at the bottom. */
-function PlantForm({ plant }: { plant?: Plant }) {
-  const [values, setValues] = useState<PlantValues>(() => plantValues(plant));
+function PlantForm({
+  plant,
+  draft = null,
+  prefill = null,
+}: {
+  plant?: Plant;
+  draft?: PhotoDraft | null;
+  prefill?: CandidatePrefill | null | undefined;
+}) {
+  const [values, setValues] = useState<PlantValues>(() => ({ ...plantValues(plant), ...prefill?.values }));
   const [errors, setErrors] = useState<PlantErrors>({});
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [photo, setPhoto] = useState(draft);
   const nameRef = useRef<HTMLInputElement>(null);
   const potSizeRef = useRef<HTMLInputElement>(null);
   const hoursRef = useRef<HTMLInputElement>(null);
   const locations = useLocations();
+  const toast = useToast();
+  const create = useCreatePlant();
   const save = useSavePlant();
   const archive = useSavePlant();
   const remove = useDeletePlant();
@@ -106,9 +132,25 @@ function PlantForm({ plant }: { plant?: Plant }) {
     else if (found.potSize) potSizeRef.current?.focus();
     if (Object.keys(found).length > 0) return;
     const body = plantInput(values);
-    if (plant) save.mutate({ id: plant.id, body: { ...body, archived: plant.archived } }, { onSuccess: close });
-    else save.mutate({ body }, { onSuccess: (p) => navigate(`/plants/${p.id}`, { replace: true }) });
+    if (plant) {
+      save.mutate({ id: plant.id, body: { ...body, archived: plant.archived } }, { onSuccess: close });
+      return;
+    }
+    // The identified species is created on save, and only if the field still names it.
+    const pending = prefill?.newSpecies;
+    const newSpecies = pending && !values.speciesId && body.species === pending.scientific_name ? pending : null;
+    create.mutate(
+      { body, newSpecies, photo: photo?.photo ?? null },
+      {
+        onSuccess: ({ plant: p, photoError }) => {
+          if (photoError) toast({ message: `Added ${p.name}, but the photo didn't upload. Add it from Photos.` });
+          navigate(`/plants/${p.id}`, { replace: true });
+          clearDraft();
+        },
+      },
+    );
   };
+  const saving = plant ? save : create;
 
   const locationOptions = [
     { value: "", label: "No location" },
@@ -128,6 +170,7 @@ function PlantForm({ plant }: { plant?: Plant }) {
     >
       <form className={styles.form} onSubmit={onSubmit} noValidate aria-label={plant ? "Edit plant" : "Add plant"}>
         <div className={styles.fields}>
+          {photo && <CoverPhotoField url={photo.url} onRemove={() => setPhoto(null)} />}
           <TextField
             ref={nameRef}
             label="Name"
@@ -267,8 +310,8 @@ function PlantForm({ plant }: { plant?: Plant }) {
         )}
 
         <div className={styles.footer}>
-          {save.isError && <ErrorText>{problemMessage(save.error)}</ErrorText>}
-          <Button type="submit" fullWidth loading={save.isPending}>
+          {saving.error && <ErrorText>{problemMessage(saving.error)}</ErrorText>}
+          <Button type="submit" fullWidth loading={saving.isPending}>
             Save
           </Button>
         </div>

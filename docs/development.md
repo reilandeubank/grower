@@ -40,3 +40,4 @@ Open http://localhost:5173. Vite proxies `/api` and `/healthz` to the Go server.
 | `GROWER_OPENPLANTBOOK_CLIENT_ID` | (none) | Open Plantbook OAuth2 client ID (open.plantbook.io → API keys). Set with the secret, or neither. |
 | `GROWER_OPENPLANTBOOK_CLIENT_SECRET` | (none) | Open Plantbook client secret. Both unset disables the provider. |
 | `GROWER_PERENUAL_API_KEY` | (none) | Perenual API key. Unset disables the provider. grower spends at most 90 calls a day (UTC). |
+| `GROWER_PLANTNET_API_KEY` | (none) | Pl@ntNet API key for identifying plants from a photo. Unset disables it. grower spends at most 450 identifications a day (UTC). |

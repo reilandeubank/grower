@@ -33,7 +33,8 @@ test("light: windows estimate a room's light, distance dims it, a grow light lif
 
   // A plant there, across the room.
   await nav.getByRole("link", { name: "Plants" }).click();
-  await page.getByRole("link", { name: "Add plant" }).click();
+  await page.getByRole("button", { name: "Add plant" }).click();
+  await page.getByRole("link", { name: "Enter details" }).click();
   await page.getByLabel("Name").fill("Peace lily");
   await page.getByLabel("Location").selectOption("Study");
   await page.getByLabel("Distance from the window").selectOption("Across the room");

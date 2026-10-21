@@ -29,7 +29,8 @@ test("photos: upload, cover on the grid, view, delete", async ({ page }) => {
   const nav = page.getByRole("navigation", { name: "Main" });
 
   await nav.getByRole("link", { name: "Plants" }).click();
-  await page.getByRole("link", { name: "Add plant" }).click();
+  await page.getByRole("button", { name: "Add plant" }).click();
+  await page.getByRole("link", { name: "Enter details" }).click();
   await page.getByLabel("Name").fill("Pothos");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Pothos" })).toBeVisible();

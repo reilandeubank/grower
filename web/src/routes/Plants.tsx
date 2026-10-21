@@ -1,7 +1,9 @@
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { Plus, Sprout } from "lucide-react";
 import { AppShell, Button, EmptyState, Fab, FilterChips, TopBar } from "../design";
 import { useLocations } from "../locations/queries";
+import { AddPlantSheet } from "../plants/AddPlantSheet";
 import { PlantGrid } from "../plants/PlantGrid";
 import { usePlants } from "../plants/queries";
 import { LoadError } from "./LoadError";
@@ -15,7 +17,7 @@ export function Plants() {
   const plants = usePlants();
   const archived = usePlants(true);
   const locations = useLocations();
-  const navigate = useNavigate();
+  const [adding, setAdding] = useState(false);
   // The filter lives in the URL so back and forward step through it.
   const [params, setParams] = useSearchParams();
   const filter = params.get("location") ?? ALL;
@@ -32,7 +34,7 @@ export function Plants() {
         title="No plants yet"
         body="Add your first plant to start a care schedule."
         action={
-          <Button icon={<Plus size={20} strokeWidth={1.75} aria-hidden="true" />} onClick={() => navigate("/plants/new")}>
+          <Button icon={<Plus size={20} strokeWidth={1.75} aria-hidden="true" />} aria-haspopup="dialog" onClick={() => setAdding(true)}>
             Add plant
           </Button>
         }
@@ -77,7 +79,9 @@ export function Plants() {
           </Link>
         )}
       </div>
-      <Fab to="/plants/new" label="Add plant" />
+      {/* The empty state has its own Add plant button. */}
+      {plants.data?.length !== 0 && <Fab label="Add plant" onClick={() => setAdding(true)} />}
+      <AddPlantSheet open={adding} onClose={() => setAdding(false)} />
     </AppShell>
   );
 }

@@ -1,6 +1,9 @@
+import { useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, ApiError, unwrap, type Plant, type PlantInput, type PlantUpdate } from "../api/client";
-import { invalidatePlantsAndLocations, plantsKey } from "../api/keys";
+import { api, ApiError, unwrap, type Plant, type PlantInput, type PlantUpdate, type SpeciesInput } from "../api/client";
+import { invalidatePlantsAndLocations, plantsKey, speciesKey } from "../api/keys";
+import type { PreparedPhoto } from "../photos/prepare";
+import { uploadPhoto } from "../photos/queries";
 
 /** Active plants by default; `archived` lists only archived ones. */
 export function usePlants(archived = false) {
@@ -57,22 +60,62 @@ export function plantUpdate(plant: Plant, changes: Partial<PlantUpdate> = {}): P
   };
 }
 
-type SavePlant = { id: string; body: PlantUpdate } | { id?: undefined; body: PlantInput };
-
-/** Creates when `id` is absent, otherwise replaces (archiving included). */
+/** Replaces a plant's fields (archiving included). */
 export function useSavePlant() {
   const queryClient = useQueryClient();
-  return useMutation<Plant, Error, SavePlant>({
-    mutationFn: async (vars) =>
-      unwrap(
-        vars.id
-          ? await api.PUT("/plants/{id}", { params: { path: { id: vars.id } }, body: vars.body })
-          : await api.POST("/plants", { body: vars.body }),
-      ),
+  return useMutation<Plant, Error, { id: string; body: PlantUpdate }>({
+    mutationFn: async ({ id, body }) => unwrap(await api.PUT("/plants/{id}", { params: { path: { id } }, body })),
     onSuccess: (plant) => {
       queryClient.setQueryData([...plantsKey, plant.id], plant);
       return invalidatePlantsAndLocations(queryClient);
     },
+  });
+}
+
+export interface CreatePlant {
+  body: PlantInput;
+  /** A species to create and link first (an identified one that isn't saved yet). */
+  newSpecies?: SpeciesInput | null;
+  /** A prepared photo to upload once the plant exists; the first photo becomes the cover. */
+  photo?: PreparedPhoto | null;
+}
+
+export interface CreatedPlant {
+  plant: Plant;
+  /** The plant was saved but its photo wasn't; the photo can be added again from its page. */
+  photoError: Error | null;
+}
+
+/** Creates a plant: its new species first, then the plant, then its photo. */
+export function useCreatePlant() {
+  const queryClient = useQueryClient();
+  // Species made by an attempt whose plant then failed, by scientific name: a retry links them
+  // rather than creating a duplicate.
+  const made = useRef(new Map<string, string>());
+  return useMutation<CreatedPlant, Error, CreatePlant>({
+    mutationFn: async ({ body, newSpecies, photo }) => {
+      let speciesId = body.species_id ?? null;
+      if (newSpecies) {
+        const name = newSpecies.scientific_name;
+        speciesId = made.current.get(name) ?? unwrap(await api.POST("/species", { body: newSpecies })).id;
+        made.current.set(name, speciesId);
+      }
+      const plant = unwrap(await api.POST("/plants", { body: { ...body, species_id: speciesId } }));
+      let photoError: Error | null = null;
+      if (photo) {
+        try {
+          await uploadPhoto(plant.id, photo);
+        } catch (error) {
+          photoError = error instanceof Error ? error : new Error(String(error));
+        }
+      }
+      return { plant, photoError };
+    },
+    onSettled: (_data, _error, { newSpecies }) =>
+      Promise.all([
+        invalidatePlantsAndLocations(queryClient),
+        newSpecies && queryClient.invalidateQueries({ queryKey: speciesKey }),
+      ]),
   });
 }
 

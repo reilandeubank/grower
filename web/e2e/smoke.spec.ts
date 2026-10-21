@@ -62,7 +62,8 @@ test("locations and plants: add, filter, edit, archive", async ({ page }) => {
   // Two plants: one in the kitchen, one without a location.
   const addPlant = async (name: string, location?: string) => {
     await nav.getByRole("link", { name: "Plants" }).click();
-    await page.getByRole("link", { name: "Add plant" }).click();
+    await page.getByRole("button", { name: "Add plant" }).click();
+    await page.getByRole("link", { name: "Enter details" }).click();
     await page.getByLabel("Name").fill(name);
     if (location) await page.getByLabel("Location").selectOption(location);
     await page.getByRole("button", { name: "Save" }).click();
