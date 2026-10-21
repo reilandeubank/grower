@@ -4,6 +4,7 @@ import { AlarmClockOff, ArrowLeft, Check, Clock, SkipForward, Sprout } from "luc
 import type { EventKind, TodayItem } from "../api/client";
 import { BottomSheet, Button, TaskIcon, TextField, taskName } from "../design";
 import { addDays, daysBetween, formatWeekdayDay } from "../lib/dates";
+import { CheckIn } from "../journal/CheckIn";
 import { CheckSoil } from "./CheckSoil";
 import { dueLine } from "./copy";
 import styles from "./TaskActionsSheet.module.css";
@@ -25,7 +26,7 @@ export interface TaskActionsSheetProps {
 
 const icon = (Icon: typeof Check) => <Icon size={20} strokeWidth={1.75} aria-hidden="true" />;
 
-/** Done, snooze, skip or open the plant, for one task row. A soil check opens on its reading. */
+/** Done, snooze, skip or open the plant, for one task row. A soil check opens on its reading, a check-in on its form. */
 export function TaskActionsSheet({ item, today, onClose, onAction }: TaskActionsSheetProps) {
   const title = item
     ? `${taskName(item.task.kind, item.task.label, item.task.moisture_check)} · ${item.plant.name}`
@@ -39,7 +40,9 @@ export function TaskActionsSheet({ item, today, onClose, onAction }: TaskActions
 
 function Actions({ item, today, onClose, onAction }: TaskActionsSheetProps & { item: TodayItem }) {
   const check = item.task.moisture_check;
-  const [view, setView] = useState<"check" | "actions" | "snooze">(check ? "check" : "actions");
+  // Soil checks and check-ins open on their own form; snooze and skip sit behind it.
+  const first = check ? "check" : item.task.kind === "check_in" ? "checkIn" : "actions";
+  const [view, setView] = useState<"check" | "checkIn" | "actions" | "snooze">(first);
   const navigate = useNavigate();
   const act = (kind: EventKind, extra?: ActionExtra) => {
     onClose();
@@ -74,9 +77,17 @@ function Actions({ item, today, onClose, onAction }: TaskActionsSheetProps & { i
           onLog={(kind, reading) => act(kind, reading === undefined ? {} : { reading })}
           onMore={() => setView("actions")}
         />
+      ) : view === "checkIn" ? (
+        <CheckIn
+          task={item.task}
+          plant={item.plant}
+          today={today}
+          onDone={onClose}
+          onMore={() => setView("actions")}
+        />
       ) : (
         <div className={styles.buttons}>
-          {!check && (
+          {first === "actions" && (
             <Button fullWidth icon={icon(Check)} onClick={() => act("done")}>
               Done
             </Button>
@@ -99,8 +110,8 @@ function Actions({ item, today, onClose, onAction }: TaskActionsSheetProps & { i
           >
             Open plant
           </Button>
-          {check && (
-            <Button variant="ghost" fullWidth icon={icon(ArrowLeft)} onClick={() => setView("check")}>
+          {first !== "actions" && (
+            <Button variant="ghost" fullWidth icon={icon(ArrowLeft)} onClick={() => setView(first)}>
               Back
             </Button>
           )}

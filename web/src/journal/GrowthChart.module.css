@@ -1,0 +1,80 @@
+/* The plot on the left, height labels in a column on its right, dates under the plot. */
+.figure {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+}
+
+.title {
+  grid-column: 1 / -1;
+  margin-bottom: var(--space-1);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* Lets the label column join the figure's grid, beside the svg. */
+.plot {
+  display: contents;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.line {
+  fill: none;
+  stroke: var(--brand);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* A surface ring keeps each marker distinct where it meets the line. */
+.dot {
+  fill: var(--brand);
+  stroke: var(--surface-raised);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.yAxis {
+  position: relative;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Keeps the column as wide as its longest label, though the labels themselves are positioned. */
+.yAxis::before {
+  content: "00.0 in";
+  visibility: hidden;
+}
+
+.yAxis span {
+  position: absolute;
+  left: 0;
+  translate: 0 -50%;
+}
+
+.xAxis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}

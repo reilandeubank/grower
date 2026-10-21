@@ -18,6 +18,7 @@ func TestDigestMessage(t *testing.T) {
 	monsteraFeed := item("1", "Monstera", "fertilize", "")
 	ficusCheck := item("4", "Ficus", "water", "")
 	ficusCheck.Task.MoistureCheck = 1
+	basilCheckIn := item("5", "Basil", "check_in", "")
 	tests := []struct {
 		name         string
 		overdue, due []care.Item
@@ -30,6 +31,7 @@ func TestDigestMessage(t *testing.T) {
 		{"three", []care.Item{pothos}, []care.Item{monstera, fern}, "3 plants need care", "Prune for Pothos, Water Monstera and Mist Fern"},
 		{"more", []care.Item{monstera, fern}, []care.Item{pothos, monsteraFeed}, "3 plants need care", "Water Monstera, Mist Fern, Prune for Pothos and 1 more"},
 		{"soil check", nil, []care.Item{ficusCheck, fern}, "2 plants need care", "Check soil for Ficus and Mist Fern"},
+		{"check-in", nil, []care.Item{basilCheckIn}, "1 plant needs care", "Check in on Basil"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

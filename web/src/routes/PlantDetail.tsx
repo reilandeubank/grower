@@ -7,6 +7,8 @@ import { lightLine } from "../light/copy";
 import { formatMonthYear } from "../lib/dates";
 import { useBack } from "../lib/useBack";
 import { useLocations } from "../locations/queries";
+import { growthLine } from "../journal/copy";
+import { GrowthTab } from "../journal/GrowthTab";
 import { PhotosTab } from "../photos/PhotosTab";
 import { potLine } from "../plants/copy";
 import { plantUpdate, usePlant, useSavePlant, wasDeleted } from "../plants/queries";
@@ -62,6 +64,7 @@ export function PlantDetail() {
   const location = locations.data?.find((l) => l.id === p.location_id);
   const pot = potLine(p);
   const light = lightLine(p);
+  const growth = growthLine(p.growth);
 
   return (
     <AppShell
@@ -88,6 +91,7 @@ export function PlantDetail() {
               {p.acquired_on && <span className="t-caption">Since {formatMonthYear(p.acquired_on)}</span>}
             </p>
           )}
+          {growth && <p className={`t-caption ${styles.muted}`}>{growth}</p>}
           {light && <p className={`t-caption ${styles.muted}`}>{light}</p>}
           {pot && <p className={`t-caption ${styles.muted}`}>{pot}</p>}
         </div>
@@ -119,6 +123,10 @@ export function PlantDetail() {
             {
               label: "Care",
               panel: <CareTab plant={p} />,
+            },
+            {
+              label: "Growth",
+              panel: <GrowthTab plant={p} />,
             },
             {
               label: "Photos",

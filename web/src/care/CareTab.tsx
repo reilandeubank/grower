@@ -5,6 +5,7 @@ import { BottomSheet, Button, DoneCheck, EmptyState, TaskIcon, taskName } from "
 import { deviceToday, formatDay } from "../lib/dates";
 import { LoadError } from "../routes/LoadError";
 import { Pending } from "../routes/Pending";
+import { CheckIn } from "../journal/CheckIn";
 import { CheckSoil } from "./CheckSoil";
 import { dryingLine, dueLine, historyLine, lastDoneLine, lastReadingLine, taskIntervalLine } from "./copy";
 import { useLogEvent, usePlantHistory, usePlantTasks, useToday } from "./queries";
@@ -20,6 +21,7 @@ export function CareTab({ plant }: { plant: Plant }) {
   const log = useLogEvent();
   const [sheet, setSheet] = useState<{ task?: CareTask } | null>(null);
   const [checking, setChecking] = useState<CareTask | null>(null);
+  const [checkingIn, setCheckingIn] = useState<CareTask | null>(null);
 
   if (tasks.isPending) return <Pending inline />;
   if (tasks.isError) return <LoadError onRetry={() => void tasks.refetch()} />;
@@ -82,6 +84,12 @@ export function CareTab({ plant }: { plant: Plant }) {
                       checked={completing}
                       onClick={() => setChecking(t)}
                     />
+                  ) : t.kind === "check_in" ? (
+                    <DoneCheck
+                      aria-label={`Check in on ${plant.name}`}
+                      checked={completing}
+                      onClick={() => setCheckingIn(t)}
+                    />
                   ) : (
                     <DoneCheck
                       aria-label={`Mark ${name} ${plant.name} done`}
@@ -136,6 +144,9 @@ export function CareTab({ plant }: { plant: Plant }) {
             }}
           />
         )}
+      </BottomSheet>
+      <BottomSheet open={checkingIn !== null} onClose={() => setCheckingIn(null)} title={`Check in · ${plant.name}`}>
+        {checkingIn && <CheckIn task={checkingIn} plant={plant} today={today} onDone={() => setCheckingIn(null)} />}
       </BottomSheet>
       <TaskSheet
         open={sheet !== null}

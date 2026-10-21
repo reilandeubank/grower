@@ -16,7 +16,9 @@ import { intervalLine, readingLine, seasonalHint } from "./copy";
 import { useDeleteTask, useSaveTask } from "./queries";
 import styles from "./TaskSheet.module.css";
 
-const KINDS: TaskKind[] = ["water", "fertilize", "mist", "repot", "rotate", "custom"];
+const KINDS: TaskKind[] = ["water", "fertilize", "mist", "repot", "rotate", "custom", "check_in"];
+// A new task's starting interval; check-ins are a monthly look, the rest start weekly.
+const defaultInterval = (kind: TaskKind) => (kind === "check_in" ? 30 : 7);
 const KIND_OPTIONS = KINDS.map((k) => ({ value: k, label: taskName(k), icon: <TaskIcon kind={k} size={16} /> }));
 const INTERVAL_PRESETS = [3, 7, 14, 30].map((n) => ({ value: String(n), label: `${n} days` }));
 const ANCHOR_OPTIONS = [
@@ -110,7 +112,10 @@ function TaskForm({ plantId, task, today, onDone }: Omit<TaskSheetProps, "open" 
           onChange={(v) => {
             const next = v as TaskKind;
             setKind(next);
-            if (!task) setSeasonal(seasonalHint(next) !== undefined);
+            if (task) return;
+            setSeasonal(seasonalHint(next) !== undefined);
+            // Swap the default along with the kind, but keep a number the user typed.
+            if (intervalText === String(defaultInterval(kind))) setIntervalText(String(defaultInterval(next)));
           }}
           wrap
         />

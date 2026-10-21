@@ -3,10 +3,10 @@ import { useNavigate } from "react-router";
 import { ChevronDown, CircleCheck, Clock, ListChecks } from "lucide-react";
 import type { EventKind, Today as TodayData, TodayItem } from "../api/client";
 import { useCurrentUser } from "../auth/useCurrentUser";
-import { dueLine, dueWhen } from "../care/copy";
+import { dueLine, dueWhen, taskWithPlant } from "../care/copy";
 import { useLogEvent, useToday } from "../care/queries";
 import { TaskActionsSheet, type ActionExtra } from "../care/TaskActionsSheet";
-import { AppShell, Button, EmptyState, TaskRow, taskName } from "../design";
+import { AppShell, Button, EmptyState, TaskRow } from "../design";
 import { formatCivil, formatTodayHeading, greeting } from "../lib/dates";
 import { useNow } from "../lib/useNow";
 import { LoadError } from "./LoadError";
@@ -96,7 +96,7 @@ function TodayLists({ date, task_count, overdue, due, upcoming }: TodayData) {
           <EmptyState
             icon={<CircleCheck size={28} strokeWidth={1.75} />}
             title="All caught up"
-            body={`Next: ${next.task.moisture_check ? `Check soil for ${next.plant.name}` : `${taskName(next.task.kind, next.task.label)} ${next.plant.name}`} ${dueWhen(next.task.next_due, date)}.`}
+            body={`Next: ${taskWithPlant(next.task, next.plant.name)} ${dueWhen(next.task.next_due, date)}.`}
           />
         ) : log.isPending ? null : (
           // While a save is out, an empty list only means the optimistic removal; wait for the answer.

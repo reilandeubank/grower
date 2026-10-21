@@ -5,8 +5,8 @@
 -- Adding a kind means rebuilding care_tasks (SQLite can't alter a CHECK). care_events
 -- references care_tasks with ON DELETE CASCADE, so the rebuild must run with foreign keys
 -- off, or dropping the old table would delete every event. PRAGMA foreign_keys is ignored
--- inside a transaction, hence NO TRANSACTION here and an explicit one below. Migrations
--- run on the single writer connection, so the pragma applies to these statements.
+-- inside a transaction, hence NO TRANSACTION here and an explicit one below. goose runs
+-- these statements one by one on one connection (the writer), so the pragma applies.
 -- This is SQLite's documented procedure: https://www.sqlite.org/lang_altertable.html#otheralter
 
 PRAGMA foreign_keys = OFF;
@@ -51,7 +51,8 @@ CREATE INDEX plant_measurements_plant_id_measured_on ON plant_measurements (plan
 
 COMMIT;
 
-PRAGMA foreign_key_check;
+-- No PRAGMA foreign_key_check: goose discards its rows, so it could not stop anything. The
+-- copy keeps every id, and migrate_journal_test.go checks that the keys still hold.
 PRAGMA foreign_keys = ON;
 
 -- +goose Down

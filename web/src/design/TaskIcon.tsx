@@ -1,7 +1,7 @@
-import { Droplet, Gauge, RotateCw, Shovel, Sparkles, SprayCan, Sprout, type LucideIcon } from "lucide-react";
+import { Droplet, Gauge, NotebookPen, RotateCw, Shovel, Sparkles, SprayCan, Sprout, type LucideIcon } from "lucide-react";
 import styles from "./TaskIcon.module.css";
 
-export type CareKind = "water" | "fertilize" | "mist" | "repot" | "rotate" | "custom";
+export type CareKind = "water" | "fertilize" | "mist" | "repot" | "rotate" | "custom" | "check_in";
 
 const KINDS: Record<CareKind, { icon: LucideIcon; name: string }> = {
   water: { icon: Droplet, name: "Water" },
@@ -10,6 +10,7 @@ const KINDS: Record<CareKind, { icon: LucideIcon; name: string }> = {
   repot: { icon: Shovel, name: "Repot" },
   rotate: { icon: RotateCw, name: "Rotate" },
   custom: { icon: Sparkles, name: "Custom" },
+  check_in: { icon: NotebookPen, name: "Check in" },
 };
 
 /** "Water", "Fertilize", … the label of a custom task, or "Check soil" for a moisture-check water task. */

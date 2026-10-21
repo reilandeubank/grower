@@ -100,6 +100,19 @@ type Plant struct {
 	GrowLightHours sql.NullInt64
 }
 
+type PlantMeasurement struct {
+	ID         string
+	PlantID    string
+	MeasuredOn string
+	HeightIn   sql.NullFloat64
+	WidthIn    sql.NullFloat64
+	Stage      sql.NullString
+	Note       string
+	PhotoID    sql.NullString
+	CreatedAt  string
+	UpdatedAt  string
+}
+
 type PushSubscription struct {
 	ID          string
 	UserID      string

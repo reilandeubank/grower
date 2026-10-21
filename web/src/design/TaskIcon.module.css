@@ -3,7 +3,8 @@
 .mist,
 .repot,
 .rotate,
-.custom {
+.custom,
+.check_in {
   flex: none;
 }
 
@@ -23,8 +24,9 @@
   color: var(--repot);
 }
 
-/* Rotate shares the custom accent, per the design README. */
+/* Rotate and check-ins share the custom accent, per the design README. */
 .rotate,
-.custom {
+.custom,
+.check_in {
   color: var(--custom);
 }

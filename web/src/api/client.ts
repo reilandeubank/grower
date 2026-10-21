@@ -56,6 +56,9 @@ export type SpeciesInput = components["schemas"]["SpeciesInput"];
 export type SpeciesSource = components["schemas"]["SpeciesSource"];
 export type SpeciesCandidate = components["schemas"]["SpeciesCandidate"];
 export type SpeciesLookup = components["schemas"]["SpeciesLookup"];
+export type GrowthStage = components["schemas"]["GrowthStage"];
+export type Measurement = components["schemas"]["Measurement"];
+export type MeasurementInput = components["schemas"]["MeasurementInput"];
 
 /** Unwraps an openapi-fetch result, throwing an ApiError for anything but a body-bearing success. */
 export function unwrap<T>({ data, error, response }: { data?: T; error?: Problem; response: Response }): T {

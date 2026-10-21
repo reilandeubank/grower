@@ -21,17 +21,18 @@ import (
 // exported mirrors docs/export-format.md, decoded loosely so the test checks the
 // field names as written, not our Go types.
 type exported struct {
-	Format     string           `json:"format"`
-	Version    int              `json:"version"`
-	ExportedAt string           `json:"exported_at"`
-	AppVersion string           `json:"app_version"`
-	Settings   map[string]any   `json:"settings"`
-	Locations  []map[string]any `json:"locations"`
-	Species    []map[string]any `json:"species"`
-	Plants     []map[string]any `json:"plants"`
-	Tasks      []map[string]any `json:"tasks"`
-	Events     []map[string]any `json:"events"`
-	Photos     []map[string]any `json:"photos"`
+	Format       string           `json:"format"`
+	Version      int              `json:"version"`
+	ExportedAt   string           `json:"exported_at"`
+	AppVersion   string           `json:"app_version"`
+	Settings     map[string]any   `json:"settings"`
+	Locations    []map[string]any `json:"locations"`
+	Species      []map[string]any `json:"species"`
+	Plants       []map[string]any `json:"plants"`
+	Tasks        []map[string]any `json:"tasks"`
+	Events       []map[string]any `json:"events"`
+	Photos       []map[string]any `json:"photos"`
+	Measurements []map[string]any `json:"measurements"`
 }
 
 func TestExport(t *testing.T) {
@@ -52,6 +53,7 @@ func TestExport(t *testing.T) {
 	e.call(c, http.MethodDelete, "/api/v1/events/"+undone.Id, "")
 	png := testPNG(t, 300, 200, 1)
 	cover := e.newPhoto(c, monty.Id, png, "2026-04-01T10:00:00Z")
+	sized := e.newMeasurement(c, monty.Id, `{"measured_on":"2026-04-12","height_in":20.5,"stage":"mature","note":"Big","photo_id":"`+cover.Id+`"}`)
 	missing := e.newPhoto(c, monty.Id, testPNG(t, 300, 200, 2), "2026-04-02T10:00:00Z")
 	if err := os.RemoveAll(e.photoDir(missing.Id)); err != nil {
 		t.Fatal(err)
@@ -152,6 +154,15 @@ func TestExport(t *testing.T) {
 	// The missing file is skipped, but its row is still listed.
 	if _, ok := files["photos/"+missing.Id+".png"]; ok || byID(x.Photos, missing.Id)["file"] != "photos/"+missing.Id+".png" {
 		t.Error("missing photo handled wrongly")
+	}
+	if len(x.Measurements) != 1 {
+		t.Fatalf("%d measurements", len(x.Measurements))
+	}
+	ms := x.Measurements[0]
+	wantKeys(t, "measurement", ms, "id", "plant_id", "measured_on", "height_in", "width_in", "stage", "note", "photo_id")
+	if ms["id"] != sized.Id || ms["plant_id"] != monty.Id || ms["measured_on"] != "2026-04-12" || ms["height_in"] != 20.5 || ms["width_in"] != nil ||
+		ms["stage"] != "mature" || ms["note"] != "Big" || ms["photo_id"] != cover.Id {
+		t.Errorf("measurement = %v", ms)
 	}
 	if len(files) != 2 {
 		t.Errorf("zip holds %d files", len(files))

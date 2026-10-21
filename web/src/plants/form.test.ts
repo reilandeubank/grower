@@ -22,6 +22,7 @@ const plant: Plant = {
   window_distance: null,
   grow_light_hours: null,
   effective_light: null,
+  growth: null,
 };
 
 describe("plant form mapping", () => {

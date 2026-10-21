@@ -146,7 +146,7 @@ func TestCareValidation(t *testing.T) {
 		status                   int
 		detail                   string
 	}{
-		{"bad kind", http.MethodPost, tasks, `{"kind":"prune","interval_days":3}`, 400, "Kind must be water, fertilize, mist, repot, rotate or custom."},
+		{"bad kind", http.MethodPost, tasks, `{"kind":"prune","interval_days":3}`, 400, "Kind must be water, fertilize, mist, repot, rotate, custom or check_in."},
 		{"custom without label", http.MethodPost, tasks, `{"kind":"custom","label":"  ","interval_days":3}`, 400, "Label is required for a custom task."},
 		{"label too long", http.MethodPost, tasks, `{"kind":"custom","label":"` + strings.Repeat("é", 41) + `","interval_days":3}`, 400, "Label must be 40 characters or fewer."},
 		{"interval 0", http.MethodPost, tasks, `{"kind":"water","interval_days":0}`, 400, "Interval must be 1 to 365 days."},

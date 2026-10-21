@@ -9,6 +9,7 @@ export const speciesKey = ["species"] as const;
 export const plantTasksKey = (plantId: string) => [...plantsKey, plantId, "tasks"] as const;
 export const plantHistoryKey = (plantId: string) => [...plantsKey, plantId, "history"] as const;
 export const plantPhotosKey = (plantId: string) => [...plantsKey, plantId, "photos"] as const;
+export const plantMeasurementsKey = (plantId: string) => [...plantsKey, plantId, "measurements"] as const;
 
 /**
  * Plant writes change location plant counts, and location deletes change plants, so refresh both.

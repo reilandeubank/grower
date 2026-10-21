@@ -38,10 +38,12 @@ func DigestMessage(a care.Agenda) (m Message, ok bool) {
 	return Message{Title: title, Body: joinAnd(names), URL: "/", Tag: "digest"}, true
 }
 
-var verbs = map[string]string{"water": "Water", "fertilize": "Fertilize", "mist": "Mist", "repot": "Repot", "rotate": "Rotate"}
+var verbs = map[string]string{
+	"water": "Water", "fertilize": "Fertilize", "mist": "Mist", "repot": "Repot", "rotate": "Rotate", "check_in": "Check in on",
+}
 
-// taskPhrase is "Water Monstera", "Check soil for Monstera" for a soil-check task, or
-// "Prune for Monstera" for a custom task.
+// taskPhrase is "Water Monstera", "Check in on Monstera", "Check soil for Monstera" for
+// a soil-check task, or "Prune for Monstera" for a custom task.
 func taskPhrase(it care.Item) string {
 	if it.Task.MoistureCheck == 1 {
 		return "Check soil for " + it.Plant.Name

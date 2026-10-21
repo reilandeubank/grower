@@ -4,6 +4,7 @@ import { addDays, daysBetween } from "../lib/dates";
 import {
   checkedToast,
   doneToast,
+  taskWithPlant,
   doneVerb,
   dryingLine,
   dueLine,
@@ -65,6 +66,10 @@ describe("task names and verbs", () => {
   it("writes the toasts", () => {
     expect(doneToast("water", "", "Monstera")).toBe("Watered Monstera.");
     expect(doneToast("custom", "Prune", "Monstera")).toBe("Done: Prune for Monstera.");
+    expect(doneToast("check_in", "", "Monstera")).toBe("Checked in on Monstera.");
+    expect(taskWithPlant({ kind: "check_in", label: "", moisture_check: false }, "Fern")).toBe("Check in on Fern");
+    expect(taskWithPlant({ kind: "water", label: "", moisture_check: true }, "Fern")).toBe("Check soil for Fern");
+    expect(taskWithPlant({ kind: "mist", label: "", moisture_check: false }, "Fern")).toBe("Mist Fern");
     expect(skipToast("fertilize", "", "Fern")).toBe("Skipped Fertilize for Fern.");
     expect(snoozeToast("2026-10-17", today)).toBe("Snoozed until Sat, Oct 17.");
   });

@@ -35,13 +35,17 @@ func (h *Handler) ListPlants(ctx context.Context, req apigen.ListPlantsRequestOb
 	if err != nil {
 		return nil, err
 	}
+	growths, err := h.growths(ctx, sql.NullString{})
+	if err != nil {
+		return nil, err
+	}
 	rooms, err := h.rooms(ctx)
 	if err != nil {
 		return nil, err
 	}
 	items := make([]apigen.Plant, len(rows))
 	for i, r := range rows {
-		if items[i], err = plant(r, covers[r.ID], rooms); err != nil {
+		if items[i], err = plant(r, covers[r.ID], growths[r.ID], rooms); err != nil {
 			return nil, err
 		}
 	}
@@ -222,9 +226,9 @@ func parsePlant(in apigen.PlantInput) (plantFields, string) {
 	return f, ""
 }
 
-// plant maps a row with its cover photo (nil when it has none) and its effective light,
-// given every room's light from rooms.
-func plant(r dbgen.Plant, cover *dbgen.Photo, rooms map[string]light.Light) (apigen.Plant, error) {
+// plant maps a row with its cover photo and growth summary (each nil when it has none)
+// and its effective light, given every room's light from rooms.
+func plant(r dbgen.Plant, cover *dbgen.Photo, grown *growth, rooms map[string]light.Light) (apigen.Plant, error) {
 	created, err := db.ParseTime(r.CreatedAt)
 	if err != nil {
 		return apigen.Plant{}, err
@@ -232,7 +236,7 @@ func plant(r dbgen.Plant, cover *dbgen.Photo, rooms map[string]light.Light) (api
 	p := apigen.Plant{
 		Id: r.ID, Name: r.Name, Species: r.Species, Notes: r.Notes,
 		Archived: r.ArchivedAt.Valid, CreatedAt: created, Soil: r.Soil,
-		EffectiveLight: effectiveLight(r, rooms),
+		EffectiveLight: effectiveLight(r, rooms), Growth: grown,
 	}
 	if r.PotType.Valid {
 		t := apigen.PotType(r.PotType.String)

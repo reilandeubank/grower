@@ -56,6 +56,7 @@ const VERBS: Record<Exclude<TaskKind, "custom">, string> = {
   mist: "Misted",
   repot: "Repotted",
   rotate: "Rotated",
+  check_in: "Checked in",
 };
 
 /** "Watered", "Fertilized", … or "Done: Prune" for a custom task. */
@@ -64,7 +65,8 @@ export function doneVerb(kind: TaskKind, label = ""): string {
 }
 
 export function doneToast(kind: TaskKind, label: string, plant: string): string {
-  return kind === "custom" ? `${doneVerb(kind, label)} for ${plant}.` : `${doneVerb(kind)} ${plant}.`;
+  if (kind === "custom") return `${doneVerb(kind, label)} for ${plant}.`;
+  return kind === "check_in" ? `Checked in on ${plant}.` : `${doneVerb(kind)} ${plant}.`;
 }
 
 export function skipToast(kind: TaskKind, label: string, plant: string): string {
@@ -118,4 +120,11 @@ export function dryingLine({ drying_days, interval_days }: Pick<CareTask, "dryin
 /** "Last reading 6 · Moist, Oct 18". */
 export function lastReadingLine(last: CareTask["last_reading"], today: string): string {
   return last ? `Last reading ${readingLine(last.value)}, ${formatDay(last.on, today)}` : "No readings yet";
+}
+
+/** "Water Fern", "Check soil for Fern", "Check in on Fern": a task named with its plant. */
+export function taskWithPlant(task: Pick<CareTask, "kind" | "label" | "moisture_check">, plant: string): string {
+  if (task.moisture_check) return `Check soil for ${plant}`;
+  if (task.kind === "check_in") return `Check in on ${plant}`;
+  return `${taskName(task.kind, task.label)} ${plant}`;
 }

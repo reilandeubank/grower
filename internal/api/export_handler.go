@@ -28,17 +28,18 @@ import (
 // API's, so an API change can't silently change a versioned file format.
 type (
 	exportFile struct {
-		Format     string           `json:"format"`
-		Version    int              `json:"version"`
-		ExportedAt time.Time        `json:"exported_at"`
-		AppVersion string           `json:"app_version"`
-		Settings   apigen.Settings  `json:"settings"`
-		Locations  []exportLocation `json:"locations"`
-		Species    []exportSpecies  `json:"species"`
-		Plants     []exportPlant    `json:"plants"`
-		Tasks      []exportTask     `json:"tasks"`
-		Events     []exportEvent    `json:"events"`
-		Photos     []exportPhoto    `json:"photos"`
+		Format       string              `json:"format"`
+		Version      int                 `json:"version"`
+		ExportedAt   time.Time           `json:"exported_at"`
+		AppVersion   string              `json:"app_version"`
+		Settings     apigen.Settings     `json:"settings"`
+		Locations    []exportLocation    `json:"locations"`
+		Species      []exportSpecies     `json:"species"`
+		Plants       []exportPlant       `json:"plants"`
+		Tasks        []exportTask        `json:"tasks"`
+		Events       []exportEvent       `json:"events"`
+		Photos       []exportPhoto       `json:"photos"`
+		Measurements []exportMeasurement `json:"measurements"`
 	}
 	exportLocation struct {
 		ID      string             `json:"id"`
@@ -94,6 +95,17 @@ type (
 	exportEvent struct {
 		apigen.CareEvent
 		VoidedAt *time.Time `json:"voided_at"`
+	}
+	// exportMeasurement is a Measurement with the photo's id in place of the photo.
+	exportMeasurement struct {
+		ID         string              `json:"id"`
+		PlantID    string              `json:"plant_id"`
+		MeasuredOn openapi_types.Date  `json:"measured_on"`
+		HeightIn   *float64            `json:"height_in"`
+		WidthIn    *float64            `json:"width_in"`
+		Stage      *apigen.GrowthStage `json:"stage"`
+		Note       string              `json:"note"`
+		PhotoID    *string             `json:"photo_id"`
 	}
 	exportPhoto struct {
 		ID      string    `json:"id"`
@@ -165,6 +177,9 @@ func (h *Handler) exportSnapshot(ctx context.Context, userID string) (exportFile
 	if f.Photos, err = exportRows(ctx, q.ExportPhotos, exportPhotoOf); err != nil {
 		return f, fmt.Errorf("export photos: %w", err)
 	}
+	if f.Measurements, err = exportRows(ctx, q.ExportMeasurements, exportMeasurementOf); err != nil {
+		return f, fmt.Errorf("export measurements: %w", err)
+	}
 	return f, nil
 }
 
@@ -207,7 +222,7 @@ func exportSpeciesOf(r dbgen.Species) (exportSpecies, error) {
 }
 
 func exportPlantOf(r dbgen.Plant) (exportPlant, error) {
-	p, err := plant(r, nil, nil)
+	p, err := plant(r, nil, nil, nil)
 	if err != nil {
 		return exportPlant{}, err
 	}
@@ -242,6 +257,17 @@ func exportEventOf(r dbgen.CareEvent) (exportEvent, error) {
 	}
 	voided, err := nullTime(r.VoidedAt)
 	return exportEvent{CareEvent: e, VoidedAt: voided}, err
+}
+
+func exportMeasurementOf(r dbgen.PlantMeasurement) (exportMeasurement, error) {
+	m, err := measurement(r, nil)
+	e := exportMeasurement{
+		ID: m.Id, PlantID: m.PlantId, MeasuredOn: m.MeasuredOn, HeightIn: m.HeightIn, WidthIn: m.WidthIn, Stage: m.Stage, Note: m.Note,
+	}
+	if r.PhotoID.Valid {
+		e.PhotoID = &r.PhotoID.String
+	}
+	return e, err
 }
 
 func exportPhotoOf(r dbgen.Photo) (exportPhoto, error) {

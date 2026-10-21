@@ -15,7 +15,7 @@ export interface TaskRowProps {
   photo?: string | undefined;
   kind: CareKind;
   label?: string;
-  /** A soil check: "Check soil" with the gauge, and the round check opens the check sheet too. */
+  /** A soil check: "Check soil" with the gauge, and the round check opens the check sheet too (as for a check-in). */
   check?: boolean;
   /** "Due today", "Overdue 3 days", "In 3 days"… */
   due: string;
@@ -70,6 +70,9 @@ export function TaskRow({ plantName, photo, kind, label, check = false, due, ove
           {check ? (
             // A check needs a reading first, so the round check opens the sheet that takes it.
             <DoneCheck aria-label={`Check soil for ${plantName}`} onClick={onOpen} />
+          ) : kind === "check_in" ? (
+            // Likewise a check-in opens its form (photo, size, note).
+            <DoneCheck aria-label={`Check in on ${plantName}`} onClick={onOpen} />
           ) : (
             <DoneCheck aria-label={`Mark ${name} ${plantName} done`} checked={completing} onClick={complete} />
           )}

@@ -17,7 +17,7 @@ Milestone definitions live in `PLAN.md` §2.
 | Moisture-check watering (§5.5, backlog 6) | done (v1.3.0) |
 | M8 Species | done (v1.4.0) |
 | Light environment (§5.6, backlog 1, 2, 9) | done (v1.5.0) |
-| Journal: measurements + check-ins (backlog 4, 7) | next |
+| Journal: measurements + check-ins (backlog 4, 7) | done (v1.6.0) |
 | M9 Import + quick-add via photo | not started |
 
 ### M1 checklist
@@ -31,9 +31,18 @@ Milestone definitions live in `PLAN.md` §2.
 - [x] Deployed on TrueNAS behind NPM; logged in from the installed PWA
 
 ## Owner action items
-- Update to v1.5.0 (snapshot first: migration 0010). Add windows to your locations (Settings → Locations), then set each plant's distance from the window and any grow lights.
+- Snapshot, then update to v1.6.0 (migration 0011 rebuilds the care tasks table; verified to keep all history). Add a "Check in" task (e.g. every 30 days) to plants you want to track, and log sizes on the Growth tab.
 
 ## Checkpoints
+
+### 2026-10-21 · Journal frontend (PLAN §10)
+- Done: `check_in` kind (NotebookPen, custom accent, "Check in", toast "Checked in on Monstera."), in the task sheet's kinds with a 30-day default and no seasons switch. `web/src/journal/`: `CheckIn` (photo, height/width in inches, stage prefilled from `plant.growth`, note; save = upload → measurement → log done, opened from the row, its round button, and the Care tab), `GrowthTab` (new tab Care · Growth · Photos · Notes: hand-rolled SVG height chart from 2+ heights with an aria summary, timeline with photo thumbs into the PhotoViewer, add/edit/delete sheet with a date), `copy.ts`, `chart.ts`, `form.ts` (pure), `useSaveEntry`. Plant meta line "18 in tall · Mature". Today's "Next:" line uses `taskWithPlant`.
+- Behaviour: a check-in with nothing filled in only logs the task; a prefilled stage alone doesn't create a measurement. Failures keep the sheet open with the reason; a retry doesn't re-upload the same photo and updates (not duplicates) a measurement already saved. Undo voids only the task event.
+- Checks: lint, typecheck, 192 Vitest, build, and all 10 e2e specs pass (new `journal.spec.ts`, clientIP 8).
+
+### 2026-10-21 · Journal backend
+- Done: migration 0011 verified. `migrate_journal_test.go` seeds a v10 DB (every task kind, soil checks, 60 events of every kind with readings and voided rows, photos, a cover). After up, down and up again it checks that every row is unchanged, that `foreign_keys` is on again on the writer, that `foreign_key_check` is empty and `integrity_check` is ok, and that the care_events FK still points at care_tasks with cascade (orphan insert fails, task and plant deletes cascade). It also checks that check_in inserts work. With the `PRAGMA foreign_keys = OFF` removed, the test fails (events lost). The real binary also migrated a copy of a v10 DB made by the v10 binary (200 events), with an identical row dump. Measurements CRUD (`/plants/{id}/measurements`, `/measurements/{id}`), with photo linking in a write transaction. Plant `growth` everywhere (lists, get, Today, cover), from one grouped `ListGrowth` query. check_in tasks; the digest says "Check in on Monstera". Export `measurements` (docs/export-format.md).
+- Deviations: removed `PRAGMA foreign_key_check;` from 0011 (unreleased). goose runs it through `ExecContext`, which discards its rows, so it could never stop the migration.
 
 ### 2026-10-21 · Light frontend (PLAN §5.6)
 - Done: `web/src/light/`: `rules.ts` (client mirror of `internal/light`: `suggestLight` for both hemispheres, `needsMoreLight`), `copy.ts` (`windowsLine`, `lightLine`, distance labels) and `CompassPicker` (3×3 grid of 48px toggle buttons; taps count 0→1→2→3→0; `aria-pressed` and "East windows: 1" labels). Location sheet: Windows picker, live "Suggested light", "Light (optional)" with "Use the windows' estimate". Locations rows: "1 N · 1 E · Bright, indirect (est.) · 2 plants". Plant form: a Light group (distance, grow light switch with hours 1–24 defaulting to 12, light level override). `plantUpdate` carries the new fields, so archiving keeps them. Plant detail: a light line under the location ("Low light · across the room", "… · grow light 12 h", "… · set by you"). The Care guide adds a calm, sunken "Likely needs more light" hint at two or more steps below the species.

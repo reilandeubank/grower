@@ -105,6 +105,17 @@ describe("Task form", () => {
     ]);
   });
 
+  it("adds a monthly check-in, with no seasons", async () => {
+    const posts = setup();
+    const sheet = await openSheet();
+    await userEvent.click(within(sheet).getByRole("button", { name: "Check in" }));
+    expect(within(sheet).getByLabelText("Days between")).toHaveProperty("value", "30");
+    expect(within(sheet).queryByRole("switch", { name: /Adjust for seasons/ })).toBeNull();
+    await userEvent.click(within(sheet).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(posts).toEqual([expect.objectContaining({ kind: "check_in", interval_days: 30, seasonal: false })]);
+  });
+
   it("turns a water task into a soil check, and back", async () => {
     const posts = setup();
     const sheet = await openSheet();

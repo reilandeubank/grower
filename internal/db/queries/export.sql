@@ -18,3 +18,6 @@ SELECT * FROM photos ORDER BY id;
 
 -- name: ExportSpecies :many
 SELECT * FROM species ORDER BY id;
+
+-- name: ExportMeasurements :many
+SELECT * FROM plant_measurements ORDER BY id;

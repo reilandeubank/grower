@@ -137,7 +137,7 @@ func parseTask(in apigen.CareTaskInput, today schedule.Date) (dbgen.UpdateTaskPa
 	}
 	switch {
 	case !in.Kind.Valid():
-		return f, "Kind must be water, fertilize, mist, repot, rotate or custom."
+		return f, "Kind must be water, fertilize, mist, repot, rotate, custom or check_in."
 	case in.Kind == apigen.Custom && f.Label == "":
 		return f, "Label is required for a custom task."
 	case utf8.RuneCountInString(f.Label) > 40:

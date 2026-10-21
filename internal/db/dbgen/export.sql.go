@@ -84,6 +84,44 @@ func (q *Queries) ExportLocations(ctx context.Context) ([]Location, error) {
 	return items, nil
 }
 
+const exportMeasurements = `-- name: ExportMeasurements :many
+SELECT id, plant_id, measured_on, height_in, width_in, stage, note, photo_id, created_at, updated_at FROM plant_measurements ORDER BY id
+`
+
+func (q *Queries) ExportMeasurements(ctx context.Context) ([]PlantMeasurement, error) {
+	rows, err := q.db.QueryContext(ctx, exportMeasurements)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PlantMeasurement{}
+	for rows.Next() {
+		var i PlantMeasurement
+		if err := rows.Scan(
+			&i.ID,
+			&i.PlantID,
+			&i.MeasuredOn,
+			&i.HeightIn,
+			&i.WidthIn,
+			&i.Stage,
+			&i.Note,
+			&i.PhotoID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportPhotos = `-- name: ExportPhotos :many
 SELECT id, plant_id, taken_at, caption, mime, width, height, bytes, sha256, created_at, updated_at FROM photos ORDER BY id
 `
