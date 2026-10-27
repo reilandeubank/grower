@@ -4,7 +4,7 @@ import { needsMoreLight, suggestLight, type Hemisphere } from "./rules";
 
 const one = (direction: Direction, count = 1): Window[] => [{ direction, count }];
 
-describe("suggestLight (PLAN §5.6)", () => {
+describe("suggestLight", () => {
   const cases: [Hemisphere, Direction, LightLevel][] = [
     ["north", "s", "direct"],
     ["north", "e", "bright_indirect"],

@@ -27,7 +27,7 @@ const (
 // Digest sends each user the daily reminder at their digest time. Each day's reminder
 // is a jobs row keyed digest:<user>:<local date>, so restarts never queue it twice.
 // It is sent before the row is marked done: a crash in between repeats it once, which
-// beats losing it (PLAN §7).
+// beats losing it (docs/architecture.md, "Auth and operations").
 type Digest struct {
 	DB     *db.DB
 	Sender *Sender

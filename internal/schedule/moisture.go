@@ -13,7 +13,7 @@ const (
 )
 
 // DryingDays is how many days the soil takes to dry out after watering, learned from the
-// event log (PLAN §5.5): the median of the last three observed cycles, the lower one for
+// event log (docs/architecture.md): the median of the last three observed cycles, the lower one for
 // an even count. ok is false for a task without soil checks, or until a cycle has been
 // observed. events are the task's non-voided events in insertion order.
 func DryingDays(t Task, events []Event) (days int, ok bool) {
@@ -65,7 +65,7 @@ func learned(t Task, sorted []Event) int {
 	return t.IntervalDays
 }
 
-// nextCheck is a moisture-check task's next check before any snooze (PLAN §5.5). It
+// nextCheck is a moisture-check task's next check before any snooze (docs/architecture.md). It
 // counts from the latest done, skip or check, whatever the anchor or season.
 func nextCheck(t Task, sorted []Event) Date {
 	i := len(sorted) - 1

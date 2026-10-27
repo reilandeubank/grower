@@ -1,5 +1,5 @@
 -- +goose Up
--- Plants and locations are household-wide, not per user (PLAN §7: a second user shares everything).
+-- Plants and locations are household-wide, not per user; a second user shares everything.
 
 CREATE TABLE locations (
     id         TEXT PRIMARY KEY,

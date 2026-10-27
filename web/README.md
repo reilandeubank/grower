@@ -17,18 +17,15 @@ The React SPA for grower (Vite + React 19 + TypeScript, TanStack Query, React Ro
 
 ## Design tokens
 
-`design/tokens.json` mirrors the Claude Design system; `scripts/tokens.mjs` turns it into CSS custom
-properties (`--surface`, `--space-4`, ...), font stacks (`--font-display`, `--font-sans`) and one class
-per type style (`.t-display` ... `.t-label`). Light values sit on `:root`; dark values apply via
-`prefers-color-scheme` unless `<html data-theme="light">`, or always with `data-theme="dark"`.
-Never edit `tokens.css` or `schema.d.ts` by hand. Components live in `src/design/` (import from
-`src/design`), and screens use only those components and tokens.
+`design/tokens.json` is the source of truth for design tokens; `scripts/tokens.mjs` turns it into CSS custom properties (`--surface`, `--space-4`, ...), font stacks (`--font-display`, `--font-sans`) and one class per type style (`.t-display` ... `.t-label`).
+Light values sit on `:root`; dark values apply via `prefers-color-scheme` unless `<html data-theme="light">`, or always with `data-theme="dark"`.
+Never edit `tokens.css` or `schema.d.ts` by hand.
+Components live in `src/design/` (import from `src/design`), and screens use only those components and tokens.
 
 ## E2E locally
 
-The e2e config starts `../bin/grower serve` on :8099 with a throwaway data dir, creating user `e2e`
-first. On NixOS, npm-downloaded browsers don't run: use the flake devshell, which provides matching
-browsers (keep `@playwright/test` at the nixpkgs `playwright-driver` version, currently 1.63.0):
+The e2e config starts `../bin/grower serve` on :8099 with a throwaway data dir, creating user `e2e` first.
+On NixOS, npm-downloaded browsers don't run: use the flake devshell, which provides matching browsers (keep `@playwright/test` at the nixpkgs `playwright-driver` version, currently 1.63.0):
 
 ```sh
 nix develop --command make e2e

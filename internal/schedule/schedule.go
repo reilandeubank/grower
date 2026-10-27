@@ -1,5 +1,5 @@
-// Package schedule derives care due dates from a task and its event log (PLAN §5).
-// It is pure: no clock, no I/O. Callers pass the dates and events.
+// Package schedule derives care due dates from a task and its event log
+// (docs/architecture.md, "Scheduling"). It is pure: no clock, no I/O. Callers pass the dates and events.
 package schedule
 
 import "slices"
@@ -21,13 +21,13 @@ const (
 	Done    EventKind = "done"
 	Skipped EventKind = "skipped"
 	Snoozed EventKind = "snoozed"
-	// Checked records a soil moisture reading on a moisture-check task (PLAN §5.5).
+	// Checked records a soil moisture reading on a moisture-check task (docs/architecture.md).
 	Checked EventKind = "checked"
 )
 
 // Task is a recurring care task. IntervalDays must be at least 1. When Seasonal is set,
 // Kind (water, mist, ...) picks the curve that adjusts the interval by month. A
-// MoistureCheck task is scheduled from its readings instead (PLAN §5.5): a reading at or
+// MoistureCheck task is scheduled from its readings instead (docs/architecture.md): a reading at or
 // below WaterAt means water now.
 type Task struct {
 	IntervalDays  int

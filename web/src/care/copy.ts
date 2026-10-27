@@ -92,7 +92,7 @@ export function historyLine({ event, task_kind, task_label }: HistoryEntry, toda
   return read ? `${doneVerb(task_kind, task_label)} · read ${read}` : doneVerb(task_kind, task_label);
 }
 
-// Moisture checks (PLAN §5.5).
+// Moisture checks (docs/architecture.md).
 
 /** "6 · Moist". */
 export function readingLine(reading: number): string {

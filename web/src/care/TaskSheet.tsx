@@ -63,7 +63,7 @@ function TaskForm({ plantId, task, today, onDone }: Omit<TaskSheetProps, "open" 
   const [anchor, setAnchor] = useState<Anchor>(task?.anchor ?? "from_completion");
   // On by default for the kinds the seasons change, as on the server.
   const [seasonal, setSeasonal] = useState(task?.seasonal ?? seasonalHint(kind) !== undefined);
-  // A soil check (PLAN §5.5) is a water task only; it keeps its own threshold.
+  // A soil check (docs/architecture.md) is a water task only; it keeps its own threshold.
   const [checkSoil, setCheckSoil] = useState(task?.moisture_check ?? false);
   const [waterAt, setWaterAt] = useState(task?.water_at ?? 3);
   const [errors, setErrors] = useState<{ label?: string; interval?: string; startOn?: string }>({});

@@ -1,21 +1,20 @@
-# grower on TrueNAS SCALE (Apps → Discover Apps → ⋮ → Install via YAML).
-# Replace every value marked CHANGE. See docs/deploy.md for the full walkthrough.
+# grower with Docker Compose. Replace every value marked CHANGE.
+# See docs/deploy.md for HTTPS, TrueNAS SCALE (Apps → Install via YAML) and troubleshooting.
 services:
   grower:
-    image: ghcr.io/reilandeubank/grower:main # or a pinned vX.Y.Z (docs/update.md)
-    pull_policy: always # Edit → Save in TrueNAS then fetches the newest image for this tag
+    image: ghcr.io/reilandeubank/grower:latest # or pin a version, e.g. :1.7.0 (docs/update.md)
     restart: unless-stopped
-    user: "568:568" # TrueNAS "apps" user; must own the dataset
+    user: "1000:1000" # CHANGE: a UID:GID that owns the data directory (TrueNAS apps user: 568:568)
     environment:
-      GROWER_BASE_URL: https://grower.example.com # the public URL served by Nginx Proxy Manager
-      GROWER_TRUSTED_PROXIES: 192.0.2.10/32
-      GROWER_TZ: America/Chicago
-      # Optional species data (docs/deploy.md, "Species data"). Uncomment and fill in to enable.
+      GROWER_BASE_URL: https://grower.example.com # CHANGE: the exact public https URL
+      GROWER_TRUSTED_PROXIES: 172.16.0.0/12 # CHANGE: where your reverse proxy connects from (docs/deploy.md)
+      GROWER_TZ: UTC # CHANGE: your IANA time zone, e.g. Europe/Berlin
+      # Optional species data and photo identification (docs/deploy.md, "Species data").
       # GROWER_OPENPLANTBOOK_CLIENT_ID: CHANGE
       # GROWER_OPENPLANTBOOK_CLIENT_SECRET: CHANGE
       # GROWER_PERENUAL_API_KEY: CHANGE
-      # GROWER_PLANTNET_API_KEY: CHANGE # plant identification from a photo
+      # GROWER_PLANTNET_API_KEY: CHANGE
     volumes:
-      - /mnt/vm-disk/grower:/data
+      - ./data:/data # CHANGE: where grower keeps its database, photos and backups
     ports:
-      - "18080:8080" # remove if NPM reaches grower over a shared Docker network
+      - "8080:8080" # remove if your reverse proxy reaches grower over a shared Docker network

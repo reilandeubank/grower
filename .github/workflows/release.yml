@@ -1,10 +1,12 @@
 name: Release image
 
-# main publishes :main and :sha-<short>; a v* tag publishes :X.Y.Z, :X.Y and :latest.
+# main publishes :main and :sha-<short>. Publishing a GitHub Release (tag vX.Y.Z)
+# publishes :X.Y.Z, :X.Y and :latest. Images are multi-arch (linux/amd64 and linux/arm64).
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -37,7 +39,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

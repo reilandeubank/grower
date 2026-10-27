@@ -1,4 +1,4 @@
-// The light rules the screens need ahead of the server: a mirror of internal/light (PLAN §5.6).
+// The light rules the screens need ahead of the server: a mirror of internal/light (docs/architecture.md, "Light environment").
 import type { Direction, LightLevel, Settings, Window } from "../api/client";
 
 export type Hemisphere = Settings["hemisphere"];

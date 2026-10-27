@@ -1,6 +1,6 @@
 -- +goose Up
 -- Care scheduling. Next-due dates are never stored: internal/schedule derives them from
--- the task and its event log (PLAN §5). Dates are civil (YYYY-MM-DD) in the user's time zone.
+-- the task and its event log (docs/architecture.md, "Scheduling"). Dates are civil (YYYY-MM-DD) in the user's time zone.
 
 CREATE TABLE care_tasks (
     id            TEXT PRIMARY KEY,

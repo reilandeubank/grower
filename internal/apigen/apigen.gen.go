@@ -463,7 +463,7 @@ type CareTaskInput struct {
 	Label *string `json:"label,omitempty"`
 
 	// MoistureCheck Water tasks only. The task becomes a soil check: due dates are when to check, and
-	// readings decide when to water (PLAN §5.5). interval_days is the first estimate of
+	// readings decide when to water (docs/architecture.md). interval_days is the first estimate of
 	// how long the soil takes to dry out. Forces the from_completion anchor.
 	MoistureCheck *bool `json:"moisture_check,omitempty"`
 

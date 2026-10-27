@@ -1,5 +1,5 @@
 -- +goose Up
--- Light environment (PLAN §10 ideas 1, 2, 9): windows per location, and per-plant light,
+-- Light environment: windows per location, and per-plant light,
 -- distance from the window and grow light. Effective light is derived, never stored.
 
 CREATE TABLE location_windows (

@@ -1,5 +1,5 @@
-// Package light derives how much light a room and a plant get (PLAN §5.6). It is pure:
-// no clock, no DB. String values match the API and database.
+// Package light derives how much light a room and a plant get (docs/architecture.md,
+// "Light environment"). It is pure: no clock, no DB. String values match the API and database.
 package light
 
 import (

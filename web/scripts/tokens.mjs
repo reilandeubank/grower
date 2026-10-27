@@ -1,4 +1,4 @@
-// Generates src/design/tokens.css from ../design/tokens.json (the Claude Design export).
+// Generates src/design/tokens.css from ../design/tokens.json (the design token source of truth).
 // Run with `npm run gen:tokens`. The output is committed; never edit it by hand.
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";

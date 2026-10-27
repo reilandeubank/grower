@@ -1,6 +1,6 @@
 -- +goose NO TRANSACTION
 -- +goose Up
--- Journal (PLAN §10 ideas 4, 7): measurements over time, and a 'check_in' task kind.
+-- Journal: measurements over time, and a 'check_in' task kind.
 --
 -- Adding a kind means rebuilding care_tasks (SQLite can't alter a CHECK). care_events
 -- references care_tasks with ON DELETE CASCADE, so the rebuild must run with foreign keys

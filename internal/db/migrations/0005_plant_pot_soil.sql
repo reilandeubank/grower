@@ -1,5 +1,5 @@
 -- +goose Up
--- Pot and soil details (PLAN §10, owner idea 5). All optional: NULL means "not recorded".
+-- Pot and soil details. All optional: NULL means "not recorded".
 
 ALTER TABLE plants ADD COLUMN pot_type TEXT
     CHECK (pot_type IN ('plastic', 'terracotta', 'ceramic', 'fabric', 'self_watering', 'other'));

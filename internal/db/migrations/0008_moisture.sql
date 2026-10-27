@@ -1,5 +1,5 @@
 -- +goose Up
--- Moisture-meter watering (PLAN §10 idea 6, §5.5). A water task can be a soil check:
+-- Moisture-meter watering (docs/architecture.md, "Moisture-check watering"). A water task can be a soil check:
 -- readings on the meter's 1–10 scale (dry 1–3, moist 4–7, wet 8–10) decide when to water.
 
 ALTER TABLE care_tasks ADD COLUMN moisture_check INTEGER NOT NULL DEFAULT 0 CHECK (moisture_check IN (0, 1));

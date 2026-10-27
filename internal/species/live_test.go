@@ -12,7 +12,7 @@ import (
 // TestLive calls the real providers once each (about 5 calls in all). It is skipped
 // unless GROWER_LIVE=1, and it never prints credentials, only mapped fields:
 //
-//	set -a; . ~/.secrets/grower.env; set +a; GROWER_LIVE=1 go test ./internal/species -run TestLive -v
+//	set -a; . ./.env; set +a; GROWER_LIVE=1 go test ./internal/species -run TestLive -v
 func TestLive(t *testing.T) {
 	if os.Getenv("GROWER_LIVE") != "1" {
 		t.Skip("set GROWER_LIVE=1 and the provider variables to call the real APIs")
@@ -65,7 +65,7 @@ func TestLive(t *testing.T) {
 // GROWER_LIVE=1, GROWER_PLANTNET_API_KEY and GROWER_LIVE_IMAGE (a JPEG or PNG of a real
 // plant) are set, and it prints only the mapped candidates:
 //
-//	set -a; . ~/.secrets/grower.env; set +a; GROWER_LIVE=1 GROWER_LIVE_IMAGE=leaf.jpg go test ./internal/species -run TestLivePlantNet -v
+//	set -a; . ./.env; set +a; GROWER_LIVE=1 GROWER_LIVE_IMAGE=leaf.jpg go test ./internal/species -run TestLivePlantNet -v
 func TestLivePlantNet(t *testing.T) {
 	key, path := os.Getenv("GROWER_PLANTNET_API_KEY"), os.Getenv("GROWER_LIVE_IMAGE")
 	if os.Getenv("GROWER_LIVE") != "1" || key == "" || path == "" {

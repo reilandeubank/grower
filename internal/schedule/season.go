@@ -36,7 +36,7 @@ func percent(kind string, m time.Month, h Hemisphere) int {
 }
 
 // interval is the interval counted from a date: max(1, round(IntervalDays × factor of
-// on's month)) for a seasonal task counted from completion (PLAN §5.2 rule 8), else
+// on's month)) for a seasonal task counted from completion (docs/architecture.md, scheduling rule 8), else
 // IntervalDays. A fixed anchor keeps its calendar, so it is never adjusted.
 func (t Task) interval(on Date, h Hemisphere) int {
 	if !t.Seasonal || t.Anchor == Fixed {

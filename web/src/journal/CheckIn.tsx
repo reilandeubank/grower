@@ -19,7 +19,7 @@ export interface CheckInProps {
 }
 
 /**
- * A check-in (PLAN §10, Journal): an optional photo, size, stage and note. Saving uploads the photo,
+ * A check-in: an optional photo, size, stage and note. Saving uploads the photo,
  * saves the measurement linked to it, then logs the task done, in that order; a failure stops
  * there and keeps the sheet open, so the task is only logged once everything else has saved.
  */
