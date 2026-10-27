@@ -53,7 +53,7 @@ Keep each pull request to one change, and describe what it does and how you chec
 
 ## Releasing (maintainer)
 
-Every push to `main` publishes `:main` and `:sha-<commit>` images.
+Every push to `main` publishes the `:main` image.
 To release:
 
 1. Merge a pull request that adds the version's notes to [CHANGELOG.md](CHANGELOG.md).

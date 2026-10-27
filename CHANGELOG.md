@@ -7,6 +7,7 @@ Versions follow [semantic versioning](https://semver.org/); every release's data
 
 - Postpone the daily reminder: the notification offers "Remind me at 5:30 PM", which sends it again at a later time you choose in Settings ([#2](https://github.com/reilandeubank/grower/issues/2)).
 - Multi-arch images: `linux/arm64` alongside `linux/amd64`.
+- Images are no longer tagged `:sha-<commit>`; pin a release instead (existing `:sha-` tags stay available).
 - Open-source release: MIT license, generic deployment docs (Docker Compose, any reverse proxy), contributing and security policies.
 
 ## 1.7.0 (2026-10-21)

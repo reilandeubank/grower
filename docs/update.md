@@ -6,7 +6,7 @@ Images are published to `ghcr.io/reilandeubank/grower`:
 |---|---|
 | `:X.Y.Z` (e.g. `:1.7.0`) | One exact release. Recommended: updates happen only when you change it, and rolling back is exact. |
 | `:X.Y`, `:latest` | The newest release in that line, or overall. |
-| `:main`, `:sha-<commit>` | Every commit on `main`. Unreleased; may break. |
+| `:main` | The latest commit on `main`. Unreleased; may break. |
 
 Release notes are in [CHANGELOG.md](../CHANGELOG.md) and on the GitHub releases page.
 Check what's running at `https://<your domain>/healthz`: the `version` field is the build, e.g. `v1.7.0`.
