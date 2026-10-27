@@ -1,6 +1,6 @@
 module github.com/reilandeubank/grower
 
-go 1.26.8
+go 1.26.0
 
 tool (
 	github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
