@@ -12,6 +12,10 @@
   outline-offset: 2px;
 }
 
+.hint {
+  display: block;
+}
+
 .note {
   padding-bottom: var(--space-3);
 }

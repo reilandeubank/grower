@@ -10,5 +10,5 @@ SELECT * FROM settings WHERE user_id = ?;
 SELECT * FROM settings ORDER BY user_id;
 
 -- name: UpdateSettings :one
-UPDATE settings SET timezone = ?, digest_local_time = ?, hemisphere = ?, updated_at = ? WHERE user_id = ?
+UPDATE settings SET timezone = ?, digest_local_time = ?, later_local_time = ?, hemisphere = ?, updated_at = ? WHERE user_id = ?
 RETURNING *;

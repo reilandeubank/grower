@@ -27,7 +27,7 @@ It's a single container with SQLite, made to be installed as an app on your phon
 - **Photos and journal:** a photo timeline, growth measurements with a height chart, and check-in reminders.
 - **Species data (optional):** care defaults from Open Plantbook and Perenual, and identification from a photo with Pl@ntNet.
   Each needs a free API key, and grower works fully without them.
-- **Daily reminder** by web push, at a time you choose.
+- **Daily reminder** by web push, at a time you choose, with a button to send it again later in the day.
 - **Your data stays yours:** nightly database backups, a documented export format, and an import for moving servers.
 - Light and dark themes, offline read-only mode, accessible on small screens.
 

@@ -120,3 +120,14 @@ func (q *Queries) FinishJob(ctx context.Context, arg FinishJobParams) error {
 	_, err := q.db.ExecContext(ctx, finishJob, arg.LastError, arg.UpdatedAt, arg.ID)
 	return err
 }
+
+const getJobRunAfter = `-- name: GetJobRunAfter :one
+SELECT run_after FROM jobs WHERE dedupe_key = ?
+`
+
+func (q *Queries) GetJobRunAfter(ctx context.Context, dedupeKey sql.NullString) (string, error) {
+	row := q.db.QueryRowContext(ctx, getJobRunAfter, dedupeKey)
+	var run_after string
+	err := row.Scan(&run_after)
+	return run_after, err
+}

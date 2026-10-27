@@ -19,7 +19,7 @@ grower-export-2026-10-14.zip
   "version": 1,
   "exported_at": "2026-10-14T18:30:00Z",
   "app_version": "v0.4.0",
-  "settings": { "timezone": "America/Chicago", "digest_time": "08:00", "hemisphere": "north" },
+  "settings": { "timezone": "America/Chicago", "digest_time": "08:00", "later_time": "17:30", "hemisphere": "north" },
   "locations": [ ... ],
   "species": [ ... ],
   "plants": [ ... ],
@@ -63,6 +63,6 @@ It:
   If the transaction fails, the photos it wrote are removed, so nothing is half-loaded;
 - applies `settings` to the user (the only one, or `--username`).
 
-Fields missing from older exports take the defaults listed above, and settings an export lacks keep the user's current values.
+Fields missing from older exports take the defaults listed above, and settings an export lacks (such as `later_time`, added after 1.7.0) keep the user's current values.
 Timestamps the format doesn't carry (`created_at` of most rows) come from the ULID ids; `updated_at` is the import time.
 The provider payload of species (`raw`) isn't exported, so it starts empty.

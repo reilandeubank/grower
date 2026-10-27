@@ -3,13 +3,19 @@ import { BellRing } from "lucide-react";
 import { useCurrentUser } from "../auth/useCurrentUser";
 import { Button, ErrorText, Switch, useToast } from "../design";
 import { useUpdateSettings } from "./queries";
-import { usePushState, useSendTestPush, useSetReminder, type PushState } from "./push";
+import {
+  usePushState,
+  useSendTestPush,
+  useSetReminder,
+  type PushState,
+} from "./push";
 import styles from "../routes/Settings.module.css";
 import own from "./NotificationsSection.module.css";
 
 const DESCRIPTION: Record<PushState, string> = {
   unsupported: "This browser can't show notifications.",
-  denied: "Notifications are blocked for grower. Allow them in your browser's site settings.",
+  denied:
+    "Notifications are blocked for grower. Allow them in your browser's site settings.",
   off: "A note at your reminder time when plants need care.",
   on: "A note at your reminder time when plants need care.",
 };
@@ -41,7 +47,17 @@ export function NotificationsSection() {
             : "Couldn't turn off the reminder. Check your connection, then try again."}
         </ErrorText>
       )}
-      <ReminderTime />
+      <TimeSetting
+        field="digest_time"
+        label="Reminder time"
+        error="Couldn't save the reminder time. Check your connection, then try again."
+      />
+      <TimeSetting
+        field="later_time"
+        label="Remind me later at"
+        hint="The reminder offers a button to send it again at this time."
+        error="Couldn't save the later time. Check your connection, then try again."
+      />
       {on && (
         <div className={styles.row}>
           <Button
@@ -49,31 +65,56 @@ export function NotificationsSection() {
             icon={<BellRing size={20} strokeWidth={1.75} aria-hidden="true" />}
             loading={sendTest.isPending}
             onClick={() =>
-              sendTest.mutate(undefined, { onSuccess: () => toast({ message: "Test notification sent." }) })
+              sendTest.mutate(undefined, {
+                onSuccess: () => toast({ message: "Test notification sent." }),
+              })
             }
           >
             Send test notification
           </Button>
         </div>
       )}
-      {sendTest.isError && <ErrorText>Couldn't send a test notification. Try again in a minute.</ErrorText>}
+      {sendTest.isError && (
+        <ErrorText>
+          Couldn't send a test notification. Try again in a minute.
+        </ErrorText>
+      )}
       <p className={`t-caption ${styles.muted} ${own.note}`}>
-        On Android, the reminder arrives even when grower is closed, as long as it's installed.
+        On Android, the reminder arrives even when grower is closed, as long as
+        it's installed.
       </p>
     </div>
   );
 }
 
-/** A native time picker, saved as soon as it holds a whole time. */
-function ReminderTime() {
+/** A native time picker for one of the reminder times, saved as soon as it holds a whole time. */
+function TimeSetting({
+  field,
+  label,
+  hint,
+  error,
+}: {
+  field: "digest_time" | "later_time";
+  label: string;
+  hint?: string;
+  error: string;
+}) {
   const me = useCurrentUser();
   const save = useUpdateSettings();
-  const [value, setValue] = useState(me.settings.digest_time);
+  const saved = me.settings[field];
+  const [value, setValue] = useState(saved);
 
   return (
     <>
       <label className={styles.row}>
-        <span className="t-body">Reminder time</span>
+        <span>
+          <span className="t-body">{label}</span>
+          {hint && (
+            <span className={`t-caption ${styles.muted} ${own.hint}`}>
+              {hint}
+            </span>
+          )}
+        </span>
         <input
           type="time"
           className={own.time}
@@ -82,11 +123,12 @@ function ReminderTime() {
           onChange={(e) => {
             const next = e.target.value;
             setValue(next);
-            if (/^\d\d:\d\d$/.test(next) && next !== me.settings.digest_time) save.mutate({ digest_time: next });
+            if (/^\d\d:\d\d$/.test(next) && next !== saved)
+              save.mutate({ [field]: next });
           }}
         />
       </label>
-      {save.isError && <ErrorText>Couldn't save the reminder time. Check your connection, then try again.</ErrorText>}
+      {save.isError && <ErrorText>{error}</ErrorText>}
     </>
   );
 }

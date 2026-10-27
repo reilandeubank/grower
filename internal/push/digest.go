@@ -38,6 +38,8 @@ type Digest struct {
 type digestPayload struct {
 	UserID string `json:"user_id"`
 	Date   string `json:"date"`
+	// Later marks the reminder sent again at the later time (RemindLater).
+	Later bool `json:"later,omitempty"`
 }
 
 // Run ticks once now and then every minute until ctx is cancelled.
@@ -181,7 +183,7 @@ func (d *Digest) process(ctx context.Context, job dbgen.Job) error {
 	if !ok {
 		return errSkip("nothing due")
 	}
-	return d.Sender.Send(ctx, p.UserID, m)
+	return d.Sender.Send(ctx, p.UserID, withLater(m, p, settings.LaterLocalTime, d.Now(), loc))
 }
 
 // finish records the outcome: done (with a note for skips), or another attempt with

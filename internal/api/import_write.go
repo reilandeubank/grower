@@ -30,7 +30,8 @@ func writeExport(ctx context.Context, d *db.DB, x exportFile, photos map[string]
 		s := x.Settings
 		if _, err := q.UpdateSettings(ctx, dbgen.UpdateSettingsParams{
 			Timezone: cmp.Or(s.Timezone, cur.Timezone), DigestLocalTime: cmp.Or(s.DigestTime, cur.DigestLocalTime),
-			Hemisphere: cmp.Or(string(s.Hemisphere), cur.Hemisphere), UpdatedAt: at, UserID: userID,
+			LaterLocalTime: cmp.Or(s.LaterTime, cur.LaterLocalTime),
+			Hemisphere:     cmp.Or(string(s.Hemisphere), cur.Hemisphere), UpdatedAt: at, UserID: userID,
 		}); err != nil {
 			return fmt.Errorf("import settings: %w", err)
 		}

@@ -140,6 +140,7 @@ type Setting struct {
 	DigestLocalTime string
 	CreatedAt       string
 	UpdatedAt       string
+	LaterLocalTime  string
 }
 
 type Species struct {

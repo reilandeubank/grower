@@ -44,7 +44,7 @@ func newFixture(t *testing.T, tz, clock string) *fixture {
 	ctx, q, stamp := context.Background(), d.Writer(), "2026-01-01T00:00:00Z"
 	must(t, q.CreateUser(ctx, dbgen.CreateUserParams{ID: f.userID, Username: "fern", PasswordHash: "x", CreatedAt: stamp, UpdatedAt: stamp}))
 	must(t, q.CreateSettings(ctx, dbgen.CreateSettingsParams{UserID: f.userID, Timezone: tz, CreatedAt: stamp, UpdatedAt: stamp}))
-	_, err = q.UpdateSettings(ctx, dbgen.UpdateSettingsParams{Timezone: tz, DigestLocalTime: clock, Hemisphere: "north", UpdatedAt: stamp, UserID: f.userID})
+	_, err = q.UpdateSettings(ctx, dbgen.UpdateSettingsParams{Timezone: tz, DigestLocalTime: clock, LaterLocalTime: "17:30", Hemisphere: "north", UpdatedAt: stamp, UserID: f.userID})
 	must(t, err)
 	f.addPlant("Monstera", "water", "2026-03-01")
 	f.subscribe("/device-1")

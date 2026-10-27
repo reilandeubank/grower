@@ -32,7 +32,7 @@ func (q *Queries) CreateSettings(ctx context.Context, arg CreateSettingsParams) 
 }
 
 const getSettings = `-- name: GetSettings :one
-SELECT user_id, timezone, hemisphere, digest_local_time, created_at, updated_at FROM settings WHERE user_id = ?
+SELECT user_id, timezone, hemisphere, digest_local_time, created_at, updated_at, later_local_time FROM settings WHERE user_id = ?
 `
 
 func (q *Queries) GetSettings(ctx context.Context, userID string) (Setting, error) {
@@ -45,12 +45,13 @@ func (q *Queries) GetSettings(ctx context.Context, userID string) (Setting, erro
 		&i.DigestLocalTime,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LaterLocalTime,
 	)
 	return i, err
 }
 
 const listSettings = `-- name: ListSettings :many
-SELECT user_id, timezone, hemisphere, digest_local_time, created_at, updated_at FROM settings ORDER BY user_id
+SELECT user_id, timezone, hemisphere, digest_local_time, created_at, updated_at, later_local_time FROM settings ORDER BY user_id
 `
 
 // Every user's settings, for the daily reminder.
@@ -70,6 +71,7 @@ func (q *Queries) ListSettings(ctx context.Context) ([]Setting, error) {
 			&i.DigestLocalTime,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LaterLocalTime,
 		); err != nil {
 			return nil, err
 		}
@@ -85,13 +87,14 @@ func (q *Queries) ListSettings(ctx context.Context) ([]Setting, error) {
 }
 
 const updateSettings = `-- name: UpdateSettings :one
-UPDATE settings SET timezone = ?, digest_local_time = ?, hemisphere = ?, updated_at = ? WHERE user_id = ?
-RETURNING user_id, timezone, hemisphere, digest_local_time, created_at, updated_at
+UPDATE settings SET timezone = ?, digest_local_time = ?, later_local_time = ?, hemisphere = ?, updated_at = ? WHERE user_id = ?
+RETURNING user_id, timezone, hemisphere, digest_local_time, created_at, updated_at, later_local_time
 `
 
 type UpdateSettingsParams struct {
 	Timezone        string
 	DigestLocalTime string
+	LaterLocalTime  string
 	Hemisphere      string
 	UpdatedAt       string
 	UserID          string
@@ -101,6 +104,7 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 	row := q.db.QueryRowContext(ctx, updateSettings,
 		arg.Timezone,
 		arg.DigestLocalTime,
+		arg.LaterLocalTime,
 		arg.Hemisphere,
 		arg.UpdatedAt,
 		arg.UserID,
@@ -113,6 +117,7 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		&i.DigestLocalTime,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LaterLocalTime,
 	)
 	return i, err
 }

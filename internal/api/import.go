@@ -272,6 +272,11 @@ func validateSettings(s apigen.Settings) error {
 			errs = append(errs, fmt.Errorf("settings: %w", err))
 		}
 	}
+	if s.LaterTime != "" {
+		if _, err := push.ParseClock(s.LaterTime); err != nil {
+			errs = append(errs, fmt.Errorf("settings: later time: %w", err))
+		}
+	}
 	if s.Hemisphere != "" && !s.Hemisphere.Valid() {
 		errs = append(errs, fmt.Errorf("settings: hemisphere %q is not north or south", s.Hemisphere))
 	}

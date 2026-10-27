@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/reilandeubank/grower/internal/apigen"
 	"github.com/reilandeubank/grower/internal/push/pushtest"
@@ -74,4 +75,36 @@ func TestPushSubscriptions(t *testing.T) {
 	expectProblem(t, e.call(nil, http.MethodGet, "/api/v1/push/vapid-key", ""), http.StatusUnauthorized)
 	expectProblem(t, e.call(nil, http.MethodPost, "/api/v1/push/subscriptions", `{"endpoint":"https://x/y","keys":{"p256dh":"a","auth":"b"}}`), http.StatusUnauthorized)
 	expectProblem(t, e.call(nil, http.MethodPost, "/api/v1/push/test", ""), http.StatusUnauthorized)
+}
+
+func TestRemindLater(t *testing.T) {
+	e := newEnv(t, envOptions{})
+	c := e.loginCookie()
+	later := func(date string) *http.Response {
+		return e.call(c, http.MethodPost, "/api/v1/push/remind-later", `{"date":"`+date+`"}`)
+	}
+	chicago, _ := time.LoadLocation("America/Chicago")
+	e.clock.t = time.Date(2026, 5, 1, 9, 0, 0, 0, chicago)
+
+	want := time.Date(2026, 5, 1, 17, 30, 0, 0, chicago)
+	for range 2 { // asking again keeps the one reminder
+		got := expectJSON[apigen.RemindLaterQueued](t, later("2026-05-01"), http.StatusOK)
+		if !got.RemindAt.Equal(want) {
+			t.Errorf("remind_at = %s, want %s", got.RemindAt, want)
+		}
+	}
+	var n int
+	if err := e.db.Read.QueryRow(`SELECT count(*) FROM jobs WHERE dedupe_key LIKE 'digest-later:%'`).Scan(&n); err != nil || n != 1 {
+		t.Errorf("later jobs = %d (%v), want 1", n, err)
+	}
+
+	if got := expectProblem(t, later("2026-04-30"), http.StatusConflict); got != "This reminder is from another day." {
+		t.Errorf("yesterday: detail = %q", got)
+	}
+	e.clock.t = want
+	if got := expectProblem(t, later("2026-05-01"), http.StatusConflict); got != "Your later time has already passed today." {
+		t.Errorf("at the later time: detail = %q", got)
+	}
+	expectProblem(t, later("May 1"), http.StatusBadRequest)
+	expectProblem(t, e.call(nil, http.MethodPost, "/api/v1/push/remind-later", `{"date":"2026-05-01"}`), http.StatusUnauthorized)
 }

@@ -40,7 +40,7 @@ func richExport(t *testing.T) []byte {
 	e := newEnv(t, envOptions{})
 	c := e.loginCookie()
 	expectJSON[apigen.Settings](t, e.call(c, http.MethodPut, "/api/v1/settings",
-		`{"timezone":"Australia/Sydney","digest_time":"07:30","hemisphere":"south"}`), http.StatusOK)
+		`{"timezone":"Australia/Sydney","digest_time":"07:30","later_time":"18:45","hemisphere":"south"}`), http.StatusOK)
 
 	shelf := expectJSON[apigen.Location](t, e.call(c, http.MethodPost, "/api/v1/locations",
 		`{"name":"Shelf","light":"medium","notes":"By the desk","windows":[{"direction":"w","count":2},{"direction":"ne","count":1}]}`), http.StatusCreated)
@@ -219,6 +219,7 @@ func TestImportRejects(t *testing.T) {
 		{"missing photo file", rewrite(t, original, func(map[string]any) {}, photoFile),
 			photoFile + " is not in the zip (the export itself lacked it"},
 		{"bad settings", rewrite(t, original, func(x map[string]any) { x["settings"].(map[string]any)["timezone"] = "Mars/Base" }), "unknown time zone"},
+		{"bad later time", rewrite(t, original, func(x map[string]any) { x["settings"].(map[string]any)["later_time"] = "5pm" }), "later time"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -288,7 +289,7 @@ func TestImportNeedsEmptyGrowerAndOneUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := expectJSON[apigen.Me](t, e.call(e.loginCookie(), http.MethodGet, "/api/v1/me", ""), http.StatusOK).Settings
-	if s.Timezone != "Australia/Sydney" || s.DigestTime != "07:30" || s.Hemisphere != "south" {
+	if s.Timezone != "Australia/Sydney" || s.DigestTime != "07:30" || s.LaterTime != "18:45" || s.Hemisphere != "south" {
 		t.Errorf("settings = %+v", s)
 	}
 }
@@ -331,7 +332,7 @@ func TestImportOldExport(t *testing.T) {
 		plant["created_at"] != "2025-12-01T10:00:00Z" || first(x, "events")["reading"] != nil {
 		t.Errorf("location = %v, plant = %v", loc, plant)
 	}
-	if s := x["settings"].(map[string]any); s["timezone"] != "Europe/London" || s["digest_time"] != "09:00" || s["hemisphere"] != "north" {
+	if s := x["settings"].(map[string]any); s["timezone"] != "Europe/London" || s["digest_time"] != "09:00" || s["later_time"] != "17:30" || s["hemisphere"] != "north" {
 		t.Errorf("settings = %v", s)
 	}
 }

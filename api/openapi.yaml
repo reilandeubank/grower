@@ -180,6 +180,31 @@ paths:
           description: Sent (or there were no devices).
         "401":
           $ref: "#/components/responses/Problem"
+  /push/remind-later:
+    post:
+      operationId: remindLater
+      summary: >-
+        Send today's daily reminder again at the user's later time. The reminder's
+        "Remind me at" action calls this; asking twice for the same day queues it once.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemindLater"
+      responses:
+        "200":
+          description: Queued, or already queued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemindLaterQueued"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
   /species:
     get:
       operationId: listSpecies
@@ -902,7 +927,7 @@ components:
           type: string
     Settings:
       type: object
-      required: [timezone, digest_time, hemisphere]
+      required: [timezone, digest_time, later_time, hemisphere]
       properties:
         hemisphere:
           type: string
@@ -917,6 +942,30 @@ components:
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
           description: Local time (HH:MM) of the daily care reminder, sent to every subscribed device.
           example: "08:00"
+        later_time:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          description: >-
+            Local time (HH:MM) a postponed daily reminder is sent again. A reminder sent
+            before this time offers a "Remind me at" action. An update without it keeps
+            the current value.
+          example: "17:30"
+    RemindLater:
+      type: object
+      required: [date]
+      properties:
+        date:
+          type: string
+          format: date
+          description: The local date (YYYY-MM-DD) of the reminder being postponed. Only today's can be.
+    RemindLaterQueued:
+      type: object
+      required: [remind_at]
+      properties:
+        remind_at:
+          type: string
+          format: date-time
+          description: When the reminder will be sent again.
     PushSubscription:
       type: object
       description: A browser PushSubscription, as returned by PushSubscription.toJSON().

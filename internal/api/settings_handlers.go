@@ -38,11 +38,22 @@ func (h *Handler) UpdateSettings(ctx context.Context, req apigen.UpdateSettingsR
 	if _, err := push.ParseClock(req.Body.DigestTime); err != nil {
 		return apigen.UpdateSettings400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest("Pick a time like 08:00.")}, nil
 	}
+	later := req.Body.LaterTime
+	if later == "" {
+		// Clients from before later_time existed send none: keep the current one.
+		cur, err := h.db.Reader().GetSettings(ctx, p.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("load settings for user %s: %w", p.UserID, err)
+		}
+		later = cur.LaterLocalTime
+	} else if _, err := push.ParseClock(later); err != nil {
+		return apigen.UpdateSettings400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest("Pick a later time like 17:30.")}, nil
+	}
 	if !req.Body.Hemisphere.Valid() {
 		return apigen.UpdateSettings400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest("Hemisphere must be north or south.")}, nil
 	}
 	row, err := h.db.Writer().UpdateSettings(ctx, dbgen.UpdateSettingsParams{
-		Timezone: tz, DigestLocalTime: req.Body.DigestTime, Hemisphere: string(req.Body.Hemisphere), UpdatedAt: db.FormatTime(h.auth.Now()), UserID: p.UserID,
+		Timezone: tz, DigestLocalTime: req.Body.DigestTime, LaterLocalTime: later, Hemisphere: string(req.Body.Hemisphere), UpdatedAt: db.FormatTime(h.auth.Now()), UserID: p.UserID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("update settings for user %s: %w", p.UserID, err)
@@ -51,7 +62,9 @@ func (h *Handler) UpdateSettings(ctx context.Context, req apigen.UpdateSettingsR
 }
 
 func settingsOf(row dbgen.Setting) apigen.Settings {
-	return apigen.Settings{Timezone: row.Timezone, DigestTime: row.DigestLocalTime, Hemisphere: apigen.SettingsHemisphere(row.Hemisphere)}
+	return apigen.Settings{
+		Timezone: row.Timezone, DigestTime: row.DigestLocalTime, LaterTime: row.LaterLocalTime, Hemisphere: apigen.SettingsHemisphere(row.Hemisphere),
+	}
 }
 
 // ChangePassword sets a new password after checking the current one, keeping only

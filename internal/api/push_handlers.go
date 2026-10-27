@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/reilandeubank/grower/internal/apigen"
@@ -10,6 +12,7 @@ import (
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
 	"github.com/reilandeubank/grower/internal/push"
+	"github.com/reilandeubank/grower/internal/schedule"
 )
 
 // GetVapidKey returns the public key browsers subscribe with.
@@ -63,4 +66,27 @@ func (h *Handler) SendTestPush(ctx context.Context, _ apigen.SendTestPushRequest
 		return nil, fmt.Errorf("send test push: %w", err)
 	}
 	return apigen.SendTestPush204Response{}, nil
+}
+
+// RemindLater postpones today's reminder to the user's later time. The service worker
+// calls it from the reminder's "Remind me at" action.
+func (h *Handler) RemindLater(ctx context.Context, req apigen.RemindLaterRequestObject) (apigen.RemindLaterResponseObject, error) {
+	p, ok := auth.PrincipalFrom(ctx)
+	if !ok {
+		return apigen.RemindLater401ApplicationProblemPlusJSONResponse(unauthorized()), nil
+	}
+	date, err := schedule.Parse(req.Body.Date.String())
+	if err != nil {
+		return apigen.RemindLater400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest("Date must be YYYY-MM-DD.")}, nil
+	}
+	at, err := push.RemindLater(ctx, h.db, p.UserID, date, h.auth.Now())
+	switch {
+	case errors.Is(err, push.ErrNotToday):
+		return apigen.RemindLater409ApplicationProblemPlusJSONResponse(problem(http.StatusConflict, "This reminder is from another day.")), nil
+	case errors.Is(err, push.ErrTooLate):
+		return apigen.RemindLater409ApplicationProblemPlusJSONResponse(problem(http.StatusConflict, "Your later time has already passed today.")), nil
+	case err != nil:
+		return nil, fmt.Errorf("remind later: %w", err)
+	}
+	return apigen.RemindLater200JSONResponse{RemindAt: at}, nil
 }

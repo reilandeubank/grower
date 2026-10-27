@@ -19,13 +19,19 @@ func TestUpdateSettings(t *testing.T) {
 		t.Fatalf("today in Chicago = %s", got)
 	}
 
-	if me := expectJSON[apigen.Me](t, e.call(c, http.MethodGet, "/api/v1/me", ""), http.StatusOK); me.Settings.DigestTime != "08:00" || me.Settings.Hemisphere != apigen.North {
+	if me := expectJSON[apigen.Me](t, e.call(c, http.MethodGet, "/api/v1/me", ""), http.StatusOK); me.Settings.DigestTime != "08:00" || me.Settings.LaterTime != "17:30" || me.Settings.Hemisphere != apigen.North {
 		t.Errorf("default settings = %+v", me.Settings)
 	}
 	for _, clock := range []string{"", "8:00", "24:00", "08:60", "08:00:00", "noon"} {
 		resp := e.call(c, http.MethodPut, "/api/v1/settings", `{"timezone":"UTC","digest_time":"`+clock+`"}`)
 		if got := expectProblem(t, resp, http.StatusBadRequest); got != "Pick a time like 08:00." {
 			t.Errorf("%q: detail = %q", clock, got)
+		}
+	}
+	for _, clock := range []string{"5:30", "24:00", "17:60", "evening"} {
+		resp := e.call(c, http.MethodPut, "/api/v1/settings", `{"timezone":"UTC","digest_time":"08:00","later_time":"`+clock+`","hemisphere":"north"}`)
+		if got := expectProblem(t, resp, http.StatusBadRequest); got != "Pick a later time like 17:30." {
+			t.Errorf("later %q: detail = %q", clock, got)
 		}
 	}
 	for _, h := range []string{"", "east", "North"} {
@@ -41,9 +47,14 @@ func TestUpdateSettings(t *testing.T) {
 		}
 	}
 
-	got := expectJSON[apigen.Settings](t, e.call(c, http.MethodPut, "/api/v1/settings", `{"timezone":"Europe/London","digest_time":"07:30","hemisphere":"south"}`), http.StatusOK)
-	if got.Timezone != "Europe/London" || got.DigestTime != "07:30" || got.Hemisphere != apigen.South {
+	got := expectJSON[apigen.Settings](t, e.call(c, http.MethodPut, "/api/v1/settings", `{"timezone":"Europe/London","digest_time":"07:30","later_time":"18:15","hemisphere":"south"}`), http.StatusOK)
+	if got.Timezone != "Europe/London" || got.DigestTime != "07:30" || got.LaterTime != "18:15" || got.Hemisphere != apigen.South {
 		t.Errorf("settings = %+v", got)
+	}
+	// A client that predates later_time keeps the saved one.
+	got = expectJSON[apigen.Settings](t, e.call(c, http.MethodPut, "/api/v1/settings", `{"timezone":"Europe/London","digest_time":"07:30","hemisphere":"south"}`), http.StatusOK)
+	if got.LaterTime != "18:15" {
+		t.Errorf("later time without later_time = %q, want 18:15", got.LaterTime)
 	}
 	if me := expectJSON[apigen.Me](t, e.call(c, http.MethodGet, "/api/v1/me", ""), http.StatusOK); me.Settings != got {
 		t.Errorf("me settings = %+v", me.Settings)

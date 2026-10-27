@@ -839,6 +839,18 @@ type PushUnsubscribe struct {
 	Endpoint string `json:"endpoint"`
 }
 
+// RemindLater defines model for RemindLater.
+type RemindLater struct {
+	// Date The local date (YYYY-MM-DD) of the reminder being postponed. Only today's can be.
+	Date openapi_types.Date `json:"date"`
+}
+
+// RemindLaterQueued defines model for RemindLaterQueued.
+type RemindLaterQueued struct {
+	// RemindAt When the reminder will be sent again.
+	RemindAt time.Time `json:"remind_at"`
+}
+
 // Settings defines model for Settings.
 type Settings struct {
 	// DigestTime Local time (HH:MM) of the daily care reminder, sent to every subscribed device.
@@ -848,6 +860,11 @@ type Settings struct {
 
 	// Hemisphere Decides which months count as winter for seasonal care adjustment.
 	Hemisphere SettingsHemisphere `json:"hemisphere"`
+
+	// LaterTime Local time (HH:MM) a postponed daily reminder is sent again. A reminder sent before this time offers a "Remind me at" action. An update without it keeps the current value.
+	//
+	// Example: 17:30
+	LaterTime string `json:"later_time"`
 
 	// Timezone IANA time zone used to decide what "today" is.
 	//
@@ -1059,6 +1076,9 @@ type UploadPhotoMultipartRequestBody = PhotoUpload
 // CreateTaskJSONRequestBody defines body for CreateTask for application/json ContentType.
 type CreateTaskJSONRequestBody = CareTaskInput
 
+// RemindLaterJSONRequestBody defines body for RemindLater for application/json ContentType.
+type RemindLaterJSONRequestBody = RemindLater
+
 // UnsubscribePushJSONRequestBody defines body for UnsubscribePush for application/json ContentType.
 type UnsubscribePushJSONRequestBody = PushUnsubscribe
 
@@ -1172,6 +1192,9 @@ type ServerInterface interface {
 
 	// (POST /plants/{id}/tasks)
 	CreateTask(w http.ResponseWriter, r *http.Request, id Id)
+	// RemindLater Send today's daily reminder again at the user's later time. The reminder's "Remind me at" action calls this; asking twice for the same day queues it once.
+	// (POST /push/remind-later)
+	RemindLater(w http.ResponseWriter, r *http.Request)
 	// UnsubscribePush Stop reminders on a device. Unknown endpoints are ignored.
 	// (DELETE /push/subscriptions)
 	UnsubscribePush(w http.ResponseWriter, r *http.Request)
@@ -1900,6 +1923,20 @@ func (siw *ServerInterfaceWrapper) CreateTask(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// RemindLater operation middleware
+func (siw *ServerInterfaceWrapper) RemindLater(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemindLater(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // UnsubscribePush operation middleware
 func (siw *ServerInterfaceWrapper) UnsubscribePush(w http.ResponseWriter, r *http.Request) {
 
@@ -2353,6 +2390,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/push/subscriptions", wrapper.UnsubscribePush)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/push/subscriptions", wrapper.SubscribePush)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/push/test", wrapper.SendTestPush)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/push/remind-later", wrapper.RemindLater)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/species", wrapper.ListSpecies)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/species", wrapper.CreateSpecies)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/species/lookup", wrapper.LookupSpecies)
@@ -4036,6 +4074,72 @@ func (response CreateTask404ApplicationProblemPlusJSONResponse) VisitCreateTaskR
 	return err
 }
 
+type RemindLaterRequestObject struct {
+	Body *RemindLaterJSONRequestBody
+}
+
+type RemindLaterResponseObject interface {
+	VisitRemindLaterResponse(w http.ResponseWriter) error
+}
+
+type RemindLater200JSONResponse RemindLaterQueued
+
+func (response RemindLater200JSONResponse) VisitRemindLaterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemindLater400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response RemindLater400ApplicationProblemPlusJSONResponse) VisitRemindLaterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemindLater401ApplicationProblemPlusJSONResponse Problem
+
+func (response RemindLater401ApplicationProblemPlusJSONResponse) VisitRemindLaterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemindLater409ApplicationProblemPlusJSONResponse Problem
+
+func (response RemindLater409ApplicationProblemPlusJSONResponse) VisitRemindLaterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type UnsubscribePushRequestObject struct {
 	Body *UnsubscribePushJSONRequestBody
 }
@@ -4932,6 +5036,9 @@ type StrictServerInterface interface {
 
 	// (POST /plants/{id}/tasks)
 	CreateTask(ctx context.Context, request CreateTaskRequestObject) (CreateTaskResponseObject, error)
+	// RemindLater Send today's daily reminder again at the user's later time. The reminder's "Remind me at" action calls this; asking twice for the same day queues it once.
+	// (POST /push/remind-later)
+	RemindLater(ctx context.Context, request RemindLaterRequestObject) (RemindLaterResponseObject, error)
 	// UnsubscribePush Stop reminders on a device. Unknown endpoints are ignored.
 	// (DELETE /push/subscriptions)
 	UnsubscribePush(ctx context.Context, request UnsubscribePushRequestObject) (UnsubscribePushResponseObject, error)
@@ -5842,6 +5949,37 @@ func (sh *strictHandler) CreateTask(w http.ResponseWriter, r *http.Request, id I
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateTaskResponseObject); ok {
 		if err := validResponse.VisitCreateTaskResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemindLater operation middleware
+func (sh *strictHandler) RemindLater(w http.ResponseWriter, r *http.Request) {
+	var request RemindLaterRequestObject
+
+	var body RemindLaterJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemindLater(ctx, request.(RemindLaterRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemindLater")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemindLaterResponseObject); ok {
+		if err := validResponse.VisitRemindLaterResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

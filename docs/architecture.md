@@ -95,6 +95,10 @@ func Today(now time.Time, loc *time.Location) Date // the only time-zone-aware f
 - The daily reminder time is resolved per day in the configured zone.
   A time in a spring-forward gap moves forward.
   A repeated fall-back hour sends once; the job is keyed `digest:<user>:<local date>`.
+- A reminder sent before the user's later time (`later_time`, default 17:30) carries its local date and that time, and the notification offers "Remind me at 5:30 PM".
+  The action calls `POST /push/remind-later`, which queues a second digest job keyed `digest-later:<user>:<local date>` at the later time, so repeated taps queue it once.
+  Only today's reminder can be postponed, and only before the later time.
+  The second reminder recomputes what is due, offers no action, and is skipped when nothing is left.
 
 ### Moisture-check watering
 

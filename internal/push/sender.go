@@ -34,6 +34,10 @@ type Message struct {
 	URL string `json:"url"`
 	// Tag replaces an earlier notification with the same tag on the device.
 	Tag string `json:"tag"`
+	// Date and LaterTime, when set, offer "Remind me at <LaterTime>", which postpones
+	// the reminder for that local date (POST /push/remind-later).
+	Date      string `json:"date,omitempty"`
+	LaterTime string `json:"later_time,omitempty"`
 }
 
 // Sender delivers messages to a user's subscribed devices.

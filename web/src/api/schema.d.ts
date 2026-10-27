@@ -174,6 +174,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/push/remind-later": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send today's daily reminder again at the user's later time. The reminder's "Remind me at" action calls this; asking twice for the same day queues it once. */
+        post: operations["remindLater"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/species": {
         parameters: {
             query?: never;
@@ -615,6 +632,25 @@ export interface components {
              * @example 08:00
              */
             digest_time: string;
+            /**
+             * @description Local time (HH:MM) a postponed daily reminder is sent again. A reminder sent before this time offers a "Remind me at" action. An update without it keeps the current value.
+             * @example 17:30
+             */
+            later_time: string;
+        };
+        RemindLater: {
+            /**
+             * Format: date
+             * @description The local date (YYYY-MM-DD) of the reminder being postponed. Only today's can be.
+             */
+            date: string;
+        };
+        RemindLaterQueued: {
+            /**
+             * Format: date-time
+             * @description When the reminder will be sent again.
+             */
+            remind_at: string;
         };
         /** @description A browser PushSubscription, as returned by PushSubscription.toJSON(). */
         PushSubscription: {
@@ -1393,6 +1429,33 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Problem"];
+        };
+    };
+    remindLater: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemindLater"];
+            };
+        };
+        responses: {
+            /** @description Queued, or already queued. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemindLaterQueued"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
     listSpecies: {

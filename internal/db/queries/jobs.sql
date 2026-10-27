@@ -26,3 +26,6 @@ WHERE id = ?;
 UPDATE jobs SET status = ?, attempts = attempts + 1, last_error = ?, run_after = ?,
     locked_until = NULL, updated_at = ?
 WHERE id = ?;
+
+-- name: GetJobRunAfter :one
+SELECT run_after FROM jobs WHERE dedupe_key = ?;
