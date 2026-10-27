@@ -1,9 +1,11 @@
 name: CI
 
+# Runs on pull requests only. main changes only through squash-merged pull requests
+# that must be up to date with main, so the tested tree is the tree that lands.
+# Run it by hand (Actions → CI → Run workflow) to check main directly.
 on:
   pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
