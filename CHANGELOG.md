@@ -62,10 +62,14 @@ Versions follow [semantic versioning](https://semver.org/); every release's data
 
 ## 0.2.0 (2026-10-14)
 
-First tagged release.
-
-- Single-user login with long-lived sessions; accounts are created from the command line.
 - Plants and locations, with archive, restore and a location filter.
 - Care tasks (water, fertilize, mist, repot, rotate, custom) counted from completion or on a fixed calendar, with snooze, skip and undo.
 - Today: overdue, due and coming up, with one-tap done.
-- Installable PWA.
+
+## 0.1.0 (2026-10-14)
+
+First release.
+
+- Login with long-lived sessions; accounts are created from the command line.
+- Installable PWA with an app shell and an empty Today screen.
+- Single container image with SQLite, health check and automatic migrations.

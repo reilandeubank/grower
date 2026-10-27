@@ -1,0 +1,41 @@
+name: Backfill releases
+
+# Run by hand (Actions → Backfill releases → Run workflow). Creates a GitHub Release,
+# with notes from CHANGELOG.md, for every changelog version whose tag already exists
+# and has no release yet. Safe to re-run. It never creates tags or builds images:
+# new releases go through the normal process in CONTRIBUTING.md.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Create missing releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          newest=""
+          while IFS= read -r payload; do
+            tag=$(jq -r .tag_name <<<"$payload")
+            if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              echo "skip $tag: no such tag"; continue
+            fi
+            newest=$tag
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "skip $tag: release exists"; continue
+            fi
+            gh api "repos/$REPO/releases" --input - <<<"$payload" --jq '"created \(.tag_name)"'
+          done < <(python3 .github/scripts/release_notes.py "$REPO" CHANGELOG.md)
+          if [ -n "$newest" ]; then
+            id=$(gh api "repos/$REPO/releases/tags/$newest" --jq .id)
+            gh api -X PATCH "repos/$REPO/releases/$id" -f make_latest=true --jq '"latest is \(.tag_name)"'
+          fi
