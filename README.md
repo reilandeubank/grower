@@ -7,11 +7,11 @@ grower keeps the schedule, a photo timeline and a growth journal for every plant
 It's a single container with SQLite, made to be installed as an app on your phone's home screen (a PWA).
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/6515453c-d77a-46a2-8626-95d15fae8301" width="30%" alt="grower screenshot 1" />
+  <img src="https://github.com/user-attachments/assets/4e1f0404-dfb2-4674-b5ec-56a6b560e4de" width="30%" alt="grower screenshot 1" />
   &nbsp;
-  <img src="https://github.com/user-attachments/assets/744636fa-8fb0-416d-b794-bdbc5e82d5b3" width="30%" alt="grower screenshot 2" />
+  <img src="https://github.com/user-attachments/assets/e9e537a8-8d96-459a-99c2-756acf1ed30e" width="30%" alt="grower screenshot 2" />
   &nbsp;
-  <img src="https://github.com/user-attachments/assets/90131beb-fe45-46bf-80c2-9d9411975c7e" width="30%" alt="grower screenshot 3" />
+  <img src="https://github.com/user-attachments/assets/567c7316-9015-4969-9a71-a2e631643b97" width="30%" alt="grower screenshot 3" />
 </p>
 
 ## Features
