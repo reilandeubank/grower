@@ -1,9 +1,5 @@
 import { Navigate, type RouteObject } from "react-router";
-import {
-  RedirectIfSignedIn,
-  RequireAuth,
-  RequireSetupNeeded,
-} from "./auth/guards";
+import { RedirectIfSignedIn, RequireAuth, RequireSetupNeeded } from "./auth/guards";
 import { ArchivedPlants } from "./routes/ArchivedPlants";
 import { Locations } from "./routes/Locations";
 import { Login } from "./routes/Login";

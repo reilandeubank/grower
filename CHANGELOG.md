@@ -5,8 +5,8 @@ Versions follow [semantic versioning](https://semver.org/); every release's data
 
 ## Unreleased
 
-- First-run setup page: on a fresh install, open grower and create your account with the setup code printed in the server log, with no `docker exec` needed.
-  Set `GROWER_SETUP_CODE` to choose the code yourself; `grower user create` still works and adds further users.
+- First-run setup page: on a fresh install, open grower and create your account, with no `docker exec` needed.
+  It's open for 10 minutes after startup; `grower user create` still works and adds further users.
 - Postpone the daily reminder: the notification offers "Remind me at 5:30 PM", which sends it again at a later time you choose in Settings.
 - Multi-arch images: `linux/arm64` alongside `linux/amd64`.
 - Images are no longer tagged `:sha-<commit>`; pin a release instead (existing `:sha-` tags stay available).

@@ -42,11 +42,10 @@ curl -O https://raw.githubusercontent.com/reilandeubank/grower/main/deploy/compo
 # edit every value marked CHANGE, then:
 mkdir data && sudo chown 1000:1000 data
 docker compose up -d
-docker compose logs grower | grep "setup code"
 ```
 
 Point your reverse proxy at port 8080 and open your domain.
-grower asks for the setup code from the log, then you choose a username and password and install the app from your browser's menu.
+Within 10 minutes of starting grower, choose your username and password there (`docker compose restart` gives you another 10), then install the app from your browser's menu.
 The full guide, including a Caddy example and a TrueNAS SCALE + Nginx Proxy Manager walkthrough, is in [docs/deploy.md](docs/deploy.md).
 
 ## Configuration
@@ -60,7 +59,6 @@ All configuration is environment variables:
 | `GROWER_LISTEN` | `:8080` | Listen address. |
 | `GROWER_TRUSTED_PROXIES` | (none) | Comma-separated CIDRs whose `X-Forwarded-*` headers are trusted. |
 | `GROWER_TZ` | `UTC` | Time zone for users created from the command line, and for the first account when the browser doesn't report one (changeable in Settings). |
-| `GROWER_SETUP_CODE` | (generated) | Your own first-run setup code (8 characters or more) instead of the one printed in the log. Never logged. |
 | `GROWER_LOG_FORMAT` | `json` | `json` or `text`. |
 | `GROWER_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`. |
 | `GROWER_OPENPLANTBOOK_CLIENT_ID` | (none) | Open Plantbook OAuth2 client ID. Set with the secret, or neither. |

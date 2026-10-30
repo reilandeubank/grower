@@ -877,8 +877,6 @@ type SettingsHemisphere string
 
 // SetupRequest defines model for SetupRequest.
 type SetupRequest struct {
-	// Code The setup code from the server log. Case, spaces and dashes are ignored.
-	Code     string `json:"code"`
 	Password string `json:"password"`
 
 	// Timezone IANA time zone for the new account; GROWER_TZ when missing or unknown.
@@ -890,6 +888,9 @@ type SetupRequest struct {
 type SetupStatus struct {
 	// Needed True while no account exists yet.
 	Needed bool `json:"needed"`
+
+	// Open True while the first account can be created; false once the window after startup has passed.
+	Open bool `json:"open"`
 }
 
 // Species defines model for Species.
@@ -1230,10 +1231,10 @@ type ServerInterface interface {
 	// UpdateSettings Replace the user's settings.
 	// (PUT /settings)
 	UpdateSettings(w http.ResponseWriter, r *http.Request)
-	// GetSetup Whether this instance still needs its first account.
+	// GetSetup Whether this instance still needs its first account, and whether it can be created now.
 	// (GET /setup)
 	GetSetup(w http.ResponseWriter, r *http.Request)
-	// CompleteSetup Create the first account with the setup code from the server log; sets the session cookie.
+	// CompleteSetup Create the first account; sets the session cookie.
 	// (POST /setup)
 	CompleteSetup(w http.ResponseWriter, r *http.Request)
 	// ListSpecies Saved species, matching q in the scientific or common name when given. Never calls a provider.
@@ -5211,10 +5212,10 @@ type StrictServerInterface interface {
 	// UpdateSettings Replace the user's settings.
 	// (PUT /settings)
 	UpdateSettings(ctx context.Context, request UpdateSettingsRequestObject) (UpdateSettingsResponseObject, error)
-	// GetSetup Whether this instance still needs its first account.
+	// GetSetup Whether this instance still needs its first account, and whether it can be created now.
 	// (GET /setup)
 	GetSetup(ctx context.Context, request GetSetupRequestObject) (GetSetupResponseObject, error)
-	// CompleteSetup Create the first account with the setup code from the server log; sets the session cookie.
+	// CompleteSetup Create the first account; sets the session cookie.
 	// (POST /setup)
 	CompleteSetup(ctx context.Context, request CompleteSetupRequestObject) (CompleteSetupResponseObject, error)
 	// ListSpecies Saved species, matching q in the scientific or common name when given. Never calls a provider.

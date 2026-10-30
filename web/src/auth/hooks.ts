@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, ApiError, type Me } from "../api/client";
+import { api, ApiError, type Me, type SetupStatus } from "../api/client";
 import { API_CACHE, MEDIA_CACHE } from "../lib/cacheNames";
 import { disable as disablePush } from "../settings/push";
 
@@ -21,20 +21,24 @@ export function useMe() {
 
 export const setupKey = ["setup"] as const;
 
+/** Set once an account exists, so the guards stop sending anyone to /setup. */
+export const setupDone: SetupStatus = { needed: false, open: false };
+
 /**
- * Whether this grower still needs its first account. Only asked while signed out. Any failure
- * (offline, an older server without /setup) reads as "no", so the login page still shows.
+ * Whether this grower still needs its first account, and whether it can be created now. Only
+ * asked while signed out. Any failure (offline, an older server without /setup) reads as "not
+ * needed", so the login page still shows.
  */
-export function useSetupNeeded(enabled: boolean) {
-  return useQuery<boolean, Error>({
+export function useSetupStatus(enabled: boolean) {
+  return useQuery<SetupStatus, Error>({
     queryKey: setupKey,
     enabled,
     queryFn: async () => {
       try {
         const { data } = await api.GET("/setup");
-        return data?.needed ?? false;
+        return data ?? setupDone;
       } catch {
-        return false;
+        return setupDone;
       }
     },
     staleTime: 5 * 60 * 1000,
@@ -42,7 +46,6 @@ export function useSetupNeeded(enabled: boolean) {
 }
 
 export interface SetupValues {
-  code: string;
   username: string;
   password: string;
   timezone?: string;
@@ -58,7 +61,7 @@ export function useCompleteSetup() {
       return data;
     },
     onSuccess: (me) => {
-      queryClient.setQueryData(setupKey, false);
+      queryClient.setQueryData(setupKey, setupDone);
       queryClient.setQueryData(meKey, me);
     },
   });
@@ -103,7 +106,5 @@ export function useLogout() {
 /** Deletes the service worker's copies of API answers and photos (see vite.config.ts). */
 export async function clearOfflineCaches() {
   if (!("caches" in window)) return;
-  await Promise.all(
-    [API_CACHE, MEDIA_CACHE].map((name) => caches.delete(name)),
-  );
+  await Promise.all([API_CACHE, MEDIA_CACHE].map((name) => caches.delete(name)));
 }

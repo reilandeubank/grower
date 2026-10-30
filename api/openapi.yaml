@@ -46,10 +46,11 @@ paths:
   /setup:
     get:
       operationId: getSetup
-      summary: Whether this instance still needs its first account.
+      summary: Whether this instance still needs its first account, and whether it can be created now.
       description: |
-        True only while there are no users. The web app shows the setup page instead of
-        the login page while it is.
+        `needed` is true while there are no users; the web app then shows the setup page
+        instead of the login page. `open` is true for the first 10 minutes after the
+        server starts with no users.
       security: []
       responses:
         "200":
@@ -60,10 +61,11 @@ paths:
                 $ref: "#/components/schemas/SetupStatus"
     post:
       operationId: completeSetup
-      summary: Create the first account with the setup code from the server log; sets the session cookie.
+      summary: Create the first account; sets the session cookie.
       description: |
-        Only works while there are no users. The setup code is printed in the server log
-        at startup (or set with GROWER_SETUP_CODE). Attempts share the login rate limit.
+        Only works while there are no users, and only in the first 10 minutes after the
+        server starts (403 after that; restarting opens a new window). Attempts share
+        the login rate limit.
       security: []
       requestBody:
         required: true
@@ -962,20 +964,18 @@ components:
           maxLength: 256
     SetupStatus:
       type: object
-      required: [needed]
+      required: [needed, open]
       properties:
         needed:
           type: boolean
           description: True while no account exists yet.
+        open:
+          type: boolean
+          description: True while the first account can be created; false once the window after startup has passed.
     SetupRequest:
       type: object
-      required: [code, username, password]
+      required: [username, password]
       properties:
-        code:
-          type: string
-          description: The setup code from the server log. Case, spaces and dashes are ignored.
-          minLength: 1
-          maxLength: 128
         username:
           type: string
           minLength: 1

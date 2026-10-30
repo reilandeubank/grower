@@ -38,8 +38,6 @@ type env struct {
 	cfg     config.Config
 	// pushService receives every notification the server sends.
 	pushService *pushtest.Service
-	// setupCode is the armed first-run code when envOptions.firstRun is set.
-	setupCode string
 }
 
 type envOptions struct {
@@ -50,7 +48,7 @@ type envOptions struct {
 	species []species.Provider
 	// plantnet is the identification adapter (none by default).
 	plantnet *species.PlantNet
-	// firstRun starts with no users and first-run setup armed, as `serve` does on a
+	// firstRun starts with no users and the setup window open, as `serve` does on a
 	// fresh data dir.
 	firstRun bool
 }
@@ -75,9 +73,8 @@ func newEnv(t *testing.T, opts envOptions) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var setupCode string
 	if opts.firstRun {
-		if setupCode, _, err = svc.PrepareSetup(context.Background(), cfg.SetupCode); err != nil {
+		if _, err := svc.PrepareSetup(context.Background()); err != nil {
 			t.Fatal(err)
 		}
 	} else if _, err := svc.CreateUser(context.Background(), testUser, testPassword, cfg.Location.String()); err != nil {
@@ -95,7 +92,7 @@ func newEnv(t *testing.T, opts envOptions) *env {
 	fake := pushtest.New(t)
 	pusher := &push.Sender{DB: d, Keys: keys, Subject: "http://grower.test", Client: fake.Client(), Now: clock.Now, Log: log}
 	h := New(Deps{Config: cfg, DB: d, Auth: svc, Push: pusher, Species: species.NewLookup(clock.Now, opts.species...), Identify: opts.plantnet, SPA: spa, Log: log})
-	return &env{t: t, handler: h, db: d, clock: clock, cfg: cfg, pushService: fake, setupCode: setupCode}
+	return &env{t: t, handler: h, db: d, clock: clock, cfg: cfg, pushService: fake}
 }
 
 // request describes one call; zero values give a same-origin JSON request.

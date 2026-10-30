@@ -8,9 +8,7 @@ import { defineConfig, devices } from "@playwright/test";
 process.env.GROWER_E2E_DATA_DIR ??= mkdtempSync(join(tmpdir(), "grower-e2e-"));
 const dataDir = process.env.GROWER_E2E_DATA_DIR;
 // A second server starts with no account, for the first-run setup spec.
-process.env.GROWER_E2E_SETUP_DATA_DIR ??= mkdtempSync(
-  join(tmpdir(), "grower-e2e-"),
-);
+process.env.GROWER_E2E_SETUP_DATA_DIR ??= mkdtempSync(join(tmpdir(), "grower-e2e-"));
 const setupDataDir = process.env.GROWER_E2E_SETUP_DATA_DIR;
 
 const port = 8099;
@@ -90,7 +88,6 @@ export default defineConfig({
         GROWER_BASE_URL: SETUP_SERVER.baseURL,
         GROWER_LOG_FORMAT: "text",
         GROWER_TZ: timeZone,
-        GROWER_SETUP_CODE: SETUP_SERVER.code,
       },
     },
   ],

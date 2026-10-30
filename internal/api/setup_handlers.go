@@ -12,27 +12,27 @@ import (
 	"github.com/reilandeubank/grower/internal/auth"
 )
 
-// GetSetup reports whether the first account still needs creating. It is public and
-// says nothing else, so it reveals no more than the login page does.
+// GetSetup reports whether the first account still needs creating and whether that
+// is possible now. It is public and says nothing else.
 func (h *Handler) GetSetup(ctx context.Context, _ apigen.GetSetupRequestObject) (apigen.GetSetupResponseObject, error) {
-	needed, err := h.auth.SetupNeeded(ctx)
+	status, err := h.auth.Setup(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return apigen.GetSetup200JSONResponse{Needed: needed}, nil
+	return apigen.GetSetup200JSONResponse{Needed: status.Needed, Open: status.Open}, nil
 }
 
-// CompleteSetup creates the first account with the setup code and signs it in.
+// CompleteSetup creates the first account while setup is open and signs it in.
 func (h *Handler) CompleteSetup(ctx context.Context, req apigen.CompleteSetupRequestObject) (apigen.CompleteSetupResponseObject, error) {
 	body := req.Body
-	if body.Code == "" || utf8.RuneCountInString(body.Code) > 128 || body.Username == "" || body.Password == "" || utf8.RuneCountInString(body.Password) > 256 {
+	if body.Username == "" || body.Password == "" || utf8.RuneCountInString(body.Password) > 256 {
 		return apigen.CompleteSetup400ApplicationProblemPlusJSONResponse{
-			ProblemApplicationProblemPlusJSONResponse: badRequest("Setup code, username and password are required."),
+			ProblemApplicationProblemPlusJSONResponse: badRequest("Username and password are required."),
 		}, nil
 	}
 
 	r := requestFrom(ctx)
-	principal, token, err := h.auth.CompleteSetup(ctx, body.Code, body.Username, body.Password, h.setupZone(body.Timezone), clientIP(r), r.UserAgent())
+	principal, token, err := h.auth.CompleteSetup(ctx, body.Username, body.Password, h.setupZone(body.Timezone), clientIP(r), r.UserAgent())
 	switch {
 	case errors.Is(err, auth.ErrRateLimited):
 		return apigen.CompleteSetup429ApplicationProblemPlusJSONResponse(
@@ -40,9 +40,9 @@ func (h *Handler) CompleteSetup(ctx context.Context, req apigen.CompleteSetupReq
 	case errors.Is(err, auth.ErrSetupDone):
 		return apigen.CompleteSetup409ApplicationProblemPlusJSONResponse(
 			problem(http.StatusConflict, "This grower already has an account. Log in instead.")), nil
-	case errors.Is(err, auth.ErrWrongSetupCode):
+	case errors.Is(err, auth.ErrSetupExpired):
 		return apigen.CompleteSetup403ApplicationProblemPlusJSONResponse(
-			problem(http.StatusForbidden, "That setup code doesn't match. Check the server log for the current one.")), nil
+			problem(http.StatusForbidden, setupExpired)), nil
 	case errors.Is(err, auth.ErrInvalidUsername):
 		return apigen.CompleteSetup400ApplicationProblemPlusJSONResponse{
 			ProblemApplicationProblemPlusJSONResponse: badRequest("Use a username of up to 64 characters with no spaces."),
@@ -61,6 +61,9 @@ func (h *Handler) CompleteSetup(ctx context.Context, req apigen.CompleteSetupReq
 	}
 	return loginSuccess{me: me, cookie: h.cookie, token: token, expires: principal.ExpiresAt, now: h.auth.Now()}, nil
 }
+
+// setupExpired is shown once the window after startup has passed.
+var setupExpired = fmt.Sprintf("Setup closed %d minutes after grower started. Restart grower, then create your account.", int(auth.SetupWindow.Minutes()))
 
 // setupZone is the browser's zone when it is a real IANA name, else GROWER_TZ.
 func (h *Handler) setupZone(tz *string) string {

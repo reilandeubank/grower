@@ -17,16 +17,9 @@ Images are published for `linux/amd64` and `linux/arm64` (a Raspberry Pi 4 or ne
      The image runs as non-root, so `mkdir data && sudo chown 1000:1000 data` (or your own `id -u`:`id -g`) before the first start.
    - `GROWER_TRUSTED_PROXIES`: see [Trusted proxies](#trusted-proxies).
 2. Start it: `docker compose up -d`.
-3. Once your [reverse proxy](#https-with-a-reverse-proxy) is set up, create your account (once).
-   While grower has no account, it prints a setup code in its log at startup:
-
-   ```sh
-   docker compose logs grower | grep "setup code"
-   ```
-
-   Open `GROWER_BASE_URL` in a browser, enter the code, and choose a username and a password (10 characters minimum).
-   You're signed in right away, and the setup page is gone for good.
-   See [First account](#first-account) for the details and alternatives.
+3. Once your [reverse proxy](#https-with-a-reverse-proxy) is set up, open `GROWER_BASE_URL` and choose a username and a password (10 characters minimum).
+   This only works in the first 10 minutes after grower starts; if they've passed, `docker compose restart grower` and reload the page.
+   See [First account](#first-account) for why, and for the command-line alternative.
 
 ### HTTPS with a reverse proxy
 
@@ -121,8 +114,6 @@ A walkthrough for TrueNAS SCALE 24.10 or newer (Docker-based apps) with Nginx Pr
    - Change the published port if 8080 is taken, e.g. `"18080:8080"`.
    - Optionally add `pull_policy: always` if you track a moving tag like `:latest` ([update.md](update.md)).
 2. **Apps → Discover Apps → ⋮ → Install via YAML**, name it `grower`, paste the file, save ([TrueNAS docs: custom app screens](https://www.truenas.com/docs/scale/25.04/scaleuireference/apps/installcustomappscreens/#add-custom-app-screen)).
-3. Open the app's logs from **Apps → grower** and note the setup code in the line starting `No account yet`.
-   You'll use it in [step 4](#4-create-your-account).
 
 ### 3. Add an NPM proxy host
 
@@ -136,24 +127,18 @@ NPM already sends `X-Forwarded-For` and `X-Forwarded-Proto`; set `GROWER_TRUSTED
 
 ### 4. Create your account
 
-Open `https://grower.example.com`, enter the setup code from step 2, and choose a username and password.
-If the app restarted in between (editing it restarts it, for example), the code has changed: check the logs again.
+Open `https://grower.example.com` and choose a username and password.
+This works for 10 minutes after the app starts; saving the `GROWER_TRUSTED_PROXIES` edit above restarts it, so do this right after.
+If the page says setup has closed, restart the app from **Apps → grower** and reload.
 
 ## First account
 
-While grower has no account, every start prints a new setup code at warn level:
+While grower has no account, `GROWER_BASE_URL` shows a **Create your account** page instead of the login page, and the log says so at startup.
+Whoever fills it in first owns the instance, so it only accepts an account in the first 10 minutes after grower starts; after that it says to restart grower.
+That keeps the window in which a stranger who finds your domain could get there first short.
+Tries share the login rate limit, and once the account exists the page and its endpoint are gone for good.
 
-```
-No account yet. Open https://grower.example.com and enter setup code K7Q2M-X9PB4
-```
-
-Whoever opens `GROWER_BASE_URL` first sees a **Create your account** page, which asks for that code, so only someone who can read the server's logs can claim the instance.
-The code ignores case, spaces and dashes, is kept in memory only, and tries share the login rate limit.
-Once the account exists, the page and its endpoint are gone for good.
-
-- To choose the code yourself (from a compose secret, say), set `GROWER_SETUP_CODE` to 8 or more characters.
-  grower then logs that a code is set but never the code itself.
-- You can still create the account from the command line instead, and that's how to add more users later (everyone shares the same plants):
+You can create the account from the command line instead, and that's how to add more users later (everyone shares the same plants):
 
   ```sh
   docker compose exec grower /usr/local/bin/grower user create --username <you>

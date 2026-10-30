@@ -2,6 +2,7 @@ import createClient from "openapi-fetch";
 import type { components, paths } from "./schema";
 
 export type Me = components["schemas"]["Me"];
+export type SetupStatus = components["schemas"]["SetupStatus"];
 export type Settings = components["schemas"]["Settings"];
 export type StorageUse = components["schemas"]["Storage"];
 export type PotType = components["schemas"]["PotType"];

@@ -46,16 +46,18 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Whether this instance still needs its first account.
-         * @description True only while there are no users. The web app shows the setup page instead of
-         *     the login page while it is.
+         * Whether this instance still needs its first account, and whether it can be created now.
+         * @description `needed` is true while there are no users; the web app then shows the setup page
+         *     instead of the login page. `open` is true for the first 10 minutes after the
+         *     server starts with no users.
          */
         get: operations["getSetup"];
         put?: never;
         /**
-         * Create the first account with the setup code from the server log; sets the session cookie.
-         * @description Only works while there are no users. The setup code is printed in the server log
-         *     at startup (or set with GROWER_SETUP_CODE). Attempts share the login rate limit.
+         * Create the first account; sets the session cookie.
+         * @description Only works while there are no users, and only in the first 10 minutes after the
+         *     server starts (403 after that; restarting opens a new window). Attempts share
+         *     the login rate limit.
          */
         post: operations["completeSetup"];
         delete?: never;
@@ -641,10 +643,10 @@ export interface components {
         SetupStatus: {
             /** @description True while no account exists yet. */
             needed: boolean;
+            /** @description True while the first account can be created; false once the window after startup has passed. */
+            open: boolean;
         };
         SetupRequest: {
-            /** @description The setup code from the server log. Case, spaces and dashes are ignored. */
-            code: string;
             username: string;
             password: string;
             /** @description IANA time zone for the new account; GROWER_TZ when missing or unknown. */

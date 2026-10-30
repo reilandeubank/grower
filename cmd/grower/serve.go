@@ -47,12 +47,12 @@ func cmdServe(args []string) error {
 	if err != nil {
 		return err
 	}
-	setupCode, setupNeeded, err := authSvc.PrepareSetup(ctx, cfg.SetupCode)
+	setupOpen, err := authSvc.PrepareSetup(ctx)
 	if err != nil {
 		return err
 	}
-	if setupNeeded {
-		logSetup(log, cfg, setupCode)
+	if setupOpen {
+		log.Warn(fmt.Sprintf("No account yet. Open %s within %d minutes to create one, or restart grower to try again.", cfg.BaseURL, int(auth.SetupWindow.Minutes())))
 	}
 
 	keys, err := push.LoadKeys(cfg.DataDir)

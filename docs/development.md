@@ -11,8 +11,8 @@ make web-install                                   # npm ci in web/
 make dev                                           # API :8080 + Vite :5173
 ```
 
-Open http://localhost:5173 and create your account with the setup code the API logs on first run.
-To skip the page, create one up front with `GROWER_DATA_DIR=./data go run ./cmd/grower user create --username dev`, or set `GROWER_SETUP_CODE` in your shell.
+Open http://localhost:5173 and create your account on the setup page (it's open for 10 minutes after the API starts).
+Or create one up front with `GROWER_DATA_DIR=./data go run ./cmd/grower user create --username dev`.
 Vite proxies `/api` and `/healthz` to the Go server.
 In dev, `GROWER_BASE_URL` is `http://localhost:5173`, so the cookie is non-secure `grower_session`.
 
