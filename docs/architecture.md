@@ -150,7 +150,8 @@ Levels: low < medium < bright_indirect < direct.
 
 ## Auth and operations
 
-- **Accounts:** created with `grower user create`; no signup endpoint. argon2id password hashes.
+- **Accounts:** the first one through the first-run setup page, which only works while there are no users and for 10 minutes after startup; its check that no user exists and the insert share one write transaction, so racing requests create one account.
+  Further accounts come from `grower user create`; there is no signup endpoint. argon2id password hashes.
   In-memory login rate limits per IP and globally.
 - **Sessions:** 32-byte random token, stored as SHA-256.
   Cookie `__Host-grower_session` over https, `grower_session` over plain http (local development); `HttpOnly; Secure; SameSite=Lax`.

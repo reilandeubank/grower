@@ -44,7 +44,7 @@ describe("Login", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Log in" }));
     expect(screen.getByText("Enter your username.")).toBeTruthy();
     expect(screen.getByText("Enter your password.")).toBeTruthy();
-    expect(fetchMock).toHaveBeenCalledTimes(1); // only the initial /me
+    expect(fetchMock).toHaveBeenCalledTimes(2); // only the initial /me and /setup
   });
 
   it("logs in and goes on to the next page", async () => {

@@ -41,6 +41,7 @@ type Service struct {
 	// time does not reveal whether an account exists.
 	dummyHash string
 	hashSlots chan struct{}
+	setup     setupState
 }
 
 // NewService builds the auth service. It hashes once up front to prepare dummyHash.

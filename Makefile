@@ -25,7 +25,7 @@ build:
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o bin/grower ./cmd/grower
 
 # Local development: API on :8080, Vite on :5173 proxying /api to it.
-# Create a user first: go run ./cmd/grower user create --username you
+# On first run, create your account on the setup page (or: go run ./cmd/grower user create --username you).
 DEV_ENV := GROWER_DATA_DIR=./data GROWER_BASE_URL=http://localhost:5173 GROWER_LOG_FORMAT=text
 dev-api:
 	$(DEV_ENV) go run ./cmd/grower serve

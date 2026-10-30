@@ -43,6 +43,51 @@ paths:
       responses:
         "204":
           description: Logged out (also returned when there was no session).
+  /setup:
+    get:
+      operationId: getSetup
+      summary: Whether this instance still needs its first account, and whether it can be created now.
+      description: |
+        `needed` is true while there are no users; the web app then shows the setup page
+        instead of the login page. `open` is true for the first 10 minutes after the
+        server starts with no users.
+      security: []
+      responses:
+        "200":
+          description: The setup state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupStatus"
+    post:
+      operationId: completeSetup
+      summary: Create the first account; sets the session cookie.
+      description: |
+        Only works while there are no users, and only in the first 10 minutes after the
+        server starts (403 after that; restarting opens a new window). Attempts share
+        the login rate limit.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetupRequest"
+      responses:
+        "200":
+          description: Account created and signed in. The session cookie is set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "429":
+          $ref: "#/components/responses/Problem"
   /me:
     get:
       operationId: getMe
@@ -917,6 +962,32 @@ components:
           type: string
           minLength: 1
           maxLength: 256
+    SetupStatus:
+      type: object
+      required: [needed, open]
+      properties:
+        needed:
+          type: boolean
+          description: True while no account exists yet.
+        open:
+          type: boolean
+          description: True while the first account can be created; false once the window after startup has passed.
+    SetupRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 1
+          maxLength: 256
+        timezone:
+          type: string
+          description: IANA time zone for the new account; GROWER_TZ when missing or unknown.
+          maxLength: 64
     User:
       type: object
       required: [id, username]

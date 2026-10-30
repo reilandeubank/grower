@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, ApiError, type Me } from "../api/client";
+import { api, ApiError, type Me, type SetupStatus } from "../api/client";
 import { API_CACHE, MEDIA_CACHE } from "../lib/cacheNames";
 import { disable as disablePush } from "../settings/push";
 
@@ -16,6 +16,54 @@ export function useMe() {
       return data;
     },
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export const setupKey = ["setup"] as const;
+
+/** Set once an account exists, so the guards stop sending anyone to /setup. */
+export const setupDone: SetupStatus = { needed: false, open: false };
+
+/**
+ * Whether this grower still needs its first account, and whether it can be created now. Only
+ * asked while signed out. Any failure (offline, an older server without /setup) reads as "not
+ * needed", so the login page still shows.
+ */
+export function useSetupStatus(enabled: boolean) {
+  return useQuery<SetupStatus, Error>({
+    queryKey: setupKey,
+    enabled,
+    queryFn: async () => {
+      try {
+        const { data } = await api.GET("/setup");
+        return data ?? setupDone;
+      } catch {
+        return setupDone;
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export interface SetupValues {
+  username: string;
+  password: string;
+  timezone?: string;
+}
+
+/** Creates the first account; on success the user is signed in, like a login. */
+export function useCompleteSetup() {
+  const queryClient = useQueryClient();
+  return useMutation<Me, Error, SetupValues>({
+    mutationFn: async (body) => {
+      const { data, error, response } = await api.POST("/setup", { body });
+      if (error || !data) throw new ApiError(response.status, error);
+      return data;
+    },
+    onSuccess: (me) => {
+      queryClient.setQueryData(setupKey, setupDone);
+      queryClient.setQueryData(meKey, me);
+    },
   });
 }
 

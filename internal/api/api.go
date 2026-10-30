@@ -24,8 +24,10 @@ type Handler struct {
 	media  *media.Store
 	// dataDir is GROWER_DATA_DIR, where the nightly backups live.
 	dataDir string
-	log     *slog.Logger
-	push    *push.Sender
+	// defaultZone is GROWER_TZ, for a first account whose browser sends no usable zone.
+	defaultZone string
+	log         *slog.Logger
+	push        *push.Sender
 	// lookup searches the configured species providers (possibly none).
 	lookup *species.Lookup
 	// identify suggests species from photos; nil when Pl@ntNet isn't configured.
@@ -35,8 +37,8 @@ type Handler struct {
 var _ apigen.StrictServerInterface = (*Handler)(nil)
 
 // New returns the API handler.
-func New(authSvc *auth.Service, d *db.DB, store *media.Store, pusher *push.Sender, lookup *species.Lookup, identify *species.PlantNet, cookie auth.CookieConfig, dataDir string, log *slog.Logger) *Handler {
-	return &Handler{auth: authSvc, db: d, media: store, push: pusher, lookup: lookup, identify: identify, cookie: cookie, dataDir: dataDir, log: log}
+func New(authSvc *auth.Service, d *db.DB, store *media.Store, pusher *push.Sender, lookup *species.Lookup, identify *species.PlantNet, cookie auth.CookieConfig, dataDir, defaultZone string, log *slog.Logger) *Handler {
+	return &Handler{auth: authSvc, db: d, media: store, push: pusher, lookup: lookup, identify: identify, cookie: cookie, dataDir: dataDir, defaultZone: defaultZone, log: log}
 }
 
 // ServerInterface adapts the strict handlers to net/http, with problem+json errors.

@@ -54,7 +54,7 @@ func New(d Deps) http.Handler {
 	if lookup == nil {
 		lookup = species.NewLookup(d.Auth.Now)
 	}
-	apigen.HandlerWithOptions(api.New(d.Auth, d.DB, store, d.Push, lookup, d.Identify, cookie, d.Config.DataDir, d.Log).ServerInterface(), apigen.StdHTTPServerOptions{
+	apigen.HandlerWithOptions(api.New(d.Auth, d.DB, store, d.Push, lookup, d.Identify, cookie, d.Config.DataDir, d.Config.Location.String(), d.Log).ServerInterface(), apigen.StdHTTPServerOptions{
 		BaseURL:     "/api/v1",
 		BaseRouter:  apiMux,
 		Middlewares: []apigen.MiddlewareFunc{requireAuth},

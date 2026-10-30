@@ -42,7 +42,7 @@ func sessions(store *auth.Sessions, cookie auth.CookieConfig, now auth.Clock, lo
 // generated router registers, is reachable without a session. Everything else needs one.
 func isPublicOperation(pattern string) bool {
 	switch pattern {
-	case "POST /api/v1/auth/login", "POST /api/v1/auth/logout":
+	case "POST /api/v1/auth/login", "POST /api/v1/auth/logout", "GET /api/v1/setup", "POST /api/v1/setup":
 		return true
 	}
 	return false

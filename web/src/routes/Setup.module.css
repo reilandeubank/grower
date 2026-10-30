@@ -1,0 +1,8 @@
+.note {
+  color: var(--ink-muted);
+}
+
+.link {
+  color: var(--brand);
+  white-space: nowrap;
+}

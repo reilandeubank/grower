@@ -48,6 +48,9 @@ type envOptions struct {
 	species []species.Provider
 	// plantnet is the identification adapter (none by default).
 	plantnet *species.PlantNet
+	// firstRun starts with no users and the setup window open, as `serve` does on a
+	// fresh data dir.
+	firstRun bool
 }
 
 func newEnv(t *testing.T, opts envOptions) *env {
@@ -70,7 +73,11 @@ func newEnv(t *testing.T, opts envOptions) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.CreateUser(context.Background(), testUser, testPassword, cfg.Location.String()); err != nil {
+	if opts.firstRun {
+		if _, err := svc.PrepareSetup(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	} else if _, err := svc.CreateUser(context.Background(), testUser, testPassword, cfg.Location.String()); err != nil {
 		t.Fatal(err)
 	}
 	spa := opts.spa

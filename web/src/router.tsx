@@ -1,5 +1,5 @@
 import { Navigate, type RouteObject } from "react-router";
-import { RedirectIfSignedIn, RequireAuth } from "./auth/guards";
+import { RedirectIfSignedIn, RequireAuth, RequireSetupNeeded } from "./auth/guards";
 import { ArchivedPlants } from "./routes/ArchivedPlants";
 import { Locations } from "./routes/Locations";
 import { Login } from "./routes/Login";
@@ -7,12 +7,17 @@ import { PlantDetail } from "./routes/PlantDetail";
 import { EditPlant, NewPlant } from "./routes/PlantForm";
 import { Plants } from "./routes/Plants";
 import { Settings } from "./routes/Settings";
+import { Setup } from "./routes/Setup";
 import { Today } from "./routes/Today";
 
 export const routes: RouteObject[] = [
   {
     element: <RedirectIfSignedIn />,
     children: [{ path: "/login", element: <Login /> }],
+  },
+  {
+    element: <RequireSetupNeeded />,
+    children: [{ path: "/setup", element: <Setup /> }],
   },
   {
     element: <RequireAuth />,
