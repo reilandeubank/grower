@@ -43,6 +43,49 @@ paths:
       responses:
         "204":
           description: Logged out (also returned when there was no session).
+  /setup:
+    get:
+      operationId: getSetup
+      summary: Whether this instance still needs its first account.
+      description: |
+        True only while there are no users. The web app shows the setup page instead of
+        the login page while it is.
+      security: []
+      responses:
+        "200":
+          description: The setup state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupStatus"
+    post:
+      operationId: completeSetup
+      summary: Create the first account with the setup code from the server log; sets the session cookie.
+      description: |
+        Only works while there are no users. The setup code is printed in the server log
+        at startup (or set with GROWER_SETUP_CODE). Attempts share the login rate limit.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetupRequest"
+      responses:
+        "200":
+          description: Account created and signed in. The session cookie is set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+        "429":
+          $ref: "#/components/responses/Problem"
   /me:
     get:
       operationId: getMe
@@ -917,6 +960,34 @@ components:
           type: string
           minLength: 1
           maxLength: 256
+    SetupStatus:
+      type: object
+      required: [needed]
+      properties:
+        needed:
+          type: boolean
+          description: True while no account exists yet.
+    SetupRequest:
+      type: object
+      required: [code, username, password]
+      properties:
+        code:
+          type: string
+          description: The setup code from the server log. Case, spaces and dashes are ignored.
+          minLength: 1
+          maxLength: 128
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 1
+          maxLength: 256
+        timezone:
+          type: string
+          description: IANA time zone for the new account; GROWER_TZ when missing or unknown.
+          maxLength: 64
     User:
       type: object
       required: [id, username]

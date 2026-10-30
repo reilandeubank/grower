@@ -47,6 +47,13 @@ func cmdServe(args []string) error {
 	if err != nil {
 		return err
 	}
+	setupCode, setupNeeded, err := authSvc.PrepareSetup(ctx, cfg.SetupCode)
+	if err != nil {
+		return err
+	}
+	if setupNeeded {
+		logSetup(log, cfg, setupCode)
+	}
 
 	keys, err := push.LoadKeys(cfg.DataDir)
 	if err != nil {

@@ -159,3 +159,16 @@ func TestListenPort(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadSetupCode(t *testing.T) {
+	cfg, err := Load(envFunc(map[string]string{"GROWER_SETUP_CODE": "  plant-the-first  "}))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.SetupCode != "plant-the-first" {
+		t.Errorf("SetupCode = %q, want it trimmed", cfg.SetupCode)
+	}
+	if _, err := Load(envFunc(map[string]string{"GROWER_SETUP_CODE": "short"})); err == nil || !strings.Contains(err.Error(), "GROWER_SETUP_CODE") {
+		t.Errorf("want GROWER_SETUP_CODE error for a short code, got %v", err)
+	}
+}

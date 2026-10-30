@@ -38,6 +38,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether this instance still needs its first account.
+         * @description True only while there are no users. The web app shows the setup page instead of
+         *     the login page while it is.
+         */
+        get: operations["getSetup"];
+        put?: never;
+        /**
+         * Create the first account with the setup code from the server log; sets the session cookie.
+         * @description Only works while there are no users. The setup code is printed in the server log
+         *     at startup (or set with GROWER_SETUP_CODE). Attempts share the login rate limit.
+         */
+        post: operations["completeSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me": {
         parameters: {
             query?: never;
@@ -611,6 +637,18 @@ export interface components {
         LoginRequest: {
             username: string;
             password: string;
+        };
+        SetupStatus: {
+            /** @description True while no account exists yet. */
+            needed: boolean;
+        };
+        SetupRequest: {
+            /** @description The setup code from the server log. Case, spaces and dashes are ignored. */
+            code: string;
+            username: string;
+            password: string;
+            /** @description IANA time zone for the new account; GROWER_TZ when missing or unknown. */
+            timezone?: string;
         };
         User: {
             id: string;
@@ -1226,6 +1264,54 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    getSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The setup state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatus"];
+                };
+            };
+        };
+    };
+    completeSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupRequest"];
+            };
+        };
+        responses: {
+            /** @description Account created and signed in. The session cookie is set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            429: components["responses"]["Problem"];
         };
     };
     getMe: {

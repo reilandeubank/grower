@@ -10,3 +10,6 @@ SELECT * FROM users WHERE id = ?;
 
 -- name: UpdateUserPassword :execrows
 UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?;
+
+-- name: CountUsers :one
+SELECT COUNT(*) FROM users;

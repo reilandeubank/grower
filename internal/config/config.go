@@ -39,7 +39,13 @@ type Config struct {
 	PerenualAPIKey            string
 	// Pl@ntNet plant identification (M9), also optional.
 	PlantNetAPIKey string
+	// SetupCode replaces the generated first-run setup code. Optional; a secret, so
+	// never log it.
+	SetupCode string
 }
+
+// MinSetupCodeLength keeps an operator-chosen setup code from being guessable.
+const MinSetupCodeLength = 8
 
 // Load parses the environment through getenv (os.Getenv in production). It returns
 // every problem found, not just the first. GROWER_BASE_URL is optional here; commands
@@ -54,6 +60,7 @@ func Load(getenv func(string) string) (Config, error) {
 		OpenPlantbookClientSecret: strings.TrimSpace(getenv("GROWER_OPENPLANTBOOK_CLIENT_SECRET")),
 		PerenualAPIKey:            strings.TrimSpace(getenv("GROWER_PERENUAL_API_KEY")),
 		PlantNetAPIKey:            strings.TrimSpace(getenv("GROWER_PLANTNET_API_KEY")),
+		SetupCode:                 strings.TrimSpace(getenv("GROWER_SETUP_CODE")),
 	}
 	var errs []error
 
@@ -92,6 +99,10 @@ func Load(getenv func(string) string) (Config, error) {
 
 	if (cfg.OpenPlantbookClientID == "") != (cfg.OpenPlantbookClientSecret == "") {
 		errs = append(errs, errors.New("GROWER_OPENPLANTBOOK_CLIENT_ID and GROWER_OPENPLANTBOOK_CLIENT_SECRET must be set together"))
+	}
+
+	if cfg.SetupCode != "" && len(cfg.SetupCode) < MinSetupCodeLength {
+		errs = append(errs, fmt.Errorf("GROWER_SETUP_CODE: must be at least %d characters", MinSetupCodeLength))
 	}
 
 	if len(errs) > 0 {

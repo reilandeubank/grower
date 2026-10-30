@@ -8,11 +8,11 @@ Docker is only needed for the image build.
 
 ```sh
 make web-install                                   # npm ci in web/
-GROWER_DATA_DIR=./data go run ./cmd/grower user create --username dev
 make dev                                           # API :8080 + Vite :5173
 ```
 
-Open http://localhost:5173.
+Open http://localhost:5173 and create your account with the setup code the API logs on first run.
+To skip the page, create one up front with `GROWER_DATA_DIR=./data go run ./cmd/grower user create --username dev`, or set `GROWER_SETUP_CODE` in your shell.
 Vite proxies `/api` and `/healthz` to the Go server.
 In dev, `GROWER_BASE_URL` is `http://localhost:5173`, so the cookie is non-secure `grower_session`.
 

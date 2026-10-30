@@ -12,19 +12,21 @@ Images are published for `linux/amd64` and `linux/arm64` (a Raspberry Pi 4 or ne
    - `GROWER_BASE_URL`: the exact public URL, e.g. `https://grower.example.com`.
      Cookies and the CSRF check depend on it, so scheme, host and port must match what the browser shows.
    - `GROWER_TZ`: your [IANA time zone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones), e.g. `Europe/Berlin`.
-     It's the default for new users; each user can change it in Settings.
+     It's the fallback for new users; each user can change it in Settings.
    - `user`: a UID:GID that owns the data directory.
      The image runs as non-root, so `mkdir data && sudo chown 1000:1000 data` (or your own `id -u`:`id -g`) before the first start.
    - `GROWER_TRUSTED_PROXIES`: see [Trusted proxies](#trusted-proxies).
 2. Start it: `docker compose up -d`.
-3. Create your account (once).
-   There is no signup page:
+3. Once your [reverse proxy](#https-with-a-reverse-proxy) is set up, create your account (once).
+   While grower has no account, it prints a setup code in its log at startup:
 
    ```sh
-   docker compose exec grower /usr/local/bin/grower user create --username <you>
+   docker compose logs grower | grep "setup code"
    ```
 
-   You'll be asked for a password twice (10 characters minimum).
+   Open `GROWER_BASE_URL` in a browser, enter the code, and choose a username and a password (10 characters minimum).
+   You're signed in right away, and the setup page is gone for good.
+   See [First account](#first-account) for the details and alternatives.
 
 ### HTTPS with a reverse proxy
 
@@ -119,11 +121,8 @@ A walkthrough for TrueNAS SCALE 24.10 or newer (Docker-based apps) with Nginx Pr
    - Change the published port if 8080 is taken, e.g. `"18080:8080"`.
    - Optionally add `pull_policy: always` if you track a moving tag like `:latest` ([update.md](update.md)).
 2. **Apps → Discover Apps → ⋮ → Install via YAML**, name it `grower`, paste the file, save ([TrueNAS docs: custom app screens](https://www.truenas.com/docs/scale/25.04/scaleuireference/apps/installcustomappscreens/#add-custom-app-screen)).
-3. Create your account from a TrueNAS shell:
-
-   ```sh
-   sudo docker exec -it ix-grower-grower-1 /usr/local/bin/grower user create --username <you>
-   ```
+3. Open the app's logs from **Apps → grower** and note the setup code in the line starting `No account yet`.
+   You'll use it in [step 4](#4-create-your-account).
 
 ### 3. Add an NPM proxy host
 
@@ -134,6 +133,31 @@ A walkthrough for TrueNAS SCALE 24.10 or newer (Docker-based apps) with Nginx Pr
 | Advanced | `client_max_body_size 20m;`                                                                                                                                                     |
 
 NPM already sends `X-Forwarded-For` and `X-Forwarded-Proto`; set `GROWER_TRUSTED_PROXIES` as described in [Trusted proxies](#trusted-proxies) (Apps → grower → Edit).
+
+### 4. Create your account
+
+Open `https://grower.example.com`, enter the setup code from step 2, and choose a username and password.
+If the app restarted in between (editing it restarts it, for example), the code has changed: check the logs again.
+
+## First account
+
+While grower has no account, every start prints a new setup code at warn level:
+
+```
+No account yet. Open https://grower.example.com and enter setup code K7Q2M-X9PB4
+```
+
+Whoever opens `GROWER_BASE_URL` first sees a **Create your account** page, which asks for that code, so only someone who can read the server's logs can claim the instance.
+The code ignores case, spaces and dashes, is kept in memory only, and tries share the login rate limit.
+Once the account exists, the page and its endpoint are gone for good.
+
+- To choose the code yourself (from a compose secret, say), set `GROWER_SETUP_CODE` to 8 or more characters.
+  grower then logs that a code is set but never the code itself.
+- You can still create the account from the command line instead, and that's how to add more users later (everyone shares the same plants):
+
+  ```sh
+  docker compose exec grower /usr/local/bin/grower user create --username <you>
+  ```
 
 ## Troubleshooting
 

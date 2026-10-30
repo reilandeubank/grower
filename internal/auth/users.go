@@ -41,6 +41,12 @@ func ValidatePassword(password string) error {
 
 // CreateUser adds a user and their settings, with timezone as the initial IANA zone.
 func (s *Service) CreateUser(ctx context.Context, username, password, timezone string) (dbgen.User, error) {
+	return s.createUser(ctx, username, password, timezone, false)
+}
+
+// createUser is CreateUser; with firstOnly it fails with ErrSetupDone unless the user
+// table is empty, checked in the same write transaction as the insert.
+func (s *Service) createUser(ctx context.Context, username, password, timezone string, firstOnly bool) (dbgen.User, error) {
 	if err := ValidateUsername(username); err != nil {
 		return dbgen.User{}, err
 	}
@@ -55,6 +61,17 @@ func (s *Service) CreateUser(ctx context.Context, username, password, timezone s
 	user := dbgen.User{ID: db.NewID(), Username: username, PasswordHash: hash, CreatedAt: now, UpdatedAt: now}
 
 	err = s.db.InTx(ctx, func(q *dbgen.Queries) error {
+		if firstOnly {
+			// The writer's transactions are serialized (one connection, BEGIN IMMEDIATE),
+			// so of two racing setups exactly one sees zero users here.
+			n, err := q.CountUsers(ctx)
+			if err != nil {
+				return fmt.Errorf("count users: %w", err)
+			}
+			if n > 0 {
+				return ErrSetupDone
+			}
+		}
 		if _, err := q.GetUserByUsername(ctx, username); err == nil {
 			return ErrUserExists
 		} else if !errors.Is(err, sql.ErrNoRows) {
