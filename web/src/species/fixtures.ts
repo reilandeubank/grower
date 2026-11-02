@@ -19,6 +19,7 @@ export const monstera: Species = {
 export const plant: Plant = {
   id: "p1",
   name: "Monty",
+  display_name: "Monty",
   species: "Monstera deliciosa",
   species_id: "s1",
   location_id: null,

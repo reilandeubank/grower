@@ -47,14 +47,14 @@ function TodayLists({ date, task_count, overdue, due, upcoming }: TodayData) {
   const log = useLogEvent();
 
   const act = (item: TodayItem, kind: EventKind, extra?: ActionExtra) =>
-    log.mutate({ task: item.task, plantName: item.plant.name, kind, ...extra, today: date });
+    log.mutate({ task: item.task, plantName: item.plant.display_name, kind, ...extra, today: date });
 
   const rows = (items: TodayItem[], quiet = false) => (
     <ul className={styles.list}>
       {items.map((item) => (
         <TaskRow
           key={item.task.id}
-          plantName={item.plant.name}
+          plantName={item.plant.display_name}
           photo={item.plant.cover?.urls.small}
           kind={item.task.kind}
           label={item.task.label}
@@ -96,7 +96,7 @@ function TodayLists({ date, task_count, overdue, due, upcoming }: TodayData) {
           <EmptyState
             icon={<CircleCheck size={28} strokeWidth={1.75} />}
             title="All caught up"
-            body={`Next: ${taskWithPlant(next.task, next.plant.name)} ${dueWhen(next.task.next_due, date)}.`}
+            body={`Next: ${taskWithPlant(next.task, next.plant.display_name)} ${dueWhen(next.task.next_due, date)}.`}
           />
         ) : log.isPending ? null : (
           // While a save is out, an empty list only means the optimistic removal; wait for the answer.

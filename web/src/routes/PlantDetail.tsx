@@ -80,11 +80,11 @@ export function PlantDetail() {
       }
     >
       <div className={styles.page}>
-        <PlantPhoto name={p.name} src={p.cover?.urls.medium} size="hero" />
+        <PlantPhoto name={p.display_name} src={p.cover?.urls.medium} size="hero" />
         <div className={styles.heading}>
-          <h1 className="t-title">{p.name}</h1>
-          {/* A linked species names itself in the care guide below. */}
-          {p.species && !p.species_id && <p className={`t-caption ${styles.muted}`}>{p.species}</p>}
+          <h1 className="t-title">{p.display_name}</h1>
+          {/* A linked species names itself in the care guide below; an unnamed plant's title is its species. */}
+          {p.name && p.species && !p.species_id && <p className={`t-caption ${styles.muted}`}>{p.species}</p>}
           {(location || p.acquired_on) && (
             <p className={styles.meta}>
               {location && <span className="t-label">{location.name}</span>}

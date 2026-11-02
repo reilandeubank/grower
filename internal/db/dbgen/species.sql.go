@@ -177,6 +177,39 @@ func (q *Queries) ListSpecies(ctx context.Context, q_ string) ([]ListSpeciesRow,
 	return items, nil
 }
 
+const listSpeciesLabels = `-- name: ListSpeciesLabels :many
+SELECT id, CAST(COALESCE(NULLIF(common_name, ''), scientific_name) AS TEXT) AS label FROM species
+`
+
+type ListSpeciesLabelsRow struct {
+	ID    string
+	Label string
+}
+
+// What a plant linked to the species is called when it has no name of its own.
+func (q *Queries) ListSpeciesLabels(ctx context.Context) ([]ListSpeciesLabelsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSpeciesLabels)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSpeciesLabelsRow{}
+	for rows.Next() {
+		var i ListSpeciesLabelsRow
+		if err := rows.Scan(&i.ID, &i.Label); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSpeciesNames = `-- name: ListSpeciesNames :many
 SELECT id, scientific_name FROM species
 `

@@ -9,7 +9,7 @@ import styles from "./CheckIn.module.css";
 
 export interface CheckInProps {
   task: CareTask;
-  plant: Pick<Plant, "id" | "name" | "growth">;
+  plant: Pick<Plant, "id" | "display_name" | "growth">;
   /** Today's date from the server, for the toast. */
   today: string;
   /** Called once the check-in is saved and the task logged. */
@@ -48,7 +48,7 @@ export function CheckIn({ task, plant, today, onDone, onMore }: CheckInProps) {
       return;
     }
     try {
-      await log.mutateAsync({ task, plantName: plant.name, kind: "done", today });
+      await log.mutateAsync({ task, plantName: plant.display_name, kind: "done", today });
     } catch (error) {
       setFailure(
         body

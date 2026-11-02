@@ -8,7 +8,7 @@ import (
 )
 
 func item(plantID, plant, kind, label string) care.Item {
-	return care.Item{Plant: dbgen.Plant{ID: plantID, Name: plant}, Task: dbgen.CareTask{Kind: kind, Label: label}}
+	return care.Item{Plant: dbgen.Plant{ID: plantID}, PlantName: plant, Task: dbgen.CareTask{Kind: kind, Label: label}}
 }
 
 func TestDigestMessage(t *testing.T) {

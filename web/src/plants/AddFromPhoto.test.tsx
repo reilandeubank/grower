@@ -13,6 +13,7 @@ vi.mock("../photos/prepare", async (importOriginal) => ({
 const plant = {
   id: "p1",
   name: "Swiss cheese plant",
+  display_name: "Swiss cheese plant",
   species: "",
   species_id: null,
   location_id: null,

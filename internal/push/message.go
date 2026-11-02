@@ -46,12 +46,12 @@ var verbs = map[string]string{
 // a soil-check task, or "Prune for Monstera" for a custom task.
 func taskPhrase(it care.Item) string {
 	if it.Task.MoistureCheck == 1 {
-		return "Check soil for " + it.Plant.Name
+		return "Check soil for " + it.PlantName
 	}
 	if verb, ok := verbs[it.Task.Kind]; ok {
-		return verb + " " + it.Plant.Name
+		return verb + " " + it.PlantName
 	}
-	return it.Task.Label + " for " + it.Plant.Name
+	return it.Task.Label + " for " + it.PlantName
 }
 
 // joinAnd is "A", "A and B", or "A, B and C".

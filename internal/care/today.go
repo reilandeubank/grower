@@ -41,7 +41,9 @@ type Dates struct {
 type Item struct {
 	Task  dbgen.CareTask
 	Plant dbgen.Plant
-	Dates Dates
+	// PlantName is what to call the plant (Names.Name).
+	PlantName string
+	Dates     Dates
 	// DaysOverdue is positive when late, 0 when due today and negative when upcoming.
 	DaysOverdue int
 }
@@ -59,11 +61,21 @@ type Agenda struct {
 // Today sorts every task of an active plant into the agenda for cal.Today.
 func Today(ctx context.Context, q *dbgen.Queries, cal Calendar) (Agenda, error) {
 	date := cal.Today
-	// Two queries in all: tasks with their plants, and every event they need.
+	// Three queries in all: tasks with their plants, every event they need, and the
+	// species labels that name unnamed plants.
 	rows, err := q.ListActiveTasks(ctx)
 	if err != nil {
 		return Agenda{}, fmt.Errorf("list active tasks: %w", err)
 	}
+	names, err := LoadNames(ctx, q)
+	if err != nil {
+		return Agenda{}, err
+	}
+	// The query orders by plant, then task; re-sort by the name shown, which for an
+	// unnamed plant isn't its name column.
+	slices.SortStableFunc(rows, func(a, b dbgen.ListActiveTasksRow) int {
+		return CompareNames(names.Name(a.Plant), names.Name(b.Plant))
+	})
 	all, err := q.ListActiveEvents(ctx)
 	if err != nil {
 		return Agenda{}, fmt.Errorf("list active events: %w", err)
@@ -79,7 +91,7 @@ func Today(ctx context.Context, q *dbgen.Queries, cal Calendar) (Agenda, error) 
 		if err != nil {
 			return Agenda{}, err
 		}
-		item := Item{Task: r.CareTask, Plant: r.Plant, Dates: dates, DaysOverdue: date.Sub(dates.Next)}
+		item := Item{Task: r.CareTask, Plant: r.Plant, PlantName: names.Name(r.Plant), Dates: dates, DaysOverdue: date.Sub(dates.Next)}
 		switch {
 		case item.DaysOverdue > 0:
 			a.Overdue = append(a.Overdue, item)
@@ -89,7 +101,7 @@ func Today(ctx context.Context, q *dbgen.Queries, cal Calendar) (Agenda, error) 
 			a.Upcoming = append(a.Upcoming, item)
 		}
 	}
-	// Most overdue or soonest first. Rows come ordered by plant name, and the sort is
+	// Most overdue or soonest first. Rows were sorted by plant name, and the sort is
 	// stable, so that breaks ties.
 	byDays := func(a, b Item) int { return b.DaysOverdue - a.DaysOverdue }
 	slices.SortStableFunc(a.Overdue, byDays)

@@ -106,8 +106,8 @@ func TestPlantValidation(t *testing.T) {
 		status                   int
 		detail                   string
 	}{
-		{"empty name", http.MethodPost, "", `{"name":""}`, http.StatusBadRequest, "Name is required."},
-		{"whitespace name", http.MethodPost, "", `{"name":" \t "}`, http.StatusBadRequest, "Name is required."},
+		{"no name or species", http.MethodPost, "", `{"name":""}`, http.StatusBadRequest, "Give the plant a name or a species."},
+		{"whitespace name and species", http.MethodPost, "", `{"name":" \t ","species":"  "}`, http.StatusBadRequest, "Give the plant a name or a species."},
 		{"name too long", http.MethodPost, "", `{"name":"` + strings.Repeat("é", 81) + `"}`, http.StatusBadRequest, "Name must be 80 characters or fewer."},
 		{"species too long", http.MethodPost, "", `{"name":"x","species":"` + strings.Repeat("a", 121) + `"}`, http.StatusBadRequest, "Species must be 120 characters or fewer."},
 		{"notes too long", http.MethodPost, "", `{"name":"x","notes":"` + strings.Repeat("a", 4001) + `"}`, http.StatusBadRequest, "Notes must be 4000 characters or fewer."},
@@ -119,7 +119,7 @@ func TestPlantValidation(t *testing.T) {
 		{"soil too long", http.MethodPost, "", `{"name":"x","soil":"` + strings.Repeat("a", 121) + `"}`, http.StatusBadRequest, "Soil must be 120 characters or fewer."},
 		{"drainage not a bool", http.MethodPost, "", `{"name":"x","drainage":"yes"}`, http.StatusBadRequest, "The request body is not valid JSON for this endpoint."},
 		{"bad date", http.MethodPost, "", `{"name":"x","acquired_on":"2026-02-30"}`, http.StatusBadRequest, "The request body is not valid JSON for this endpoint."},
-		{"empty update name", http.MethodPut, "/" + p.Id, `{"name":"","archived":false}`, http.StatusBadRequest, "Name is required."},
+		{"empty update name", http.MethodPut, "/" + p.Id, `{"name":"","archived":false}`, http.StatusBadRequest, "Give the plant a name or a species."},
 		{"get unknown id", http.MethodGet, "/nope", "", http.StatusNotFound, "Plant not found."},
 		{"update unknown id", http.MethodPut, "/nope", `{"name":"x","archived":false}`, http.StatusNotFound, "Plant not found."},
 		{"delete unknown id", http.MethodDelete, "/nope", "", http.StatusNotFound, "Plant not found."},
@@ -182,5 +182,49 @@ func TestPlantPotAndSoil(t *testing.T) {
 	cleared := expectJSON[apigen.Plant](t, e.call(c, http.MethodPut, path, `{"name":"Monty","archived":false}`), http.StatusOK)
 	if cleared.PotType != nil || cleared.PotSizeIn != nil || cleared.Drainage != nil || cleared.Soil != "" {
 		t.Errorf("cleared = %+v", cleared)
+	}
+}
+
+func TestPlantWithoutName(t *testing.T) {
+	e := newEnv(t, envOptions{})
+	c := e.loginCookie()
+	snake := e.newSpecies(c, `{"scientific_name":"Dracaena trifasciata","common_name":"Snake plant"}`)
+	create := func(body string) apigen.Plant {
+		t.Helper()
+		return expectJSON[apigen.Plant](t, e.call(c, http.MethodPost, "/api/v1/plants", body), http.StatusCreated)
+	}
+
+	linked := create(`{"name":"","species":"Dracaena trifasciata","species_id":"` + snake.Id + `"}`)
+	if linked.Name != "" || linked.DisplayName != "Snake plant" {
+		t.Errorf("linked: name %q, display %q; want the species' common name", linked.Name, linked.DisplayName)
+	}
+	typed := create(`{"name":" ","species":"monstera"}`)
+	if typed.Name != "" || typed.DisplayName != "monstera" {
+		t.Errorf("free text: name %q, display %q", typed.Name, typed.DisplayName)
+	}
+	named := create(`{"name":"Aloe"}`)
+	if named.DisplayName != "Aloe" {
+		t.Errorf("named: display %q", named.DisplayName)
+	}
+
+	// The list sorts by the name shown, not the empty name column.
+	list := expectJSON[apigen.PlantList](t, e.call(c, http.MethodGet, "/api/v1/plants", ""), http.StatusOK)
+	var got []string
+	for _, p := range list.Items {
+		got = append(got, p.DisplayName)
+	}
+	if want := []string{"Aloe", "monstera", "Snake plant"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("list order = %q, want %q", got, want)
+	}
+
+	// Single-plant reads and Today name it the same way.
+	if got := expectJSON[apigen.Plant](t, e.call(c, http.MethodGet, "/api/v1/plants/"+linked.Id, ""), http.StatusOK); got.DisplayName != "Snake plant" {
+		t.Errorf("get: display %q", got.DisplayName)
+	}
+	expectJSON[apigen.CareTask](t, e.call(c, http.MethodPost, "/api/v1/plants/"+linked.Id+"/tasks",
+		`{"kind":"water","interval_days":7,"start_on":"`+e.clock.t.Format(time.DateOnly)+`"}`), http.StatusCreated)
+	today := expectJSON[apigen.Today](t, e.call(c, http.MethodGet, "/api/v1/today?date="+e.clock.t.Format(time.DateOnly), ""), http.StatusOK)
+	if len(today.Due) != 1 || today.Due[0].Plant.DisplayName != "Snake plant" {
+		t.Errorf("today due = %+v", today.Due)
 	}
 }

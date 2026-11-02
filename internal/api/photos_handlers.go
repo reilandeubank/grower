@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/reilandeubank/grower/internal/apigen"
+	"github.com/reilandeubank/grower/internal/care"
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
 	"github.com/reilandeubank/grower/internal/media"
@@ -286,9 +287,13 @@ func (h *Handler) covers(ctx context.Context) (map[string]*dbgen.Photo, error) {
 	return m, nil
 }
 
-// plantOf maps a single plant, loading its cover, growth and room light.
+// plantOf maps a single plant, loading its name, cover, growth and room light.
 func (h *Handler) plantOf(ctx context.Context, r dbgen.Plant) (apigen.Plant, error) {
 	rooms, err := h.rooms(ctx)
+	if err != nil {
+		return apigen.Plant{}, err
+	}
+	names, err := care.LoadNames(ctx, h.db.Reader())
 	if err != nil {
 		return apigen.Plant{}, err
 	}
@@ -297,13 +302,13 @@ func (h *Handler) plantOf(ctx context.Context, r dbgen.Plant) (apigen.Plant, err
 		return apigen.Plant{}, err
 	}
 	if !r.CoverPhotoID.Valid {
-		return plant(r, nil, growths[r.ID], rooms)
+		return plant(r, names.Name(r), nil, growths[r.ID], rooms)
 	}
 	c, err := h.db.Reader().GetPhoto(ctx, r.CoverPhotoID.String)
 	if err != nil {
 		return apigen.Plant{}, fmt.Errorf("get cover of plant %s: %w", r.ID, err)
 	}
-	return plant(r, &c, growths[r.ID], rooms)
+	return plant(r, names.Name(r), &c, growths[r.ID], rooms)
 }
 
 // removeFiles deletes photos' files after their rows are gone. A failure only leaves

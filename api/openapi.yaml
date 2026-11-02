@@ -1460,8 +1460,8 @@ components:
       properties:
         name:
           type: string
-          minLength: 1
           maxLength: 80
+          description: May be empty when the plant has a species; it is then called by that.
         species:
           type: string
           maxLength: 120
@@ -1527,7 +1527,7 @@ components:
               type: boolean
     Plant:
       type: object
-      required: [id, name, species, species_id, growth, light, window_distance, grow_light_hours, effective_light, location_id, acquired_on, notes, pot_type, pot_size_in, drainage, soil, archived, cover, created_at]
+      required: [id, name, display_name, species, species_id, growth, light, window_distance, grow_light_hours, effective_light, location_id, acquired_on, notes, pot_type, pot_size_in, drainage, soil, archived, cover, created_at]
       properties:
         light:
           allOf:
@@ -1580,6 +1580,10 @@ components:
           type: string
         name:
           type: string
+          description: Empty when the plant goes by its species.
+        display_name:
+          type: string
+          description: What to call the plant. Its name, else its linked species' common (or scientific) name, else the species text.
         species:
           type: string
         location_id:

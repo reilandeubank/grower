@@ -143,7 +143,9 @@ function PlantForm({
       { body, newSpecies, photo: photo?.photo ?? null },
       {
         onSuccess: ({ plant: p, photoError }) => {
-          if (photoError) toast({ message: `Added ${p.name}, but the photo didn't upload. Add it from Photos.` });
+          if (photoError) {
+            toast({ message: `Added ${p.display_name}, but the photo didn't upload. Add it from Photos.` });
+          }
           navigate(`/plants/${p.id}`, { replace: true });
           clearDraft();
         },
@@ -174,6 +176,7 @@ function PlantForm({
           <TextField
             ref={nameRef}
             label="Name"
+            hint="Optional if you add a species: the plant goes by that."
             value={values.name}
             onChange={set("name")}
             error={errors.name}

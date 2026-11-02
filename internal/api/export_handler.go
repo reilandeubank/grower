@@ -222,7 +222,7 @@ func exportSpeciesOf(r dbgen.Species) (exportSpecies, error) {
 }
 
 func exportPlantOf(r dbgen.Plant) (exportPlant, error) {
-	p, err := plant(r, nil, nil, nil)
+	p, err := plant(r, r.Name, nil, nil, nil)
 	if err != nil {
 		return exportPlant{}, err
 	}

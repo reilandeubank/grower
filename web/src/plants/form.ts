@@ -47,7 +47,10 @@ export function plantValues(plant?: Plant): PlantValues {
 
 export function validatePlant(values: PlantValues): PlantErrors {
   const errors: PlantErrors = {};
-  if (!values.name.trim()) errors.name = "Give your plant a name.";
+  // An unnamed plant goes by its species, so it needs one of the two.
+  if (!values.name.trim() && !values.species.trim() && !values.speciesId) {
+    errors.name = "Give your plant a name or a species.";
+  }
   if (values.potSize.trim()) {
     const size = Number(values.potSize);
     if (!Number.isFinite(size) || size < POT_SIZE_MIN || size > POT_SIZE_MAX) {
