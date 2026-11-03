@@ -198,8 +198,8 @@ func TestPlantWithoutName(t *testing.T) {
 	if linked.Name != "" || linked.DisplayName != "Snake plant" {
 		t.Errorf("linked: name %q, display %q; want the species' common name", linked.Name, linked.DisplayName)
 	}
-	typed := create(`{"name":" ","species":"monstera"}`)
-	if typed.Name != "" || typed.DisplayName != "monstera" {
+	typed := create(`{"name":" ","species":" monstera "}`)
+	if typed.Name != "" || typed.Species != "monstera" || typed.DisplayName != "monstera" {
 		t.Errorf("free text: name %q, display %q", typed.Name, typed.DisplayName)
 	}
 	named := create(`{"name":"Aloe"}`)

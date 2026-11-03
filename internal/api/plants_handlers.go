@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -56,7 +57,9 @@ func (h *Handler) ListPlants(ctx context.Context, req apigen.ListPlantsRequestOb
 		}
 	}
 	// Sorted by the name shown, which for an unnamed plant isn't its name column.
-	slices.SortStableFunc(items, func(a, b apigen.Plant) int { return care.CompareNames(a.DisplayName, b.DisplayName) })
+	slices.SortFunc(items, func(a, b apigen.Plant) int {
+		return cmp.Or(care.CompareNames(a.DisplayName, b.DisplayName), cmp.Compare(a.Id, b.Id))
+	})
 	return apigen.ListPlants200JSONResponse{Items: items}, nil
 }
 
@@ -179,11 +182,11 @@ type plantFields struct {
 // Whether location_id and species_id exist is left to the foreign keys.
 func parsePlant(in apigen.PlantInput) (plantFields, string) {
 	f := plantFields{
-		name: strings.TrimSpace(in.Name), species: deref(in.Species), notes: deref(in.Notes),
+		name: strings.TrimSpace(in.Name), species: strings.TrimSpace(deref(in.Species)), notes: deref(in.Notes),
 		soil: strings.TrimSpace(deref(in.Soil)),
 	}
 	switch {
-	case f.name == "" && strings.TrimSpace(f.species) == "" && in.SpeciesId == nil:
+	case f.name == "" && f.species == "" && in.SpeciesId == nil:
 		return f, "Give the plant a name or a species."
 	case utf8.RuneCountInString(f.name) > 80:
 		return f, "Name must be 80 characters or fewer."

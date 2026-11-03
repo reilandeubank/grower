@@ -39,8 +39,7 @@ func (n Names) Name(p dbgen.Plant) string {
 	return p.Species
 }
 
-// CompareNames orders plant names the way the database's NOCASE collation does, for
-// lists sorted by Name.
+// CompareNames orders plant names case-insensitively, for lists sorted by Name.
 func CompareNames(a, b string) int {
 	return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
 }

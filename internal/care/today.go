@@ -3,6 +3,7 @@
 package care
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -71,10 +72,10 @@ func Today(ctx context.Context, q *dbgen.Queries, cal Calendar) (Agenda, error) 
 	if err != nil {
 		return Agenda{}, err
 	}
-	// The query orders by plant, then task; re-sort by the name shown, which for an
-	// unnamed plant isn't its name column.
+	// The query orders each plant's tasks; re-sort by the name shown, which for an
+	// unnamed plant isn't its name column, keeping plants that share a name apart.
 	slices.SortStableFunc(rows, func(a, b dbgen.ListActiveTasksRow) int {
-		return CompareNames(names.Name(a.Plant), names.Name(b.Plant))
+		return cmp.Or(CompareNames(names.Name(a.Plant), names.Name(b.Plant)), cmp.Compare(a.Plant.ID, b.Plant.ID))
 	})
 	all, err := q.ListActiveEvents(ctx)
 	if err != nil {
