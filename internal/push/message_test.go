@@ -1,6 +1,7 @@
 package push
 
 import (
+	"database/sql"
 	"testing"
 
 	"github.com/reilandeubank/grower/internal/care"
@@ -8,7 +9,7 @@ import (
 )
 
 func item(plantID, plant, kind, label string) care.Item {
-	return care.Item{Plant: dbgen.Plant{ID: plantID, Name: plant}, Task: dbgen.CareTask{Kind: kind, Label: label}}
+	return care.Item{Plant: dbgen.Plant{ID: plantID}, PlantName: plant, Task: dbgen.CareTask{Kind: kind, Label: label}}
 }
 
 func TestDigestMessage(t *testing.T) {
@@ -35,14 +36,45 @@ func TestDigestMessage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m, ok := DigestMessage(care.Agenda{Overdue: tt.overdue, Due: tt.due})
+			m, ok := DigestMessage(care.Agenda{Overdue: tt.overdue, Due: tt.due}, nil)
 			if !ok || m.Title != tt.title || m.Body != tt.body || m.URL != "/" || m.Tag != "digest" {
 				t.Errorf("got %+v, %v; want %q / %q", m, ok, tt.title, tt.body)
 			}
 		})
 	}
-	if _, ok := DigestMessage(care.Agenda{Upcoming: []care.Item{monstera}}); ok {
+	if _, ok := DigestMessage(care.Agenda{Upcoming: []care.Item{monstera}}, nil); ok {
 		t.Error("upcoming tasks alone made a reminder")
+	}
+}
+
+func TestDigestMessageSharedNames(t *testing.T) {
+	inRoom := func(it care.Item, room string) care.Item {
+		if room != "" {
+			it.Plant.LocationID = sql.NullString{String: room, Valid: true}
+		}
+		return it
+	}
+	rooms := map[string]string{"office": "Office", "living": "Living room"}
+	office := inRoom(item("1", "Pothos", "water", ""), "office")
+	living := inRoom(item("2", "Pothos", "water", ""), "living")
+	nowhere := item("3", "pothos", "water", "")
+	fern := inRoom(item("4", "Fern", "mist", ""), "office")
+	tests := []struct {
+		name   string
+		agenda care.Agenda
+		body   string
+	}{
+		{"same name, two rooms", care.Agenda{Due: []care.Item{office, living, fern}}, "Water Pothos (Office), Water Pothos (Living room) and Mist Fern"},
+		{"twin only upcoming", care.Agenda{Due: []care.Item{office}, Upcoming: []care.Item{living}}, "Water Pothos (Office)"},
+		{"no room to tell by", care.Agenda{Due: []care.Item{office, nowhere}}, "Water Pothos (Office) and Water pothos"},
+		{"one plant, two tasks", care.Agenda{Due: []care.Item{office, inRoom(item("1", "Pothos", "mist", ""), "office")}}, "Water Pothos and Mist Pothos"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if m, _ := DigestMessage(tt.agenda, rooms); m.Body != tt.body {
+				t.Errorf("body = %q, want %q", m.Body, tt.body)
+			}
+		})
 	}
 }
 

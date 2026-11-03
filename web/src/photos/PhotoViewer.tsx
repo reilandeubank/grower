@@ -105,7 +105,12 @@ function ViewerBody({ plant, photo, position, newer, older, onSelect, onClose }:
       </div>
 
       <div className={styles.stage}>
-        <img className={styles.image} src={photo.urls.medium} alt={photo.caption || `${plant.name}, ${date}`} decoding="async" />
+        <img
+          className={styles.image}
+          src={photo.urls.medium}
+          alt={photo.caption || `${plant.display_name}, ${date}`}
+          decoding="async"
+        />
         {newer && (
           <IconButton
             className={`${styles.nav} ${styles.prev}`}

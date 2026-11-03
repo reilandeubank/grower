@@ -10,8 +10,9 @@ export function PlantGrid({ plants, locations = [] }: { plants: Plant[]; locatio
         <li key={p.id}>
           <PlantCard
             to={`/plants/${p.id}`}
-            name={p.name}
-            species={p.species}
+            name={p.display_name}
+            // An unnamed plant already goes by its species text.
+            species={p.species === p.display_name ? undefined : p.species}
             location={p.location_id ? locationNames.get(p.location_id) : undefined}
             photo={p.cover?.urls.small}
           />

@@ -179,7 +179,15 @@ func (d *Digest) process(ctx context.Context, job dbgen.Job) error {
 	if err != nil {
 		return err
 	}
-	m, ok := DigestMessage(agenda)
+	locations, err := d.DB.Reader().ListLocations(ctx)
+	if err != nil {
+		return fmt.Errorf("list locations: %w", err)
+	}
+	rooms := make(map[string]string, len(locations))
+	for _, l := range locations {
+		rooms[l.ID] = l.Name
+	}
+	m, ok := DigestMessage(agenda, rooms)
 	if !ok {
 		return errSkip("nothing due")
 	}

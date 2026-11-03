@@ -80,21 +80,21 @@ export function CareTab({ plant }: { plant: Plant }) {
                   </button>
                   {check ? (
                     <DoneCheck
-                      aria-label={`Check soil for ${plant.name}`}
+                      aria-label={`Check soil for ${plant.display_name}`}
                       checked={completing}
                       onClick={() => setChecking(t)}
                     />
                   ) : t.kind === "check_in" ? (
                     <DoneCheck
-                      aria-label={`Check in on ${plant.name}`}
+                      aria-label={`Check in on ${plant.display_name}`}
                       checked={completing}
                       onClick={() => setCheckingIn(t)}
                     />
                   ) : (
                     <DoneCheck
-                      aria-label={`Mark ${name} ${plant.name} done`}
+                      aria-label={`Mark ${name} ${plant.display_name} done`}
                       checked={completing}
-                      onClick={() => log.mutate({ task: t, plantName: plant.name, kind: "done", today })}
+                      onClick={() => log.mutate({ task: t, plantName: plant.display_name, kind: "done", today })}
                     />
                   )}
                 </li>
@@ -128,7 +128,11 @@ export function CareTab({ plant }: { plant: Plant }) {
         )}
       </section>
 
-      <BottomSheet open={checking !== null} onClose={() => setChecking(null)} title={`Check soil · ${plant.name}`}>
+      <BottomSheet
+        open={checking !== null}
+        onClose={() => setChecking(null)}
+        title={`Check soil · ${plant.display_name}`}
+      >
         {checking && (
           <CheckSoil
             task={checking}
@@ -136,7 +140,7 @@ export function CareTab({ plant }: { plant: Plant }) {
               setChecking(null);
               log.mutate({
                 task: checking,
-                plantName: plant.name,
+                plantName: plant.display_name,
                 kind,
                 today,
                 ...(reading === undefined ? {} : { reading }),
@@ -145,7 +149,11 @@ export function CareTab({ plant }: { plant: Plant }) {
           />
         )}
       </BottomSheet>
-      <BottomSheet open={checkingIn !== null} onClose={() => setCheckingIn(null)} title={`Check in · ${plant.name}`}>
+      <BottomSheet
+        open={checkingIn !== null}
+        onClose={() => setCheckingIn(null)}
+        title={`Check in · ${plant.display_name}`}
+      >
         {checkingIn && <CheckIn task={checkingIn} plant={plant} today={today} onDone={() => setCheckingIn(null)} />}
       </BottomSheet>
       <TaskSheet

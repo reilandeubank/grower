@@ -24,6 +24,10 @@ SELECT id, user_edited FROM species WHERE scientific_name = ?;
 -- name: ListSpeciesNames :many
 SELECT id, scientific_name FROM species;
 
+-- What a plant linked to the species is called when it has no name of its own.
+-- name: ListSpeciesLabels :many
+SELECT id, CAST(COALESCE(NULLIF(common_name, ''), scientific_name) AS TEXT) AS label FROM species;
+
 -- name: CreateSpecies :exec
 INSERT INTO species (id, scientific_name, common_name, source, source_ref, water_interval_days, light, water_at,
                      notes, raw, fetched_at, user_edited, created_at, updated_at)

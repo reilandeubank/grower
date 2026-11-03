@@ -6,6 +6,7 @@ import { plantInput, plantValues, validatePlant } from "./form";
 const plant: Plant = {
   id: "p1",
   name: "Monstera",
+  display_name: "Monstera",
   species: "",
   species_id: null,
   location_id: null,
@@ -73,6 +74,18 @@ describe("plant form mapping", () => {
     expect(check("48")).toBeUndefined();
     expect(check("0.4")).toBe("Use a size from 0.5 to 48 inches.");
     expect(check("49")).toBe("Use a size from 0.5 to 48 inches.");
+  });
+});
+
+describe("validatePlant names", () => {
+  it("needs a name or a species, since an unnamed plant goes by its species", () => {
+    const check = (name: string, species: string, speciesId = "") =>
+      validatePlant({ ...plantValues(), name, species, speciesId }).name;
+    expect(check("", "")).toBe("Give your plant a name or a species.");
+    expect(check("  ", "  ")).toBe("Give your plant a name or a species.");
+    expect(check("Fern", "")).toBeUndefined();
+    expect(check("", "monstera")).toBeUndefined();
+    expect(check("", "", "s1")).toBeUndefined();
   });
 });
 

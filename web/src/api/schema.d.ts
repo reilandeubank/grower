@@ -912,6 +912,7 @@ export interface components {
             items: components["schemas"]["Location"][];
         };
         PlantInput: {
+            /** @description May be empty when the plant has a species; it is then called by that. */
             name: string;
             /**
              * @description Free text, e.g. "Monstera deliciosa". Shown when no species is linked.
@@ -971,7 +972,10 @@ export interface components {
             /** @description The cover photo, or null when the plant has none. */
             cover: components["schemas"]["Photo"] | null;
             id: string;
+            /** @description Empty when the plant goes by its species. */
             name: string;
+            /** @description What to call the plant. Its name, else its linked species' common (or scientific) name, else the species text. */
+            display_name: string;
             species: string;
             location_id: string | null;
             /** Format: date */

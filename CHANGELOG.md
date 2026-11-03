@@ -5,6 +5,8 @@ Versions follow [semantic versioning](https://semver.org/); every release's data
 
 ## Unreleased
 
+- Plant names are optional when the plant has a species: it then goes by the species' common name ("Snake plant"), or the species you typed, everywhere including reminders.
+  When two plants share a name, the reminder adds their room: "Water Pothos (Office), Water Pothos (Living room)".
 - First-run setup page: on a fresh install, open grower and create your account, with no `docker exec` needed.
   It's open for 10 minutes after startup; `grower user create` still works and adds further users.
 - Postpone the daily reminder: the notification offers "Remind me at 5:30 PM", which sends it again at a later time you choose in Settings.

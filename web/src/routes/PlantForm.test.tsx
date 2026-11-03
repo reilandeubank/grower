@@ -10,11 +10,11 @@ const base = {
 };
 
 describe("Plant form", () => {
-  it("asks for a name without calling the API", async () => {
+  it("asks for a name or a species without calling the API", async () => {
     const fetchMock = mockApi(base);
     renderApp("/plants/new");
     await userEvent.click(await screen.findByRole("button", { name: "Save" }));
-    expect(screen.getByText("Give your plant a name.")).toBeTruthy();
+    expect(screen.getByText("Give your plant a name or a species.")).toBeTruthy();
     expect(document.activeElement).toBe(screen.getByLabelText("Name"));
     expect(fetchMock.mock.calls.some(([req]) => (req as Request).method === "POST")).toBe(false);
   });
@@ -36,6 +36,7 @@ describe("Plant form", () => {
     const plant = {
       id: "p1",
       name: "Monstera",
+      display_name: "Monstera",
       species: "",
       species_id: null,
       location_id: "l1",
@@ -84,6 +85,7 @@ describe("Plant form", () => {
     const plant = {
       id: "p2",
       name: "Calathea",
+      display_name: "Calathea",
       species: "",
       location_id: null,
       acquired_on: null,

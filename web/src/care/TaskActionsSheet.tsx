@@ -29,7 +29,7 @@ const icon = (Icon: typeof Check) => <Icon size={20} strokeWidth={1.75} aria-hid
 /** Done, snooze, skip or open the plant, for one task row. A soil check opens on its reading, a check-in on its form. */
 export function TaskActionsSheet({ item, today, onClose, onAction }: TaskActionsSheetProps) {
   const title = item
-    ? `${taskName(item.task.kind, item.task.label, item.task.moisture_check)} · ${item.plant.name}`
+    ? `${taskName(item.task.kind, item.task.label, item.task.moisture_check)} · ${item.plant.display_name}`
     : "";
   return (
     <BottomSheet open={item !== null} onClose={onClose} title={title}>

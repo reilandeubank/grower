@@ -6,6 +6,7 @@ import { json, me, mockApi, renderApp } from "../test/render";
 const plant = {
   id: "p1",
   name: "Fern",
+  display_name: "Fern",
   species: "",
   location_id: null,
   acquired_on: null,

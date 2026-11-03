@@ -711,6 +711,9 @@ type Plant struct {
 	Cover     *Photo    `json:"cover"`
 	CreatedAt time.Time `json:"created_at"`
 
+	// DisplayName What to call the plant. Its name, else its linked species' common (or scientific) name, else the species text.
+	DisplayName string `json:"display_name"`
+
 	// Drainage Whether the pot has drainage holes; null when not recorded.
 	Drainage *bool `json:"drainage"`
 
@@ -732,8 +735,10 @@ type Plant struct {
 	Id         string      `json:"id"`
 	Light      *LightLevel `json:"light"`
 	LocationId *string     `json:"location_id"`
-	Name       string      `json:"name"`
-	Notes      string      `json:"notes"`
+
+	// Name Empty when the plant goes by its species.
+	Name  string `json:"name"`
+	Notes string `json:"notes"`
 
 	// PotSizeIn Pot diameter in inches.
 	PotSizeIn *float64 `json:"pot_size_in"`
@@ -759,8 +764,10 @@ type PlantInput struct {
 	// Light The light this plant gets, set by hand. Overrides everything derived.
 	Light      *LightLevel `json:"light,omitempty"`
 	LocationId *string     `json:"location_id,omitempty"`
-	Name       string      `json:"name"`
-	Notes      *string     `json:"notes,omitempty"`
+
+	// Name May be empty when the plant has a species; it is then called by that.
+	Name  string  `json:"name"`
+	Notes *string `json:"notes,omitempty"`
 
 	// PotSizeIn Pot diameter in inches.
 	PotSizeIn *float64 `json:"pot_size_in,omitempty"`
@@ -796,8 +803,10 @@ type PlantUpdate struct {
 	// Light The light this plant gets, set by hand. Overrides everything derived.
 	Light      *LightLevel `json:"light,omitempty"`
 	LocationId *string     `json:"location_id,omitempty"`
-	Name       string      `json:"name"`
-	Notes      *string     `json:"notes,omitempty"`
+
+	// Name May be empty when the plant has a species; it is then called by that.
+	Name  string  `json:"name"`
+	Notes *string `json:"notes,omitempty"`
 
 	// PotSizeIn Pot diameter in inches.
 	PotSizeIn *float64 `json:"pot_size_in,omitempty"`

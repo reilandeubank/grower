@@ -49,7 +49,7 @@ func (h *Handler) GetToday(ctx context.Context, _ apigen.GetTodayRequestObject) 
 func todayItems(items []care.Item, covers map[string]*dbgen.Photo, growths map[string]*growth, rooms map[string]light.Light) ([]apigen.TodayItem, error) {
 	out := make([]apigen.TodayItem, len(items))
 	for i, it := range items {
-		p, err := plant(it.Plant, covers[it.Plant.ID], growths[it.Plant.ID], rooms)
+		p, err := plant(it.Plant, it.PlantName, covers[it.Plant.ID], growths[it.Plant.ID], rooms)
 		if err != nil {
 			return nil, fmt.Errorf("map plant %s: %w", it.Plant.ID, err)
 		}

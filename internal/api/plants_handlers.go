@@ -1,11 +1,13 @@
 package api
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -13,6 +15,7 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/reilandeubank/grower/internal/apigen"
+	"github.com/reilandeubank/grower/internal/care"
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
 	"github.com/reilandeubank/grower/internal/light"
@@ -43,12 +46,20 @@ func (h *Handler) ListPlants(ctx context.Context, req apigen.ListPlantsRequestOb
 	if err != nil {
 		return nil, err
 	}
+	names, err := care.LoadNames(ctx, h.db.Reader())
+	if err != nil {
+		return nil, err
+	}
 	items := make([]apigen.Plant, len(rows))
 	for i, r := range rows {
-		if items[i], err = plant(r, covers[r.ID], growths[r.ID], rooms); err != nil {
+		if items[i], err = plant(r, names.Name(r), covers[r.ID], growths[r.ID], rooms); err != nil {
 			return nil, err
 		}
 	}
+	// Sorted by the name shown, which for an unnamed plant isn't its name column.
+	slices.SortFunc(items, func(a, b apigen.Plant) int {
+		return cmp.Or(care.CompareNames(a.DisplayName, b.DisplayName), cmp.Compare(a.Id, b.Id))
+	})
 	return apigen.ListPlants200JSONResponse{Items: items}, nil
 }
 
@@ -171,12 +182,12 @@ type plantFields struct {
 // Whether location_id and species_id exist is left to the foreign keys.
 func parsePlant(in apigen.PlantInput) (plantFields, string) {
 	f := plantFields{
-		name: strings.TrimSpace(in.Name), species: deref(in.Species), notes: deref(in.Notes),
+		name: strings.TrimSpace(in.Name), species: strings.TrimSpace(deref(in.Species)), notes: deref(in.Notes),
 		soil: strings.TrimSpace(deref(in.Soil)),
 	}
 	switch {
-	case f.name == "":
-		return f, "Name is required."
+	case f.name == "" && f.species == "" && in.SpeciesId == nil:
+		return f, "Give the plant a name or a species."
 	case utf8.RuneCountInString(f.name) > 80:
 		return f, "Name must be 80 characters or fewer."
 	case utf8.RuneCountInString(f.species) > 120:
@@ -226,15 +237,16 @@ func parsePlant(in apigen.PlantInput) (plantFields, string) {
 	return f, ""
 }
 
-// plant maps a row with its cover photo and growth summary (each nil when it has none)
-// and its effective light, given every room's light from rooms.
-func plant(r dbgen.Plant, cover *dbgen.Photo, grown *growth, rooms map[string]light.Light) (apigen.Plant, error) {
+// plant maps a row with its display name (care.Names.Name), its cover photo and growth
+// summary (each nil when it has none) and its effective light, given every room's
+// light from rooms.
+func plant(r dbgen.Plant, name string, cover *dbgen.Photo, grown *growth, rooms map[string]light.Light) (apigen.Plant, error) {
 	created, err := db.ParseTime(r.CreatedAt)
 	if err != nil {
 		return apigen.Plant{}, err
 	}
 	p := apigen.Plant{
-		Id: r.ID, Name: r.Name, Species: r.Species, Notes: r.Notes,
+		Id: r.ID, Name: r.Name, DisplayName: name, Species: r.Species, Notes: r.Notes,
 		Archived: r.ArchivedAt.Valid, CreatedAt: created, Soil: r.Soil,
 		EffectiveLight: effectiveLight(r, rooms), Growth: grown,
 	}
