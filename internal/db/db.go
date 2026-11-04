@@ -68,7 +68,10 @@ func openPool(path string, readOnly bool) (*sql.DB, error) {
 		// Take the write lock at BEGIN so a transaction never fails half-way on upgrade.
 		q.Set("_txlock", "immediate")
 	}
-	dsn := "file:" + path + "?" + q.Encode()
+	// SQLite reads the DSN as a URI, so the path is escaped: a raw "#", "?" or "%" in the data
+	// dir would otherwise end or alter it, opening another file without these pragmas. Only the
+	// path: url.URL.String would turn a relative "data/grower.db" into the authority "data".
+	dsn := "file:" + (&url.URL{Path: path}).EscapedPath() + "?" + q.Encode()
 
 	pool, err := sql.Open("sqlite", dsn)
 	if err != nil {

@@ -5,6 +5,8 @@ Versions follow [semantic versioning](https://semver.org/); every release's data
 
 ## Unreleased
 
+- Fix: a data directory whose path contains `#`, `?` or `%` now opens `grower.db` inside it.
+  Before, grower silently used a different file, without its usual settings (including foreign keys).
 - Adding a plant asks one question a screen: what it is, where it lives, how far it is from a window, and when it was last repotted.
   Each step can be skipped, and the repot answer sets up a yearly repot reminder.
   Pot and soil, notes, the acquired date and the light override are on Edit, where Pot and soil is folded away until it has something in it.
