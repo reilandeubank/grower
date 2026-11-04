@@ -19,6 +19,8 @@ commands:
                             set a password and sign that user out everywhere
   import [--username NAME] FILE.zip
                             load an export zip into an empty grower
+  media sweep [--dry-run]   remove photo files that no photo refers to
+                            (the server also does this daily)
   healthcheck               exit 0 if the local server's /healthz is OK (Docker HEALTHCHECK)
   version                   print the build version
 
@@ -47,6 +49,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdUser(args[1:], stdin, stderr)
 	case "import":
 		err = cmdImport(args[1:], stdout, stderr)
+	case "media":
+		err = cmdMedia(args[1:], stdout, stderr)
 	case "healthcheck":
 		err = cmdHealthcheck(args[1:])
 	case "version":

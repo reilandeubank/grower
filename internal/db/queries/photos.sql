@@ -48,5 +48,9 @@ UPDATE plants SET cover_photo_id = (
 )
 WHERE cover_photo_id = sqlc.arg(photo_id);
 
+-- Every photo, for the media sweep to tell referenced files from orphans.
+-- name: ListPhotoIDs :many
+SELECT id FROM photos;
+
 -- name: CountPhotos :one
 SELECT COUNT(*) FROM photos;

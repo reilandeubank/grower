@@ -14,6 +14,7 @@ import (
 	"github.com/reilandeubank/grower/internal/backup"
 	"github.com/reilandeubank/grower/internal/buildinfo"
 	"github.com/reilandeubank/grower/internal/config"
+	"github.com/reilandeubank/grower/internal/media"
 	"github.com/reilandeubank/grower/internal/push"
 	"github.com/reilandeubank/grower/internal/server"
 	"github.com/reilandeubank/grower/internal/species"
@@ -64,8 +65,9 @@ func cmdServe(args []string) error {
 	// The background runners stop with ctx and must finish before the database closes.
 	backups := &backup.Runner{DB: d, DataDir: cfg.DataDir, Loc: cfg.Location, Now: time.Now, Log: log}
 	digest := &push.Digest{DB: d, Sender: pusher, Now: time.Now, Log: log}
+	sweeper := &media.Sweeper{Store: media.New(cfg.DataDir), PhotoIDs: d.Reader().ListPhotoIDs, Now: time.Now, Log: log}
 	var runners sync.WaitGroup
-	for _, run := range []func(context.Context){backups.Run, digest.Run} {
+	for _, run := range []func(context.Context){backups.Run, digest.Run, sweeper.Run} {
 		runners.Go(func() { run(ctx) })
 	}
 	defer func() {

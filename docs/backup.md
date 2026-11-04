@@ -52,7 +52,9 @@ Changes made after that copy are lost.
    ```
 
 4. Leave `media/` as it is.
-   Photos added after the backup stay on disk without a row (harmless); photos deleted after it show as broken until you delete them again.
+   Photos deleted after the backup show as broken until you delete them again.
+   Photos added after it have no row, and grower removes their files when it starts (photos less than an hour old are spared).
+   If you might want them back, copy `media/` into `restore-aside/` first; `grower media sweep --dry-run` lists what would go.
 5. Start the app, log in and check Today and a plant's photos.
    Remove `restore-aside/` once you're happy.
 
