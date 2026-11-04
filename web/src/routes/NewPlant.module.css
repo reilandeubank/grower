@@ -1,0 +1,23 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: calc(100dvh - var(--target-min) * 2);
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+/* Like the edit form's Save: the step's buttons stay in thumb reach. */
+.footer {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding: var(--space-3) 0 calc(var(--safe-bottom) + var(--space-4));
+  background: var(--surface);
+}

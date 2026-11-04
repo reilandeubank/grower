@@ -3,8 +3,9 @@ import { RedirectIfSignedIn, RequireAuth, RequireSetupNeeded } from "./auth/guar
 import { ArchivedPlants } from "./routes/ArchivedPlants";
 import { Locations } from "./routes/Locations";
 import { Login } from "./routes/Login";
+import { NewPlant } from "./routes/NewPlant";
 import { PlantDetail } from "./routes/PlantDetail";
-import { EditPlant, NewPlant } from "./routes/PlantForm";
+import { EditPlant } from "./routes/PlantForm";
 import { Plants } from "./routes/Plants";
 import { Settings } from "./routes/Settings";
 import { Setup } from "./routes/Setup";

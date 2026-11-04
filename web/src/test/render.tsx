@@ -1,4 +1,5 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { vi } from "vitest";
@@ -43,3 +44,11 @@ export const me = {
   settings: { timezone: "America/Chicago", digest_time: "08:00", later_time: "17:30", hemisphere: "north" as const },
   version: "v0.1.0-test",
 };
+
+/** From Add plant's first step, skips the rest, which saves the plant. */
+export async function skipToSave() {
+  await userEvent.click(screen.getByRole("button", { name: "Next" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Skip" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Skip" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Skip and save" }));
+}

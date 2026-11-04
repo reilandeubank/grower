@@ -65,8 +65,11 @@ test("locations and plants: add, filter, edit, archive", async ({ page }) => {
     await page.getByRole("button", { name: "Add plant" }).click();
     await page.getByRole("link", { name: "Enter details" }).click();
     await page.getByLabel("Name").fill(name);
-    if (location) await page.getByLabel("Location").selectOption(location);
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Next" }).click();
+    if (location) await page.getByRole("button", { name: new RegExp(`^${location}`) }).click();
+    else await page.getByRole("button", { name: "Skip", exact: true }).click();
+    await page.getByRole("button", { name: "Skip", exact: true }).click();
+    await page.getByRole("button", { name: "Skip and save" }).click();
     await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
   };
   await addPlant("Monstera", "Kitchen");

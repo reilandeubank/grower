@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SpeciesLookup } from "../api/client";
-import { json, me, mockApi, renderApp } from "../test/render";
+import { json, me, mockApi, renderApp, skipToSave } from "../test/render";
 import { monstera, plant } from "./fixtures";
 
 const ficus = { ...monstera, id: "s2", scientific_name: "Ficus lyrata", common_name: "Fiddle-leaf fig" };
@@ -53,7 +53,7 @@ async function save() {
   if (!(screen.getByLabelText("Name") as HTMLInputElement).value) {
     await userEvent.type(screen.getByLabelText("Name"), "Plant");
   }
-  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  await skipToSave();
 }
 
 describe("Species picker", () => {

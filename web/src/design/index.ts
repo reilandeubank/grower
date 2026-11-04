@@ -3,6 +3,7 @@ export { AppShell, type AppShellProps } from "./AppShell";
 export { BottomSheet, type BottomSheetProps } from "./BottomSheet";
 export { BottomTabBar } from "./BottomTabBar";
 export { Button, type ButtonProps, type ButtonVariant } from "./Button";
+export { Choice, choiceStyles, type ChoiceProps } from "./Choice";
 export { ConfirmButton, type ConfirmButtonProps } from "./ConfirmButton";
 export { DoneCheck, type DoneCheckProps } from "./DoneCheck";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";

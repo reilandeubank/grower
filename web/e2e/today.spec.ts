@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { clientIP, E2E_USER } from "../playwright.config";
+import { skipToSave } from "./helpers";
 
 test.use(clientIP(4));
 
@@ -16,7 +17,7 @@ test("the core loop: add a task, do it, undo, snooze, see history", async ({ pag
   await page.getByRole("button", { name: "Add plant" }).click();
   await page.getByRole("link", { name: "Enter details" }).click();
   await page.getByLabel("Name").fill("Calathea");
-  await page.getByRole("button", { name: "Save" }).click();
+  await skipToSave(page);
   await expect(page.getByRole("heading", { level: 1, name: "Calathea" })).toBeVisible();
   await page.getByRole("button", { name: "Add care task" }).click();
   const sheet = page.getByRole("dialog", { name: "Add care task" });

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { clientIP, E2E_USER } from "../playwright.config";
+import { skipToSave } from "./helpers";
 
 test.use(clientIP(6));
 
@@ -20,7 +21,7 @@ test("a species by hand: save it from the plant form, set its watering, apply it
   await page.getByRole("combobox", { name: "Species" }).fill("Epipremnum aureum");
   await page.getByRole("option", { name: "Save as a new species “Epipremnum aureum”" }).click();
   await expect(page.getByText("Linked to a saved species")).toBeVisible();
-  await page.getByRole("button", { name: "Save" }).click();
+  await skipToSave(page);
   await expect(page.getByRole("heading", { level: 1, name: "Pothos" })).toBeVisible();
 
   // Its care guide starts empty; give it a watering interval.

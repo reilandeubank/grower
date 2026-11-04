@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { clientIP, E2E_USER } from "../playwright.config";
+import { skipToSave } from "./helpers";
 
 test.use(clientIP(8));
 
@@ -16,7 +17,7 @@ test("journal: a monthly check-in logs a size, then the Growth tab charts it", a
   await page.getByRole("button", { name: "Add plant" }).click();
   await page.getByRole("link", { name: "Enter details" }).click();
   await page.getByLabel("Name").fill("Calathea");
-  await page.getByRole("button", { name: "Save" }).click();
+  await skipToSave(page);
   await expect(page.getByRole("heading", { level: 1, name: "Calathea" })).toBeVisible();
   await page.getByRole("button", { name: "Add care task" }).click();
   const sheet = page.getByRole("dialog", { name: "Add care task" });

@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, ApiError, unwrap, type Plant, type PlantInput, type PlantUpdate, type SpeciesInput } from "../api/client";
+import { api, ApiError, unwrap, type CareTaskInput, type Plant, type PlantInput, type PlantUpdate, type SpeciesInput } from "../api/client";
 import { invalidatePlantsAndLocations, plantsKey, speciesKey } from "../api/keys";
 import type { PreparedPhoto } from "../photos/prepare";
 import { uploadPhoto } from "../photos/queries";
@@ -78,22 +78,26 @@ export interface CreatePlant {
   newSpecies?: SpeciesInput | null;
   /** A prepared photo to upload once the plant exists; the first photo becomes the cover. */
   photo?: PreparedPhoto | null;
+  /** The first due date of a yearly repot task to add once the plant exists. */
+  repotOn?: string | null;
 }
 
 export interface CreatedPlant {
   plant: Plant;
   /** The plant was saved but its photo wasn't; the photo can be added again from its page. */
   photoError: Error | null;
+  /** The plant was saved but its repot task wasn't; it can be added again from Care. */
+  repotError: Error | null;
 }
 
-/** Creates a plant: its new species first, then the plant, then its photo. */
+/** Creates a plant: its new species first, then the plant, then its repot task and photo. */
 export function useCreatePlant() {
   const queryClient = useQueryClient();
   // Species made by an attempt whose plant then failed, by scientific name: a retry links them
   // rather than creating a duplicate.
   const made = useRef(new Map<string, string>());
   return useMutation<CreatedPlant, Error, CreatePlant>({
-    mutationFn: async ({ body, newSpecies, photo }) => {
+    mutationFn: async ({ body, newSpecies, photo, repotOn }) => {
       let speciesId = body.species_id ?? null;
       if (newSpecies) {
         const name = newSpecies.scientific_name;
@@ -101,15 +105,23 @@ export function useCreatePlant() {
         made.current.set(name, speciesId);
       }
       const plant = unwrap(await api.POST("/plants", { body: { ...body, species_id: speciesId } }));
-      let photoError: Error | null = null;
-      if (photo) {
-        try {
-          await uploadPhoto(plant.id, photo);
-        } catch (error) {
-          photoError = error instanceof Error ? error : new Error(String(error));
-        }
-      }
-      return { plant, photoError };
+      // The plant exists now, so later failures are reported rather than thrown: a retry would add it twice.
+      const repotError = repotOn
+        ? await attempt(async () => {
+            const body = {
+              kind: "repot",
+              label: "",
+              interval_days: 365,
+              anchor: "from_completion",
+              start_on: repotOn,
+              moisture_check: false,
+              water_at: 3,
+            } satisfies CareTaskInput;
+            unwrap(await api.POST("/plants/{id}/tasks", { params: { path: { id: plant.id } }, body }));
+          })
+        : null;
+      const photoError = photo ? await attempt(() => uploadPhoto(plant.id, photo)) : null;
+      return { plant, photoError, repotError };
     },
     onSettled: (_data, _error, { newSpecies }) =>
       Promise.all([
@@ -117,6 +129,15 @@ export function useCreatePlant() {
         newSpecies && queryClient.invalidateQueries({ queryKey: speciesKey }),
       ]),
   });
+}
+
+async function attempt(run: () => Promise<unknown>): Promise<Error | null> {
+  try {
+    await run();
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error));
+  }
 }
 
 // Plants deleted during this visit. History still holds their pages, and Back to one should

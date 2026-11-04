@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { json, me, mockApi, renderApp } from "../test/render";
+import { json, me, mockApi, renderApp, skipToSave } from "../test/render";
 import { preparePhoto } from "../photos/prepare";
 
 // jsdom can't decode images; the resize itself is covered by prepare.test.ts and e2e.
@@ -79,7 +79,7 @@ async function addFromPhoto() {
 }
 
 async function save(router: ReturnType<typeof renderApp>["router"]) {
-  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  await skipToSave();
   await waitFor(() => expect(router.state.location.pathname).toBe("/plants/p1"));
 }
 
