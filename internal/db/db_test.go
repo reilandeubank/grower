@@ -2,6 +2,8 @@ package db_test
 
 import (
 	"context"
+	"database/sql"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -42,6 +44,44 @@ func TestPragmas(t *testing.T) {
 	}
 	if _, err := d.Read.Exec("DELETE FROM users"); err == nil {
 		t.Error("read pool accepted a write")
+	}
+}
+
+// URI-special characters in the data dir must not move the database or drop its pragmas (#20),
+// and relative data dirs keep working.
+func TestOpensDataDirWithURICharacters(t *testing.T) {
+	t.Chdir(t.TempDir())
+	for _, dir := range []string{filepath.Join(t.TempDir(), "plants#1?x=y 50%20off"), "data", "a:b/c#d"} {
+		t.Run(dir, func(t *testing.T) {
+			d, err := db.Open(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer d.Close()
+			want, err := filepath.Abs(filepath.Join(dir, db.FileName))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for name, pool := range map[string]*sql.DB{"write": d.Write, "read": d.Read} {
+				var seq int
+				var schema, file string
+				if err := pool.QueryRow("PRAGMA database_list").Scan(&seq, &schema, &file); err != nil {
+					t.Fatal(err)
+				}
+				if file != want {
+					t.Errorf("%s pool opened %q, want %q", name, file, want)
+				}
+				for pragma, want := range map[string]string{"foreign_keys": "1", "journal_mode": "wal"} {
+					var got string
+					if err := pool.QueryRow("PRAGMA " + pragma).Scan(&got); err != nil {
+						t.Fatal(err)
+					}
+					if got != want {
+						t.Errorf("%s pool: %s = %s, want %s", name, pragma, got, want)
+					}
+				}
+			}
+		})
 	}
 }
 
