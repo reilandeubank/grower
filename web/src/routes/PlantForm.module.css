@@ -60,3 +60,24 @@
   align-items: start;
   gap: var(--space-3);
 }
+
+.details {
+  margin-top: var(--space-4);
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  list-style: none;
+  min-height: var(--target-min);
+  cursor: pointer;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.details[open] .chevron {
+  rotate: 180deg;
+}

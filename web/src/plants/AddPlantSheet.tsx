@@ -1,11 +1,10 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Camera, LoaderCircle, PencilLine } from "lucide-react";
-import { BottomSheet, ErrorText } from "../design";
+import { BottomSheet, Choice, choiceStyles as styles, ErrorText } from "../design";
 import { uploadErrorMessage } from "../photos/copy";
 import { preparePhoto } from "../photos/prepare";
 import { stageDraft, type DraftState } from "./photoDraft";
-import styles from "./AddPlantSheet.module.css";
 
 /** The Plants FAB's choice: start from a photo (camera or gallery) or fill in the form. */
 export function AddPlantSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -67,15 +66,3 @@ export function AddPlantSheet({ open, onClose }: { open: boolean; onClose: () =>
 }
 
 const ICON = { size: 20, strokeWidth: 1.75, "aria-hidden": true } as const;
-
-function Choice({ icon, title, detail }: { icon: ReactNode; title: string; detail: string }) {
-  return (
-    <>
-      <span className={styles.icon}>{icon}</span>
-      <span className={styles.text}>
-        <span className="t-body-strong">{title}</span>
-        <span className={`t-caption ${styles.muted}`}>{detail}</span>
-      </span>
-    </>
-  );
-}

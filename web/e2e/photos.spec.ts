@@ -2,6 +2,7 @@
 // The DOM lib is for the code that runs in the page via evaluate().
 import { expect, test, type Page } from "@playwright/test";
 import { clientIP, E2E_USER } from "../playwright.config";
+import { skipToSave } from "./helpers";
 
 test.use(clientIP(1));
 
@@ -32,7 +33,7 @@ test("photos: upload, cover on the grid, view, delete", async ({ page }) => {
   await page.getByRole("button", { name: "Add plant" }).click();
   await page.getByRole("link", { name: "Enter details" }).click();
   await page.getByLabel("Name").fill("Pothos");
-  await page.getByRole("button", { name: "Save" }).click();
+  await skipToSave(page);
   await expect(page.getByRole("heading", { level: 1, name: "Pothos" })).toBeVisible();
 
   // Upload from the Photos tab.

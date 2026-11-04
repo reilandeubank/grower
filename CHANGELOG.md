@@ -5,6 +5,9 @@ Versions follow [semantic versioning](https://semver.org/); every release's data
 
 ## Unreleased
 
+- Adding a plant asks one question a screen: what it is, where it lives, how far it is from a window, and when it was last repotted.
+  Each step can be skipped, and the repot answer sets up a yearly repot reminder.
+  Pot and soil, notes, the acquired date and the light override are on Edit, where Pot and soil is folded away until it has something in it.
 - Plant names are optional when the plant has a species: it then goes by the species' common name ("Snake plant"), or the species you typed, everywhere including reminders.
   When two plants share a name, the reminder adds their room: "Water Pothos (Office), Water Pothos (Living room)".
 - First-run setup page: on a fresh install, open grower and create your account, with no `docker exec` needed.

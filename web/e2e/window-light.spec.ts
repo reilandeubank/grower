@@ -36,9 +36,11 @@ test("light: windows estimate a room's light, distance dims it, a grow light lif
   await page.getByRole("button", { name: "Add plant" }).click();
   await page.getByRole("link", { name: "Enter details" }).click();
   await page.getByLabel("Name").fill("Peace lily");
-  await page.getByLabel("Location").selectOption("Study");
-  await page.getByLabel("Distance from the window").selectOption("Across the room");
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByRole("button", { name: /^Study/ }).click();
+  await page.getByRole("button", { name: "Across the room" }).click();
+  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByRole("button", { name: "Skip and save" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Peace lily" })).toBeVisible();
   await expect(page.getByText("Low light · across the room")).toBeVisible();
 
