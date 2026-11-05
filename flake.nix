@@ -14,7 +14,6 @@
             go_1_26
             nodejs_24
             gnumake
-            golangci-lint
             imagemagick # regenerates PWA icons (web/scripts/icons.sh)
             playwright-driver.browsers
           ];

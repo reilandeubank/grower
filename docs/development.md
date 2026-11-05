@@ -1,6 +1,6 @@
 # Local development
 
-**With Nix (recommended):** `direnv allow` once, and the flake devshell provides Go, Node 24, golangci-lint, ImageMagick and Playwright browsers that run on NixOS.
+**With Nix (recommended):** `direnv allow` once, and the flake devshell provides Go, Node 24, ImageMagick and Playwright browsers that run on NixOS.
 Without direnv: `nix develop`.
 
 **Without Nix:** install Go 1.26 or newer and Node 24, then `npx --prefix web playwright install chromium` for e2e.
@@ -23,6 +23,9 @@ In dev, `GROWER_BASE_URL` is `http://localhost:5173`, so the cookie is non-secur
 | `make build` | Build the SPA, then `bin/grower` with it embedded |
 | `make e2e` | Build, then run the Playwright smoke tests against the real binary |
 | `make docker` | Build the production image locally as `grower:dev` |
+
+`make lint` runs the golangci-lint version pinned as `GOLANGCI_LINT_VERSION` in the `Makefile`, built with your Go (the first run downloads and compiles it), and CI reads the same pin.
+To update golangci-lint, change that line; Dependabot doesn't track it.
 
 ## Changing things
 

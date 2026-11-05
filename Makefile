@@ -1,7 +1,10 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X github.com/reilandeubank/grower/internal/buildinfo.Version=$(VERSION)
+# The one golangci-lint version: make lint runs it, and CI reads it (make golangci-lint-version).
+# Bump by hand: Dependabot can't see it.
+GOLANGCI_LINT_VERSION := v2.15.0
 
-.PHONY: gen test lint build dev dev-api dev-web e2e docker clean web-install
+.PHONY: gen test lint golangci-lint-version build dev dev-api dev-web e2e docker clean web-install
 
 web-install:
 	npm --prefix web ci
@@ -16,9 +19,12 @@ test:
 
 lint:
 	go vet ./...
-	@command -v golangci-lint >/dev/null && golangci-lint run || echo "golangci-lint not installed; skipped (CI runs it)"
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run
 	npm --prefix web run lint
 	npm --prefix web run typecheck
+
+golangci-lint-version:
+	@echo $(GOLANGCI_LINT_VERSION)
 
 build:
 	npm --prefix web run build
