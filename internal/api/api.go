@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/reilandeubank/grower/internal/apigen"
 	"github.com/reilandeubank/grower/internal/auth"
@@ -32,13 +33,34 @@ type Handler struct {
 	lookup *species.Lookup
 	// identify suggests species from photos; nil when Pl@ntNet isn't configured.
 	identify *species.PlantNet
+	// Per-user limits on the provider calls, so one stuck client can't spend a day's
+	// budget for everyone in minutes. Lookup and import share one.
+	identifyLimit, lookupLimit *auth.Limiter
 }
 
 var _ apigen.StrictServerInterface = (*Handler)(nil)
 
 // New returns the API handler.
 func New(authSvc *auth.Service, d *db.DB, store *media.Store, pusher *push.Sender, lookup *species.Lookup, identify *species.PlantNet, cookie auth.CookieConfig, dataDir, defaultZone string, log *slog.Logger) *Handler {
-	return &Handler{auth: authSvc, db: d, media: store, push: pusher, lookup: lookup, identify: identify, cookie: cookie, dataDir: dataDir, defaultZone: defaultZone, log: log}
+	return &Handler{
+		auth: authSvc, db: d, media: store, push: pusher, lookup: lookup, identify: identify, cookie: cookie, dataDir: dataDir, defaultZone: defaultZone, log: log,
+		identifyLimit: auth.NewLimiter(5*time.Second, 5, authSvc.Now),
+		lookupLimit:   auth.NewLimiter(time.Second, 10, authSvc.Now),
+	}
+}
+
+// rateLimited consumes one of the current user's attempts from l. When none is left it
+// returns the 429 to send, with detail and Retry-After; ok is true otherwise.
+func (h *Handler) rateLimited(ctx context.Context, l *auth.Limiter, detail string) (apigen.RateLimitedApplicationProblemPlusJSONResponse, bool) {
+	p, _ := auth.PrincipalFrom(ctx)
+	ok, wait := l.Take(p.UserID)
+	if ok {
+		return apigen.RateLimitedApplicationProblemPlusJSONResponse{}, true
+	}
+	return apigen.RateLimitedApplicationProblemPlusJSONResponse{
+		Body:    problem(http.StatusTooManyRequests, detail),
+		Headers: apigen.RateLimitedResponseHeaders{RetryAfter: int((wait + time.Second - 1) / time.Second)},
+	}, false
 }
 
 // ServerInterface adapts the strict handlers to net/http, with problem+json errors.

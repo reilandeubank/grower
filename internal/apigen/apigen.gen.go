@@ -1043,6 +1043,9 @@ type WindowDistance string
 // Id defines model for Id.
 type Id = string
 
+// RateLimited defines model for RateLimited.
+type RateLimited = Problem
+
 // ListPlantsParams defines parameters for ListPlants.
 type ListPlantsParams struct {
 	// Archived true lists only archived plants; false (default) only active ones.
@@ -2497,6 +2500,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 type ProblemApplicationProblemPlusJSONResponse Problem
 
+type RateLimitedResponseHeaders struct {
+	RetryAfter int
+}
+type RateLimitedApplicationProblemPlusJSONResponse struct {
+	Body Problem
+
+	Headers RateLimitedResponseHeaders
+}
+
 type LoginRequestObject struct {
 	Body *LoginJSONRequestBody
 }
@@ -2803,6 +2815,23 @@ func (response IdentifyPlant413ApplicationProblemPlusJSONResponse) VisitIdentify
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(413)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type IdentifyPlant429ApplicationProblemPlusJSONResponse struct {
+	RateLimitedApplicationProblemPlusJSONResponse
+}
+
+func (response IdentifyPlant429ApplicationProblemPlusJSONResponse) VisitIdentifyPlantResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("Retry-After", fmt.Sprint(response.Headers.RetryAfter))
+	w.WriteHeader(429)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -4661,6 +4690,23 @@ func (response ImportSpecies401ApplicationProblemPlusJSONResponse) VisitImportSp
 	return err
 }
 
+type ImportSpecies429ApplicationProblemPlusJSONResponse struct {
+	RateLimitedApplicationProblemPlusJSONResponse
+}
+
+func (response ImportSpecies429ApplicationProblemPlusJSONResponse) VisitImportSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("Retry-After", fmt.Sprint(response.Headers.RetryAfter))
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ImportSpecies502ApplicationProblemPlusJSONResponse Problem
 
 func (response ImportSpecies502ApplicationProblemPlusJSONResponse) VisitImportSpeciesResponse(w http.ResponseWriter) error {
@@ -4723,6 +4769,23 @@ func (response LookupSpecies401ApplicationProblemPlusJSONResponse) VisitLookupSp
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LookupSpecies429ApplicationProblemPlusJSONResponse struct {
+	RateLimitedApplicationProblemPlusJSONResponse
+}
+
+func (response LookupSpecies429ApplicationProblemPlusJSONResponse) VisitLookupSpeciesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("Retry-After", fmt.Sprint(response.Headers.RetryAfter))
+	w.WriteHeader(429)
 	_, err := buf.WriteTo(w)
 	return err
 }

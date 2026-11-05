@@ -17,6 +17,7 @@ const (
 	identifyLimit   = "Plant identification's daily limit is used up. Try again tomorrow."
 	identifyNoMatch = "No match found. Try a clearer photo of a leaf or flower."
 	identifyFailed  = "Couldn't reach Pl@ntNet. Try again later."
+	identifyTooMany = "Too many identifications. Try again in a few seconds."
 )
 
 // IdentifyPlant forwards a photo to Pl@ntNet and returns its best suggestions, marking
@@ -46,6 +47,9 @@ func (h *Handler) IdentifyPlant(ctx context.Context, req apigen.IdentifyPlantReq
 		return bad("Only JPEG and PNG photos are supported.")
 	}
 
+	if limited, ok := h.rateLimited(ctx, h.identifyLimit, identifyTooMany); !ok {
+		return apigen.IdentifyPlant429ApplicationProblemPlusJSONResponse{RateLimitedApplicationProblemPlusJSONResponse: limited}, nil
+	}
 	found, err := h.identify.Identify(ctx, data, mime, string(organ))
 	switch {
 	case errors.Is(err, species.ErrDailyLimit):

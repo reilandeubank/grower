@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,11 +18,13 @@ type fakeProvider struct {
 	candidates   []species.Candidate
 	care         species.Care
 	err          error
+	searches     atomic.Int32
 }
 
 func (f *fakeProvider) Source() string { return f.source }
 func (f *fakeProvider) Name() string   { return f.name }
 func (f *fakeProvider) Search(context.Context, string) ([]species.Candidate, error) {
+	f.searches.Add(1)
 	return f.candidates, f.err
 }
 func (f *fakeProvider) Details(context.Context, string) (species.Care, error) { return f.care, f.err }

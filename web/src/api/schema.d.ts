@@ -244,7 +244,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Search the configured online providers. Costs provider API calls; results are cached. */
+        /**
+         * Search the configured online providers. Costs provider API calls; results are cached.
+         * @description Limited per user (about one search a second, ten at once) when it would call a provider;
+         *     searches every provider answers from the cache don't count.
+         */
         get: operations["lookupSpecies"];
         put?: never;
         post?: never;
@@ -265,7 +269,8 @@ export interface paths {
         put?: never;
         /**
          * Fetch a candidate's care details from its provider and save it (or refresh the saved copy).
-         * @description Matches saved species by scientific name. A species the user has edited keeps their
+         * @description Shares species lookup's per-user limit.
+         *     Matches saved species by scientific name. A species the user has edited keeps their
          *     values; only raw and fetched_at are refreshed.
          */
         post: operations["importSpecies"];
@@ -369,6 +374,7 @@ export interface paths {
          * @description The photo is forwarded to Pl@ntNet and not stored by grower. Clients should send the
          *     same downscaled JPEG they would upload. When identification isn't configured the
          *     answer is 200 with configured=false and no candidates, without calling anyone.
+         *     Limited per user: about one identification every 5 seconds, five at once.
          */
         post: operations["identifyPlant"];
         delete?: never;
@@ -1217,6 +1223,16 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Too many requests from this user; try again after Retry-After seconds. */
+        RateLimited: {
+            headers: {
+                "Retry-After": number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
     };
     parameters: {
         Id: string;
@@ -1622,6 +1638,7 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
         };
     };
     importSpecies: {
@@ -1648,6 +1665,7 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
             502: components["responses"]["Problem"];
         };
     };
@@ -1859,6 +1877,7 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             413: components["responses"]["Problem"];
+            429: components["responses"]["RateLimited"];
             502: components["responses"]["Problem"];
         };
     };

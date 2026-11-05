@@ -171,7 +171,7 @@ Levels: low < medium < bright_indirect < direct.
   Snapshots of the live WAL database are crash-consistent; plain file copies are not.
   Restore from `backups/` ([backup.md](backup.md)).
 - **Species providers:** implement `Provider`.
-  Optional, called on demand only, with daily budgets below each free tier.
+  Optional, called on demand only, with daily budgets below each free tier and per-user rate limits (`429` with `Retry-After`) in front of them.
 
 ## Tests
 

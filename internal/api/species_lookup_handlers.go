@@ -16,6 +16,8 @@ import (
 	"github.com/reilandeubank/grower/internal/species"
 )
 
+const lookupTooMany = "Too many species lookups. Try again in a few seconds."
+
 // lookupProvider is the element type of SpeciesLookup.providers (generated inline).
 type lookupProvider = struct {
 	Detail *string                             `json:"detail,omitempty"`
@@ -29,6 +31,12 @@ func (h *Handler) LookupSpecies(ctx context.Context, req apigen.LookupSpeciesReq
 	q := strings.TrimSpace(req.Params.Q)
 	if n := utf8.RuneCountInString(q); n < 2 || n > 100 {
 		return apigen.LookupSpecies400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest("Search for 2 to 100 characters.")}, nil
+	}
+	// Answers from the cache spend no provider calls, so they don't count.
+	if !h.lookup.Cached(q) {
+		if limited, ok := h.rateLimited(ctx, h.lookupLimit, lookupTooMany); !ok {
+			return apigen.LookupSpecies429ApplicationProblemPlusJSONResponse{RateLimitedApplicationProblemPlusJSONResponse: limited}, nil
+		}
 	}
 	names, err := h.db.Reader().ListSpeciesNames(ctx)
 	if err != nil {
@@ -86,6 +94,9 @@ func (h *Handler) ImportSpecies(ctx context.Context, req apigen.ImportSpeciesReq
 	p := h.lookup.Provider(string(req.Body.Source))
 	if p == nil {
 		return bad("That provider isn't set up on this server.")
+	}
+	if limited, ok := h.rateLimited(ctx, h.lookupLimit, lookupTooMany); !ok {
+		return apigen.ImportSpecies429ApplicationProblemPlusJSONResponse{RateLimitedApplicationProblemPlusJSONResponse: limited}, nil
 	}
 	c, err := p.Details(ctx, ref)
 	if err == nil && strings.TrimSpace(c.ScientificName) == "" {

@@ -84,6 +84,7 @@ Every provider is optional; without them, species still work by hand.
 Perenual's free tier allows 100 calls a day.
 grower spends at most 90 a day (counted per UTC day, reset when the container restarts), caches each search for 24 hours, and only calls when you search or import.
 When the budget is spent, the search sheet says so and Open Plantbook still answers.
+So that one stuck client can't spend a day's budget in minutes, each user can also search online or import about once a second (ten in a row); searches answered from the cache don't count.
 Saved species are never refreshed automatically.
 
 The free tier also only serves species ids 1–3000, so many popular houseplants (Monstera deliciosa among them) never appear in Perenual results; grower hides ids it can't fetch.
@@ -92,6 +93,7 @@ Set the interval on the species yourself when that's the only source.
 
 Pl@ntNet's free tier allows 500 identifications a day.
 grower spends at most 450 (counted per UTC day, reset when the container restarts) and only calls when you ask it to identify a photo.
+Each user can identify about once every 5 seconds (five in a row).
 The photo is forwarded and never stored by grower; Pl@ntNet's terms say submitted images aren't kept either.
 Suggestions only fill in the name: care defaults still come from the providers above or from you.
 
