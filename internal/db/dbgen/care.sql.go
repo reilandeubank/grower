@@ -171,49 +171,6 @@ func (q *Queries) GetTask(ctx context.Context, id string) (CareTask, error) {
 	return i, err
 }
 
-const listActiveEvents = `-- name: ListActiveEvents :many
-SELECT care_events.id, care_events.task_id, care_events.kind, care_events.local_date, care_events.snooze_until, care_events.reading, care_events.note, care_events.occurred_at, care_events.voided_at, care_events.created_at FROM care_events
-JOIN care_tasks ON care_tasks.id = care_events.task_id
-JOIN plants ON plants.id = care_tasks.plant_id
-WHERE care_events.voided_at IS NULL AND plants.archived_at IS NULL
-ORDER BY care_events.created_at, care_events.id
-`
-
-// The same for every task of an active plant, so Today needs one query, not one per task.
-func (q *Queries) ListActiveEvents(ctx context.Context) ([]CareEvent, error) {
-	rows, err := q.db.QueryContext(ctx, listActiveEvents)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []CareEvent{}
-	for rows.Next() {
-		var i CareEvent
-		if err := rows.Scan(
-			&i.ID,
-			&i.TaskID,
-			&i.Kind,
-			&i.LocalDate,
-			&i.SnoozeUntil,
-			&i.Reading,
-			&i.Note,
-			&i.OccurredAt,
-			&i.VoidedAt,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listActiveTasks = `-- name: ListActiveTasks :many
 SELECT care_tasks.id, care_tasks.plant_id, care_tasks.kind, care_tasks.label, care_tasks.interval_days, care_tasks.anchor, care_tasks.start_on, care_tasks.created_at, care_tasks.updated_at, care_tasks.seasonal, care_tasks.moisture_check, care_tasks.water_at, plants.id, plants.name, plants.species, plants.location_id, plants.acquired_on, plants.notes, plants.archived_at, plants.created_at, plants.updated_at, plants.cover_photo_id, plants.pot_type, plants.pot_size_in, plants.drainage, plants.soil, plants.species_id, plants.light, plants.window_distance, plants.grow_light_hours
 FROM care_tasks JOIN plants ON plants.id = care_tasks.plant_id
@@ -362,6 +319,98 @@ func (q *Queries) ListPlantTasks(ctx context.Context, plantID string) ([]CareTas
 			&i.Seasonal,
 			&i.MoistureCheck,
 			&i.WaterAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listScheduleEvents = `-- name: ListScheduleEvents :many
+WITH task AS (
+    SELECT care_tasks.id, care_tasks.moisture_check FROM care_tasks
+    JOIN plants ON plants.id = care_tasks.plant_id
+    WHERE plants.archived_at IS NULL
+),
+latest AS (
+    SELECT (SELECT e.id FROM care_events e
+            WHERE e.task_id = task.id AND e.voided_at IS NULL AND (e.kind <> 'checked' OR task.moisture_check = 1)
+            ORDER BY e.local_date DESC, e.created_at DESC, e.id DESC LIMIT 1) AS id
+    FROM task
+    UNION ALL
+    SELECT (SELECT e.id FROM care_events e
+            WHERE e.task_id = task.id AND e.voided_at IS NULL AND e.kind IN ('done', 'skipped')
+            ORDER BY e.local_date DESC, e.created_at DESC, e.id DESC LIMIT 1)
+    FROM task
+    UNION ALL
+    SELECT (SELECT e.id FROM care_events e
+            WHERE e.task_id = task.id AND e.voided_at IS NULL AND e.kind = 'done'
+            ORDER BY e.local_date DESC, e.created_at DESC, e.id DESC LIMIT 1)
+    FROM task
+    UNION ALL
+    SELECT (SELECT e.id FROM care_events e
+            WHERE e.task_id = task.id AND e.voided_at IS NULL AND e.reading IS NOT NULL
+            ORDER BY e.local_date DESC, e.created_at DESC, e.id DESC LIMIT 1)
+    FROM task
+),
+soil AS (
+    SELECT task.id,
+           -- '' (before every date) when there are fewer than four waterings: the whole log.
+           MIN(
+               COALESCE((SELECT e.local_date FROM care_events e
+                         WHERE e.task_id = task.id AND e.voided_at IS NULL AND e.kind = 'done'
+                         ORDER BY e.local_date DESC, e.created_at DESC, e.id DESC LIMIT 1 OFFSET 3), ''),
+               COALESCE((SELECT e.local_date FROM care_events e
+                         WHERE e.task_id = task.id AND e.voided_at IS NULL AND e.reading IS NOT NULL
+                         ORDER BY e.local_date DESC, e.created_at DESC, e.id DESC LIMIT 1), '9999-12-31')
+           ) AS since
+    FROM task
+    WHERE task.moisture_check = 1
+)
+SELECT care_events.id, care_events.task_id, care_events.kind, care_events.local_date, care_events.snooze_until, care_events.reading, care_events.note, care_events.occurred_at, care_events.voided_at, care_events.created_at FROM care_events
+WHERE care_events.id IN (SELECT id FROM latest)
+UNION
+SELECT care_events.id, care_events.task_id, care_events.kind, care_events.local_date, care_events.snooze_until, care_events.reading, care_events.note, care_events.occurred_at, care_events.voided_at, care_events.created_at FROM soil
+JOIN care_events ON care_events.task_id = soil.id AND care_events.local_date >= soil.since
+WHERE care_events.voided_at IS NULL
+ORDER BY created_at, id
+`
+
+// The events of active plants' tasks that their schedules depend on (care.Schedule), so
+// Today reads a few per task instead of the whole log. "Latest" is in the order schedules
+// sort events (by date, then insertion), which care_events_task_order covers, so each
+// lookup walks back from a task's newest event and stops at the first match. Every task
+// keeps its latest event (checks count only on soil-check tasks), completion, done and
+// reading. A soil-check task keeps every event from the day of its fourth-latest watering,
+// or of its latest reading if that's earlier: enough for its drying cycles (care.Today
+// checks, and loads the whole log when it isn't). Insertion order, like ListTaskEvents.
+func (q *Queries) ListScheduleEvents(ctx context.Context) ([]CareEvent, error) {
+	rows, err := q.db.QueryContext(ctx, listScheduleEvents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CareEvent{}
+	for rows.Next() {
+		var i CareEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.TaskID,
+			&i.Kind,
+			&i.LocalDate,
+			&i.SnoozeUntil,
+			&i.Reading,
+			&i.Note,
+			&i.OccurredAt,
+			&i.VoidedAt,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

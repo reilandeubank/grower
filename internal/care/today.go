@@ -62,8 +62,9 @@ type Agenda struct {
 // Today sorts every task of an active plant into the agenda for cal.Today.
 func Today(ctx context.Context, q *dbgen.Queries, cal Calendar) (Agenda, error) {
 	date := cal.Today
-	// Three queries in all: tasks with their plants, every event they need, and the
-	// species labels that name unnamed plants.
+	// Three queries in all: tasks with their plants, the events their schedules depend on,
+	// and the species labels that name unnamed plants. (Rarely a fourth per soil-check task:
+	// see loadEvents.)
 	rows, err := q.ListActiveTasks(ctx)
 	if err != nil {
 		return Agenda{}, fmt.Errorf("list active tasks: %w", err)
@@ -77,13 +78,9 @@ func Today(ctx context.Context, q *dbgen.Queries, cal Calendar) (Agenda, error) 
 	slices.SortStableFunc(rows, func(a, b dbgen.ListActiveTasksRow) int {
 		return cmp.Or(CompareNames(names.Name(a.Plant), names.Name(b.Plant)), cmp.Compare(a.Plant.ID, b.Plant.ID))
 	})
-	all, err := q.ListActiveEvents(ctx)
+	events, err := loadEvents(ctx, q, rows)
 	if err != nil {
-		return Agenda{}, fmt.Errorf("list active events: %w", err)
-	}
-	events := make(map[string][]dbgen.CareEvent)
-	for _, e := range all {
-		events[e.TaskID] = append(events[e.TaskID], e)
+		return Agenda{}, err
 	}
 
 	a := Agenda{Date: date, TaskCount: len(rows), Overdue: []Item{}, Due: []Item{}, Upcoming: []Item{}}
@@ -110,22 +107,67 @@ func Today(ctx context.Context, q *dbgen.Queries, cal Calendar) (Agenda, error) 
 	return a, nil
 }
 
+// loadEvents returns the events each task's schedule depends on (ListScheduleEvents),
+// by task. A soil-check task whose loaded events don't hold its recent drying cycles, as
+// when it was watered twice on a day, gets its whole log instead.
+func loadEvents(ctx context.Context, q *dbgen.Queries, rows []dbgen.ListActiveTasksRow) (map[string][]dbgen.CareEvent, error) {
+	all, err := q.ListScheduleEvents(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list schedule events: %w", err)
+	}
+	events := make(map[string][]dbgen.CareEvent)
+	for _, e := range all {
+		events[e.TaskID] = append(events[e.TaskID], e)
+	}
+	for _, r := range rows {
+		if r.CareTask.MoistureCheck != 1 {
+			continue
+		}
+		task, evs, err := scheduleInput(r.CareTask, events[r.CareTask.ID])
+		if err != nil {
+			return nil, err
+		}
+		if schedule.HasRecentCycles(task, evs) {
+			continue
+		}
+		if events[r.CareTask.ID], err = q.ListTaskEvents(ctx, r.CareTask.ID); err != nil {
+			return nil, fmt.Errorf("list task events: %w", err)
+		}
+	}
+	return events, nil
+}
+
 // Schedule computes a task's next due date and last completion from its non-voided
 // events in insertion order, in the seasons of cal.
 func Schedule(row dbgen.CareTask, events []dbgen.CareEvent, cal Calendar) (Dates, error) {
-	start, err := schedule.Parse(row.StartOn)
+	task, evs, err := scheduleInput(row, events)
 	if err != nil {
 		return Dates{}, err
+	}
+	d := Dates{
+		Start: task.StartOn, Next: schedule.NextDue(task, evs, cal.Hemisphere), Interval: schedule.CurrentInterval(task, evs, cal.Today, cal.Hemisphere),
+	}
+	d.Last, d.HasLast = schedule.LastDone(evs)
+	d.DryingDays, d.HasDrying = schedule.DryingDays(task, evs)
+	d.LastReading, _ = schedule.LastReading(evs)
+	return d, nil
+}
+
+// scheduleInput converts a task and its events for the schedule package.
+func scheduleInput(row dbgen.CareTask, events []dbgen.CareEvent) (schedule.Task, []schedule.Event, error) {
+	start, err := schedule.Parse(row.StartOn)
+	if err != nil {
+		return schedule.Task{}, nil, err
 	}
 	evs := make([]schedule.Event, len(events))
 	for i, e := range events {
 		evs[i] = schedule.Event{Kind: schedule.EventKind(e.Kind), Reading: int(e.Reading.Int64)}
 		if evs[i].On, err = schedule.Parse(e.LocalDate); err != nil {
-			return Dates{}, err
+			return schedule.Task{}, nil, err
 		}
 		if e.SnoozeUntil.Valid {
 			if evs[i].SnoozeUntil, err = schedule.Parse(e.SnoozeUntil.String); err != nil {
-				return Dates{}, err
+				return schedule.Task{}, nil, err
 			}
 		}
 	}
@@ -133,11 +175,5 @@ func Schedule(row dbgen.CareTask, events []dbgen.CareEvent, cal Calendar) (Dates
 		IntervalDays: int(row.IntervalDays), Anchor: schedule.Anchor(row.Anchor), StartOn: start, Kind: row.Kind, Seasonal: row.Seasonal == 1,
 		MoistureCheck: row.MoistureCheck == 1, WaterAt: int(row.WaterAt),
 	}
-	d := Dates{
-		Start: start, Next: schedule.NextDue(task, evs, cal.Hemisphere), Interval: schedule.CurrentInterval(task, evs, cal.Today, cal.Hemisphere),
-	}
-	d.Last, d.HasLast = schedule.LastDone(evs)
-	d.DryingDays, d.HasDrying = schedule.DryingDays(task, evs)
-	d.LastReading, _ = schedule.LastReading(evs)
-	return d, nil
+	return task, evs, nil
 }
