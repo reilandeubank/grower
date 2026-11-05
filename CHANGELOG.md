@@ -5,6 +5,7 @@ Versions follow [semantic versioning](https://semver.org/); every release's data
 
 ## Unreleased
 
+- Photo files left behind by an interrupted or failed delete are removed: the server sweeps them at startup and daily, and `grower media sweep [--dry-run]` does it by hand.
 - Fix: a data directory whose path contains `#`, `?` or `%` now opens `grower.db` inside it.
   Before, grower silently used a different file, without its usual settings (including foreign keys).
 - Adding a plant asks one question a screen: what it is, where it lives, how far it is from a window, and when it was last repotted.

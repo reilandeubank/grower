@@ -47,6 +47,9 @@ Data directory:
   vapid.json             web push key pair, created on first start
 ```
 
+Photo files are written before their row and removed after it, so a failure in between leaves files no row refers to.
+The server sweeps those at startup and daily, sparing anything modified in the last hour (an upload or import in flight) and removing nothing while the photos table is empty; `grower media sweep [--dry-run]` runs the same sweep by hand.
+
 ## Scheduling
 
 `internal/schedule` computes due dates from a task and its event log.
