@@ -61,6 +61,26 @@ func TestDryingDays(t *testing.T) {
 	}
 }
 
+func TestHasRecentCycles(t *testing.T) {
+	tests := []struct {
+		name   string
+		events []Event
+		want   bool
+	}{
+		{"three cycles", []Event{done("2026-05-01"), done("2026-05-09"), done("2026-05-13"), done("2026-05-19")}, true},
+		{"two cycles and an open one", []Event{done("2026-05-01"), done("2026-05-09"), done("2026-05-13")}, false},
+		{"a same-day cycle doesn't count", []Event{done("2026-05-01"), done("2026-05-09"), done("2026-05-09"), done("2026-05-13")}, false},
+		{"a dry check ends a cycle", []Event{done("2026-05-01"), checked("2026-05-06", 3), done("2026-05-09"), done("2026-05-13"), checked("2026-05-16", 2)}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HasRecentCycles(soilCheck(), tt.events); got != tt.want {
+				t.Errorf("HasRecentCycles = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestNextCheck(t *testing.T) {
 	tests := []struct {
 		name   string

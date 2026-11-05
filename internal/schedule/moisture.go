@@ -24,6 +24,25 @@ func DryingDays(t Task, events []Event) (days int, ok bool) {
 }
 
 func dryingDays(t Task, sorted []Event) (int, bool) {
+	observed := observedCycles(t, sorted)
+	if len(observed) == 0 {
+		return 0, false
+	}
+	recent := observed[max(0, len(observed)-recentCycles):]
+	slices.Sort(recent)
+	return recent[(len(recent)-1)/2], true
+}
+
+// HasRecentCycles reports whether events, the latest part of a task's log, hold every cycle
+// DryingDays follows: then the task's schedule is the same as from its whole log, as long as
+// the part also has its latest done, skip and reading. Today loads that part and checks.
+func HasRecentCycles(t Task, events []Event) bool {
+	return len(observedCycles(t, sortEvents(t, events))) >= recentCycles
+}
+
+// observedCycles lists the drying times seen so far, oldest first: a watering whose cycle
+// ended (cycleEnd) on a later day.
+func observedCycles(t Task, sorted []Event) []int {
 	var observed []int
 	for i, e := range sorted {
 		if e.Kind != Done {
@@ -35,12 +54,7 @@ func dryingDays(t Task, sorted []Event) (int, bool) {
 			}
 		}
 	}
-	if len(observed) == 0 {
-		return 0, false
-	}
-	recent := observed[max(0, len(observed)-recentCycles):]
-	slices.Sort(recent)
-	return recent[(len(recent)-1)/2], true
+	return observed
 }
 
 // cycleEnd is when the soil was seen to be dry after a watering, given the events that
