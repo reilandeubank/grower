@@ -38,6 +38,21 @@ func (e Anchor) Valid() bool {
 	}
 }
 
+// Defines values for ApiTokenScope.
+const (
+	Read ApiTokenScope = "read"
+)
+
+// Valid indicates whether the value is a known member of the ApiTokenScope enum.
+func (e ApiTokenScope) Valid() bool {
+	switch e {
+	case Read:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Direction.
 const (
 	E  Direction = "e"
@@ -375,6 +390,41 @@ func (e WindowDistance) Valid() bool {
 // fixed: due dates stay on start_on + k × interval_days regardless of when it was done.
 type Anchor string
 
+// ApiToken defines model for ApiToken.
+type ApiToken struct {
+	CreatedAt time.Time `json:"created_at"`
+	Id        string    `json:"id"`
+
+	// Label What the token is for, such as "Home Assistant".
+	Label string `json:"label"`
+
+	// LastUsedAt Updated at most once an hour; null until first used.
+	LastUsedAt *time.Time `json:"last_used_at"`
+
+	// Scope What the token may do. Only read-only tokens exist for now.
+	Scope ApiTokenScope `json:"scope"`
+}
+
+// ApiTokenScope What the token may do. Only read-only tokens exist for now.
+type ApiTokenScope string
+
+// ApiTokenCreate defines model for ApiTokenCreate.
+type ApiTokenCreate struct {
+	Label string `json:"label"`
+}
+
+// ApiTokenCreated defines model for ApiTokenCreated.
+type ApiTokenCreated struct {
+	// Secret The token to send as `Authorization: Bearer <secret>`. Shown once; only a hash is kept.
+	Secret string   `json:"secret"`
+	Token  ApiToken `json:"token"`
+}
+
+// ApiTokenList defines model for ApiTokenList.
+type ApiTokenList struct {
+	Items []ApiToken `json:"items"`
+}
+
 // CareEvent defines model for CareEvent.
 type CareEvent struct {
 	Id string `json:"id"`
@@ -520,6 +570,54 @@ type HistoryEntry struct {
 	// TaskKind check_in is a periodic reminder to log how the plant is doing (photo, measurement, note).
 	TaskKind  TaskKind `json:"task_kind"`
 	TaskLabel string   `json:"task_label"`
+}
+
+// HomeAssistantItem defines model for HomeAssistantItem.
+type HomeAssistantItem struct {
+	// DaysOverdue Days past due; 0 when due today.
+	DaysOverdue int `json:"days_overdue"`
+
+	// Label The phrase the reminder uses, such as "Water Monstera" or "Check soil for Pothos (Office)".
+	Label string `json:"label"`
+
+	// Location The plant's room, if it has one.
+	Location *string `json:"location"`
+
+	// Plant What grower calls the plant (its name, or its species' common name).
+	Plant   string `json:"plant"`
+	PlantId string `json:"plant_id"`
+
+	// Task The task kind (water, fertilize, mist, repot, rotate, check_in, custom).
+	Task   string `json:"task"`
+	TaskId string `json:"task_id"`
+}
+
+// HomeAssistantSummary defines model for HomeAssistantSummary.
+type HomeAssistantSummary struct {
+	// Date Today in the token owner's time zone.
+	Date openapi_types.Date `json:"date"`
+
+	// Due Tasks due today, not counting overdue ones.
+	Due int `json:"due"`
+
+	// Items Overdue tasks (most overdue first), then tasks due today.
+	Items []HomeAssistantItem `json:"items"`
+
+	// Message The daily reminder's text, such as "Water Monstera, Mist Fern and 1 more"; empty when nothing is due.
+	Message string `json:"message"`
+
+	// NeedsCare Tasks overdue or due today; a good sensor state.
+	NeedsCare int `json:"needs_care"`
+	Overdue   int `json:"overdue"`
+
+	// Plants Distinct plants with a task overdue or due today.
+	Plants int `json:"plants"`
+
+	// Title The daily reminder's title, such as "2 plants need care"; empty when nothing is due.
+	Title string `json:"title"`
+
+	// Upcoming Tasks due within the next 7 days.
+	Upcoming int `json:"upcoming"`
 }
 
 // Identification defines model for Identification.
@@ -1067,6 +1165,9 @@ type LookupSpeciesParams struct {
 	Q string `form:"q" json:"q"`
 }
 
+// CreateApiTokenJSONRequestBody defines body for CreateApiToken for application/json ContentType.
+type CreateApiTokenJSONRequestBody = ApiTokenCreate
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -1138,6 +1239,15 @@ type LogTaskEventJSONRequestBody = CareEventInput
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ListApiTokens The current user's API tokens, oldest first. Secrets are never returned again.
+	// (GET /api-tokens)
+	ListApiTokens(w http.ResponseWriter, r *http.Request)
+	// CreateApiToken Create a read-only API token. The secret is in this response only.
+	// (POST /api-tokens)
+	CreateApiToken(w http.ResponseWriter, r *http.Request)
+	// DeleteApiToken Revoke one of the current user's API tokens. It stops working immediately.
+	// (DELETE /api-tokens/{id})
+	DeleteApiToken(w http.ResponseWriter, r *http.Request, id Id)
 	// Login Log in with username and password; sets the session cookie.
 	// (POST /auth/login)
 	Login(w http.ResponseWriter, r *http.Request)
@@ -1156,6 +1266,9 @@ type ServerInterface interface {
 	// IdentifyPlant Suggest species for a plant photo with Pl@ntNet (optional; needs GROWER_PLANTNET_API_KEY).
 	// (POST /identify)
 	IdentifyPlant(w http.ResponseWriter, r *http.Request)
+	// GetHomeAssistantSummary What needs care today, shaped for a Home Assistant REST sensor.
+	// (GET /integrations/home-assistant)
+	GetHomeAssistantSummary(w http.ResponseWriter, r *http.Request)
 	// ListLocations All locations, ordered by name, with how many active plants each holds.
 	// (GET /locations)
 	ListLocations(w http.ResponseWriter, r *http.Request)
@@ -1293,6 +1406,60 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
+// ListApiTokens operation middleware
+func (siw *ServerInterfaceWrapper) ListApiTokens(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListApiTokens(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateApiToken operation middleware
+func (siw *ServerInterfaceWrapper) CreateApiToken(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateApiToken(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteApiToken operation middleware
+func (siw *ServerInterfaceWrapper) DeleteApiToken(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteApiToken(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Login operation middleware
 func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
 
@@ -1380,6 +1547,20 @@ func (siw *ServerInterfaceWrapper) IdentifyPlant(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.IdentifyPlant(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetHomeAssistantSummary operation middleware
+func (siw *ServerInterfaceWrapper) GetHomeAssistantSummary(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetHomeAssistantSummary(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2455,6 +2636,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/settings", wrapper.UpdateSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/storage", wrapper.GetStorage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/export", wrapper.ExportData)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api-tokens", wrapper.ListApiTokens)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api-tokens", wrapper.CreateApiToken)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api-tokens/{id}", wrapper.DeleteApiToken)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/integrations/home-assistant", wrapper.GetHomeAssistantSummary)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/push/vapid-key", wrapper.GetVapidKey)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/push/subscriptions", wrapper.UnsubscribePush)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/push/subscriptions", wrapper.SubscribePush)
@@ -2507,6 +2692,141 @@ type RateLimitedApplicationProblemPlusJSONResponse struct {
 	Body Problem
 
 	Headers RateLimitedResponseHeaders
+}
+
+type ListApiTokensRequestObject struct {
+}
+
+type ListApiTokensResponseObject interface {
+	VisitListApiTokensResponse(w http.ResponseWriter) error
+}
+
+type ListApiTokens200JSONResponse ApiTokenList
+
+func (response ListApiTokens200JSONResponse) VisitListApiTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListApiTokens401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response ListApiTokens401ApplicationProblemPlusJSONResponse) VisitListApiTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateApiTokenRequestObject struct {
+	Body *CreateApiTokenJSONRequestBody
+}
+
+type CreateApiTokenResponseObject interface {
+	VisitCreateApiTokenResponse(w http.ResponseWriter) error
+}
+
+type CreateApiToken201JSONResponse ApiTokenCreated
+
+func (response CreateApiToken201JSONResponse) VisitCreateApiTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateApiToken400ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response CreateApiToken400ApplicationProblemPlusJSONResponse) VisitCreateApiTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateApiToken401ApplicationProblemPlusJSONResponse Problem
+
+func (response CreateApiToken401ApplicationProblemPlusJSONResponse) VisitCreateApiTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteApiTokenRequestObject struct {
+	Id Id `json:"id"`
+}
+
+type DeleteApiTokenResponseObject interface {
+	VisitDeleteApiTokenResponse(w http.ResponseWriter) error
+}
+
+type DeleteApiToken204Response struct {
+}
+
+func (response DeleteApiToken204Response) VisitDeleteApiTokenResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteApiToken401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response DeleteApiToken401ApplicationProblemPlusJSONResponse) VisitDeleteApiTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteApiToken404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteApiToken404ApplicationProblemPlusJSONResponse) VisitDeleteApiTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
 }
 
 type LoginRequestObject struct {
@@ -2846,6 +3166,43 @@ func (response IdentifyPlant502ApplicationProblemPlusJSONResponse) VisitIdentify
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(502)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetHomeAssistantSummaryRequestObject struct {
+}
+
+type GetHomeAssistantSummaryResponseObject interface {
+	VisitGetHomeAssistantSummaryResponse(w http.ResponseWriter) error
+}
+
+type GetHomeAssistantSummary200JSONResponse HomeAssistantSummary
+
+func (response GetHomeAssistantSummary200JSONResponse) VisitGetHomeAssistantSummaryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetHomeAssistantSummary401ApplicationProblemPlusJSONResponse struct {
+	ProblemApplicationProblemPlusJSONResponse
+}
+
+func (response GetHomeAssistantSummary401ApplicationProblemPlusJSONResponse) VisitGetHomeAssistantSummaryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -5179,6 +5536,15 @@ func (response GetToday401ApplicationProblemPlusJSONResponse) VisitGetTodayRespo
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// ListApiTokens The current user's API tokens, oldest first. Secrets are never returned again.
+	// (GET /api-tokens)
+	ListApiTokens(ctx context.Context, request ListApiTokensRequestObject) (ListApiTokensResponseObject, error)
+	// CreateApiToken Create a read-only API token. The secret is in this response only.
+	// (POST /api-tokens)
+	CreateApiToken(ctx context.Context, request CreateApiTokenRequestObject) (CreateApiTokenResponseObject, error)
+	// DeleteApiToken Revoke one of the current user's API tokens. It stops working immediately.
+	// (DELETE /api-tokens/{id})
+	DeleteApiToken(ctx context.Context, request DeleteApiTokenRequestObject) (DeleteApiTokenResponseObject, error)
 	// Login Log in with username and password; sets the session cookie.
 	// (POST /auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -5197,6 +5563,9 @@ type StrictServerInterface interface {
 	// IdentifyPlant Suggest species for a plant photo with Pl@ntNet (optional; needs GROWER_PLANTNET_API_KEY).
 	// (POST /identify)
 	IdentifyPlant(ctx context.Context, request IdentifyPlantRequestObject) (IdentifyPlantResponseObject, error)
+	// GetHomeAssistantSummary What needs care today, shaped for a Home Assistant REST sensor.
+	// (GET /integrations/home-assistant)
+	GetHomeAssistantSummary(ctx context.Context, request GetHomeAssistantSummaryRequestObject) (GetHomeAssistantSummaryResponseObject, error)
 	// ListLocations All locations, ordered by name, with how many active plants each holds.
 	// (GET /locations)
 	ListLocations(ctx context.Context, request ListLocationsRequestObject) (ListLocationsResponseObject, error)
@@ -5364,6 +5733,87 @@ type strictHandler struct {
 	options     StrictHTTPServerOptions
 }
 
+// ListApiTokens operation middleware
+func (sh *strictHandler) ListApiTokens(w http.ResponseWriter, r *http.Request) {
+	var request ListApiTokensRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListApiTokens(ctx, request.(ListApiTokensRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListApiTokens")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListApiTokensResponseObject); ok {
+		if err := validResponse.VisitListApiTokensResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateApiToken operation middleware
+func (sh *strictHandler) CreateApiToken(w http.ResponseWriter, r *http.Request) {
+	var request CreateApiTokenRequestObject
+
+	var body CreateApiTokenJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateApiToken(ctx, request.(CreateApiTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateApiToken")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateApiTokenResponseObject); ok {
+		if err := validResponse.VisitCreateApiTokenResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteApiToken operation middleware
+func (sh *strictHandler) DeleteApiToken(w http.ResponseWriter, r *http.Request, id Id) {
+	var request DeleteApiTokenRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteApiToken(ctx, request.(DeleteApiTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteApiToken")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteApiTokenResponseObject); ok {
+		if err := validResponse.VisitDeleteApiTokenResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Login operation middleware
 func (sh *strictHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var request LoginRequestObject
@@ -5524,6 +5974,30 @@ func (sh *strictHandler) IdentifyPlant(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(IdentifyPlantResponseObject); ok {
 		if err := validResponse.VisitIdentifyPlantResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetHomeAssistantSummary operation middleware
+func (sh *strictHandler) GetHomeAssistantSummary(w http.ResponseWriter, r *http.Request) {
+	var request GetHomeAssistantSummaryRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetHomeAssistantSummary(ctx, request.(GetHomeAssistantSummaryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetHomeAssistantSummary")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetHomeAssistantSummaryResponseObject); ok {
+		if err := validResponse.VisitGetHomeAssistantSummaryResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

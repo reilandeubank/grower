@@ -1,0 +1,17 @@
+.intro {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.token {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}

@@ -48,6 +48,7 @@ func New(d Deps) http.Handler {
 		d.Log.Warn("clean leftover uploads", "err", err)
 	}
 	withSession := sessions(d.Auth.Sessions(), cookie, d.Auth.Now, d.Log)
+	signedIn := requireAuth(d.Auth.Tokens(), d.Log)
 
 	apiMux := http.NewServeMux()
 	lookup := d.Species
@@ -57,7 +58,7 @@ func New(d Deps) http.Handler {
 	apigen.HandlerWithOptions(api.New(d.Auth, d.DB, store, d.Push, lookup, d.Identify, cookie, d.Config.DataDir, d.Config.Location.String(), d.Log).ServerInterface(), apigen.StdHTTPServerOptions{
 		BaseURL:     "/api/v1",
 		BaseRouter:  apiMux,
-		Middlewares: []apigen.MiddlewareFunc{requireAuth},
+		Middlewares: []apigen.MiddlewareFunc{signedIn},
 		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 			api.WriteProblem(w, http.StatusBadRequest, err.Error())
 		},
@@ -82,7 +83,7 @@ func New(d Deps) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/api/", apiHandler)
 	mux.Handle("GET /healthz", healthz(d.DB, d.Log))
-	mux.Handle("GET /media/photos/{id}/{size}", chain(mediaHandler(store, d.Log), withSession, requireAuth))
+	mux.Handle("GET /media/photos/{id}/{size}", chain(mediaHandler(store, d.Log), withSession, signedIn))
 	mux.HandleFunc("/media/", func(w http.ResponseWriter, r *http.Request) { // never the SPA
 		api.WriteProblem(w, http.StatusNotFound, photoNotFound)
 	})

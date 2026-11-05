@@ -173,6 +173,73 @@ paths:
                 format: binary
         "401":
           $ref: "#/components/responses/Problem"
+  /api-tokens:
+    get:
+      operationId: listApiTokens
+      summary: The current user's API tokens, oldest first. Secrets are never returned again.
+      responses:
+        "200":
+          description: The tokens.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiTokenList"
+        "401":
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createApiToken
+      summary: Create a read-only API token. The secret is in this response only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiTokenCreate"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiTokenCreated"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+  /api-tokens/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    delete:
+      operationId: deleteApiToken
+      summary: Revoke one of the current user's API tokens. It stops working immediately.
+      responses:
+        "204":
+          description: Revoked.
+        "401":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+  /integrations/home-assistant:
+    get:
+      operationId: getHomeAssistantSummary
+      summary: What needs care today, shaped for a Home Assistant REST sensor.
+      description: |
+        Accepts an API token (`Authorization: Bearer <token>`) as well as the session cookie.
+        Built from the same agenda as GET /today and the daily reminder, in the token owner's
+        time zone. `items` lists overdue then due-today tasks; upcoming ones are only counted.
+        See docs/home-assistant.md.
+      security:
+        - apiToken: []
+        - sessionCookie: []
+      responses:
+        "200":
+          description: The summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeAssistantSummary"
+        "401":
+          $ref: "#/components/responses/Problem"
   /push/vapid-key:
     get:
       operationId: getVapidKey
@@ -953,6 +1020,12 @@ components:
       in: cookie
       name: grower_session
       description: The cookie is named `__Host-grower_session` when GROWER_BASE_URL is https.
+    apiToken:
+      type: http
+      scheme: bearer
+      description: |
+        A per-user API token from Settings, sent as `Authorization: Bearer <token>`.
+        Accepted only by operations that list it, currently GET /integrations/home-assistant.
   responses:
     Problem:
       description: An error, as RFC 9457 problem details.
@@ -1964,6 +2037,109 @@ components:
           description: Due within the next 7 days, soonest first.
           items:
             $ref: "#/components/schemas/TodayItem"
+    ApiToken:
+      type: object
+      required: [id, label, scope, created_at, last_used_at]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+          description: What the token is for, such as "Home Assistant".
+        scope:
+          type: string
+          enum: [read]
+          description: What the token may do. Only read-only tokens exist for now.
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Updated at most once an hour; null until first used.
+    ApiTokenList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApiToken"
+    ApiTokenCreate:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 64
+    ApiTokenCreated:
+      type: object
+      required: [token, secret]
+      properties:
+        token:
+          $ref: "#/components/schemas/ApiToken"
+        secret:
+          type: string
+          description: "The token to send as `Authorization: Bearer <secret>`. Shown once; only a hash is kept."
+    HomeAssistantSummary:
+      type: object
+      required: [date, needs_care, overdue, due, upcoming, plants, title, message, items]
+      properties:
+        date:
+          type: string
+          format: date
+          description: Today in the token owner's time zone.
+        needs_care:
+          type: integer
+          description: Tasks overdue or due today; a good sensor state.
+        overdue:
+          type: integer
+        due:
+          type: integer
+          description: Tasks due today, not counting overdue ones.
+        upcoming:
+          type: integer
+          description: Tasks due within the next 7 days.
+        plants:
+          type: integer
+          description: Distinct plants with a task overdue or due today.
+        title:
+          type: string
+          description: The daily reminder's title, such as "2 plants need care"; empty when nothing is due.
+        message:
+          type: string
+          description: The daily reminder's text, such as "Water Monstera, Mist Fern and 1 more"; empty when nothing is due.
+        items:
+          type: array
+          description: Overdue tasks (most overdue first), then tasks due today.
+          items:
+            $ref: "#/components/schemas/HomeAssistantItem"
+    HomeAssistantItem:
+      type: object
+      required: [plant_id, plant, location, task_id, task, label, days_overdue]
+      properties:
+        plant_id:
+          type: string
+        plant:
+          type: string
+          description: What grower calls the plant (its name, or its species' common name).
+        location:
+          type: string
+          nullable: true
+          description: The plant's room, if it has one.
+        task_id:
+          type: string
+        task:
+          type: string
+          description: The task kind (water, fertilize, mist, repot, rotate, check_in, custom).
+        label:
+          type: string
+          description: The phrase the reminder uses, such as "Water Monstera" or "Check soil for Pothos (Office)".
+        days_overdue:
+          type: integer
+          description: Days past due; 0 when due today.
     Problem:
       type: object
       required: [title, status]

@@ -151,6 +151,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The current user's API tokens, oldest first. Secrets are never returned again. */
+        get: operations["listApiTokens"];
+        put?: never;
+        /** Create a read-only API token. The secret is in this response only. */
+        post: operations["createApiToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-tokens/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke one of the current user's API tokens. It stops working immediately. */
+        delete: operations["deleteApiToken"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/integrations/home-assistant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What needs care today, shaped for a Home Assistant REST sensor.
+         * @description Accepts an API token (`Authorization: Bearer <token>`) as well as the session cookie.
+         *     Built from the same agenda as GET /today and the daily reminder, in the token owner's
+         *     time zone. `items` lists overdue then due-today tasks; upcoming ones are only counted.
+         *     See docs/home-assistant.md.
+         */
+        get: operations["getHomeAssistantSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/push/vapid-key": {
         parameters: {
             query?: never;
@@ -1206,6 +1266,70 @@ export interface components {
             /** @description Due within the next 7 days, soonest first. */
             upcoming: components["schemas"]["TodayItem"][];
         };
+        ApiToken: {
+            id: string;
+            /** @description What the token is for, such as "Home Assistant". */
+            label: string;
+            /**
+             * @description What the token may do. Only read-only tokens exist for now.
+             * @enum {string}
+             */
+            scope: "read";
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description Updated at most once an hour; null until first used.
+             */
+            last_used_at: string | null;
+        };
+        ApiTokenList: {
+            items: components["schemas"]["ApiToken"][];
+        };
+        ApiTokenCreate: {
+            label: string;
+        };
+        ApiTokenCreated: {
+            token: components["schemas"]["ApiToken"];
+            /** @description The token to send as `Authorization: Bearer <secret>`. Shown once; only a hash is kept. */
+            secret: string;
+        };
+        HomeAssistantSummary: {
+            /**
+             * Format: date
+             * @description Today in the token owner's time zone.
+             */
+            date: string;
+            /** @description Tasks overdue or due today; a good sensor state. */
+            needs_care: number;
+            overdue: number;
+            /** @description Tasks due today, not counting overdue ones. */
+            due: number;
+            /** @description Tasks due within the next 7 days. */
+            upcoming: number;
+            /** @description Distinct plants with a task overdue or due today. */
+            plants: number;
+            /** @description The daily reminder's title, such as "2 plants need care"; empty when nothing is due. */
+            title: string;
+            /** @description The daily reminder's text, such as "Water Monstera, Mist Fern and 1 more"; empty when nothing is due. */
+            message: string;
+            /** @description Overdue tasks (most overdue first), then tasks due today. */
+            items: components["schemas"]["HomeAssistantItem"][];
+        };
+        HomeAssistantItem: {
+            plant_id: string;
+            /** @description What grower calls the plant (its name, or its species' common name). */
+            plant: string;
+            /** @description The plant's room, if it has one. */
+            location: string | null;
+            task_id: string;
+            /** @description The task kind (water, fertilize, mist, repot, rotate, check_in, custom). */
+            task: string;
+            /** @description The phrase the reminder uses, such as "Water Monstera" or "Check soil for Pothos (Office)". */
+            label: string;
+            /** @description Days past due; 0 when due today. */
+            days_overdue: number;
+        };
         Problem: {
             type?: string;
             title: string;
@@ -1447,6 +1571,96 @@ export interface operations {
                 };
                 content: {
                     "application/zip": string;
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    listApiTokens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tokens. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiTokenList"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    createApiToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiTokenCreate"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiTokenCreated"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+        };
+    };
+    deleteApiToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    getHomeAssistantSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The summary. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeAssistantSummary"];
                 };
             };
             401: components["responses"]["Problem"];

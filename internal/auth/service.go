@@ -34,6 +34,7 @@ type Options struct {
 type Service struct {
 	db         *db.DB
 	sessions   *Sessions
+	tokens     *APITokens
 	limiter    *Limiter
 	hashParams HashParams
 	now        Clock
@@ -62,6 +63,7 @@ func NewService(d *db.DB, opts Options) (*Service, error) {
 	return &Service{
 		db:         d,
 		sessions:   NewSessions(d, opts.Now),
+		tokens:     NewAPITokens(d, opts.Now),
 		limiter:    NewLoginLimiter(opts.RateLimits, opts.Now),
 		hashParams: opts.HashParams,
 		now:        opts.Now,
@@ -72,6 +74,9 @@ func NewService(d *db.DB, opts Options) (*Service, error) {
 
 // Sessions exposes the session store (used by the HTTP session middleware).
 func (s *Service) Sessions() *Sessions { return s.sessions }
+
+// Tokens exposes the API token store.
+func (s *Service) Tokens() *APITokens { return s.tokens }
 
 // Now returns the service clock's current time.
 func (s *Service) Now() time.Time { return s.now() }

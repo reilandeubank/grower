@@ -6,6 +6,7 @@ import { useCurrentUser } from "../auth/useCurrentUser";
 import type { Settings as SettingsData } from "../api/client";
 import { AppShell, Button, ErrorText, SegmentedControl, TopBar } from "../design";
 import { readTheme, saveTheme, type Theme } from "../lib/theme";
+import { ApiTokensSection } from "../settings/ApiTokensSection";
 import { DataSection } from "../settings/DataSection";
 import { NotificationsSection } from "../settings/NotificationsSection";
 import { PasswordSheet } from "../settings/PasswordSheet";
@@ -65,6 +66,10 @@ export function Settings() {
 
         <Section id="settings-notifications" title="Notifications">
           <NotificationsSection />
+        </Section>
+
+        <Section id="settings-integrations" title="Integrations">
+          <ApiTokensSection />
         </Section>
 
         <Section id="settings-account" title="Account">
