@@ -1,0 +1,38 @@
+# Weekly update PRs. Minor and patch bumps are grouped into one PR per ecosystem;
+# majors come one at a time, since they're the ones that need reading.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      go:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    groups:
+      web:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # Node and Go track ci.yml's node-version and go.mod: bump those together by hand.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+      - dependency-name: golang
+        update-types: [version-update:semver-major, version-update:semver-minor]
