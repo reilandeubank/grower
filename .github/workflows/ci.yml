@@ -21,9 +21,11 @@ jobs:
       - name: Generated code is current
         run: go generate ./... && git diff --exit-code
       - run: go vet ./...
+      - id: lint
+        run: echo "version=$(make -s golangci-lint-version)" >> "$GITHUB_OUTPUT"
       - uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: ${{ steps.lint.outputs.version }}
       - run: go test -race ./...
 
   web:
