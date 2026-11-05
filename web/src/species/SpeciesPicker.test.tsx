@@ -9,7 +9,7 @@ const ficus = { ...monstera, id: "s2", scientific_name: "Ficus lyrata", common_n
 const candidate = { source: "openplantbook", common_name: "", saved_id: null } as const;
 
 /** Mocks the form's API; returns what the plant was saved with and every species request. */
-function setup(opts: { lookup?: SpeciesLookup; edit?: boolean } = {}) {
+function setup(opts: { lookup?: SpeciesLookup; lookupResponse?: () => Response; edit?: boolean } = {}) {
   const sent: { plant?: Record<string, unknown>; lookups: string[]; imports: unknown[] } = { lookups: [], imports: [] };
   const saved = { ...plant, id: "p9" };
   const fetchMock = mockApi({
@@ -22,7 +22,7 @@ function setup(opts: { lookup?: SpeciesLookup; edit?: boolean } = {}) {
     },
     "GET /api/v1/species/lookup": (req) => {
       sent.lookups.push(new URL(req.url).searchParams.get("q") ?? "");
-      return json(200, opts.lookup ?? { providers: [], items: [] });
+      return opts.lookupResponse?.() ?? json(200, opts.lookup ?? { providers: [], items: [] });
     },
     "POST /api/v1/species/import": async (req) => {
       sent.imports.push(await req.json());
@@ -109,6 +109,14 @@ describe("Species picker", () => {
     expect(
       await screen.findByText("Online lookup isn't set up. Ask whoever runs grower to add API keys."),
     ).toBeTruthy();
+  });
+
+  it("passes on the server's message when searching too often", async () => {
+    const detail = "Too many species lookups. Try again in a few seconds.";
+    setup({ lookupResponse: () => json(429, { title: "Too Many Requests", status: 429, detail }) });
+    await userEvent.type(await combobox(), "ficus");
+    await userEvent.click(await screen.findByRole("option", { name: /Search online/ }));
+    expect(await screen.findByText(detail)).toBeTruthy();
   });
 
   it("says when no provider found anything", async () => {

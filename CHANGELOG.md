@@ -5,6 +5,7 @@ Versions follow [semantic versioning](https://semver.org/); every release's data
 
 ## Unreleased
 
+- Online species search, species import and plant identification are rate-limited per user, so one stuck client can't spend a provider's daily budget for everyone. Searches answered from the cache don't count.
 - Today and the daily reminder read only the care history their schedules depend on (a few events per task), not every event ever logged, so they stay fast as the history grows.
 - Photo files left behind by an interrupted or failed delete are removed: the server sweeps them at startup and daily, and `grower media sweep [--dry-run]` does it by hand.
 - Fix: a data directory whose path contains `#`, `?` or `%` now opens `grower.db` inside it.

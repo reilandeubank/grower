@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, LoaderCircle, X } from "lucide-react";
-import type { IdentifyCandidate } from "../api/client";
+import { tooManyMessage, type IdentifyCandidate } from "../api/client";
 import { AppShell, Button, ErrorText, FilterChips, IconButton, TopBar } from "../design";
 import { useBack } from "../lib/useBack";
 import { confidenceLabel, ORGAN_OPTIONS, useIdentify, type Organ } from "./identify";
@@ -35,7 +35,11 @@ export function IdentifyStep({ draft, onDone }: IdentifyStepProps) {
       </p>
     );
   } else if (failed) {
-    results = <ErrorText>Couldn't identify the photo. Try again, or continue without a species.</ErrorText>;
+    results = (
+      <ErrorText>
+        {tooManyMessage(identify.error) ?? "Couldn't identify the photo. Try again, or continue without a species."}
+      </ErrorText>
+    );
   } else {
     results = (
       <>

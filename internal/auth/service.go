@@ -34,7 +34,7 @@ type Options struct {
 type Service struct {
 	db         *db.DB
 	sessions   *Sessions
-	limiter    *LoginLimiter
+	limiter    *Limiter
 	hashParams HashParams
 	now        Clock
 	// dummyHash is verified against when the username is unknown so that response

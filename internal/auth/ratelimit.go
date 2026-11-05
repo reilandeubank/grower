@@ -21,66 +21,94 @@ func DefaultRateLimits() RateLimits {
 	return RateLimits{PerIPEvery: 10 * time.Second, PerIPBurst: 10, GlobalEvery: time.Second, GlobalBurst: 30}
 }
 
-// maxTrackedIPs bounds memory if many addresses hit the login endpoint.
-const maxTrackedIPs = 10_000
+// maxTrackedKeys bounds memory if many clients hit a limited endpoint.
+const maxTrackedKeys = 10_000
 
-// LoginLimiter is an in-memory token-bucket limiter keyed by client IP.
-type LoginLimiter struct {
-	limits RateLimits
-	now    Clock
+// Limiter is an in-memory token-bucket limiter with a bucket per key (a client IP, a
+// user id) and optionally one shared by every key.
+type Limiter struct {
+	every time.Duration
+	burst int
+	now   Clock
 
-	mu     sync.Mutex
-	global *rate.Limiter
-	perIP  map[string]*ipBucket
+	mu      sync.Mutex
+	global  *rate.Limiter // nil for none
+	buckets map[string]*keyBucket
 }
 
-type ipBucket struct {
+type keyBucket struct {
 	limiter  *rate.Limiter
 	lastSeen time.Time
 }
 
-// NewLoginLimiter returns a limiter using limits and the given clock.
-func NewLoginLimiter(limits RateLimits, now Clock) *LoginLimiter {
-	return &LoginLimiter{
-		limits: limits,
-		now:    now,
-		global: rate.NewLimiter(rate.Every(limits.GlobalEvery), limits.GlobalBurst),
-		perIP:  make(map[string]*ipBucket),
-	}
+// NewLoginLimiter returns a limiter keyed by client IP, with a global bucket, using
+// limits and the given clock.
+func NewLoginLimiter(limits RateLimits, now Clock) *Limiter {
+	l := NewLimiter(limits.PerIPEvery, limits.PerIPBurst, now)
+	l.global = rate.NewLimiter(rate.Every(limits.GlobalEvery), limits.GlobalBurst)
+	return l
 }
 
-// Allow consumes one attempt for ip and reports whether it may proceed.
-func (l *LoginLimiter) Allow(ip string) bool {
+// NewLimiter returns a limiter giving each key one token every interval, up to burst.
+func NewLimiter(every time.Duration, burst int, now Clock) *Limiter {
+	return &Limiter{every: every, burst: burst, now: now, buckets: make(map[string]*keyBucket)}
+}
+
+// Allow consumes one attempt for key and reports whether it may proceed.
+func (l *Limiter) Allow(key string) bool {
+	ok, _ := l.Take(key)
+	return ok
+}
+
+// Take consumes one attempt for key if one is available. When none is, it reports how
+// long until one is (at least a second, for Retry-After) and consumes nothing.
+func (l *Limiter) Take(key string) (bool, time.Duration) {
 	now := l.now()
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	b, ok := l.perIP[ip]
+	b, ok := l.buckets[key]
 	if !ok {
-		if len(l.perIP) >= maxTrackedIPs {
+		if len(l.buckets) >= maxTrackedKeys {
 			l.pruneLocked(now)
 		}
-		b = &ipBucket{limiter: rate.NewLimiter(rate.Every(l.limits.PerIPEvery), l.limits.PerIPBurst)}
-		l.perIP[ip] = b
+		b = &keyBucket{limiter: rate.NewLimiter(rate.Every(l.every), l.burst)}
+		l.buckets[key] = b
 	}
 	b.lastSeen = now
-	// Check the per-IP bucket first so one noisy client does not drain the global budget.
-	if !b.limiter.AllowN(now, 1) {
-		return false
+	// Check the key's bucket first so one noisy client does not drain the global budget.
+	if wait := take(b.limiter, now); wait > 0 {
+		return false, wait
 	}
-	return l.global.AllowN(now, 1)
+	if l.global != nil {
+		if wait := take(l.global, now); wait > 0 {
+			return false, wait
+		}
+	}
+	return true, 0
+}
+
+// take consumes a token from lim, or reports how long until there is one.
+func take(lim *rate.Limiter, now time.Time) time.Duration {
+	r := lim.ReserveN(now, 1)
+	wait := r.DelayFrom(now)
+	if wait == 0 {
+		return 0
+	}
+	r.CancelAt(now)
+	return max(wait, time.Second)
 }
 
 // pruneLocked drops buckets idle long enough to have refilled completely; forgetting
 // them changes nothing. If that frees nothing, it starts over rather than grow unbounded.
-func (l *LoginLimiter) pruneLocked(now time.Time) {
-	idle := l.limits.PerIPEvery * time.Duration(l.limits.PerIPBurst)
-	for ip, b := range l.perIP {
+func (l *Limiter) pruneLocked(now time.Time) {
+	idle := l.every * time.Duration(l.burst)
+	for key, b := range l.buckets {
 		if now.Sub(b.lastSeen) > idle {
-			delete(l.perIP, ip)
+			delete(l.buckets, key)
 		}
 	}
-	if len(l.perIP) >= maxTrackedIPs {
-		clear(l.perIP)
+	if len(l.buckets) >= maxTrackedKeys {
+		clear(l.buckets)
 	}
 }

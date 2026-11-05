@@ -77,9 +77,14 @@ export function isOfflineError(error: unknown): boolean {
 }
 
 /** Copy for a failed save: the server's own detail for validation errors, plain words otherwise. */
+/** The server's "too many, try again in a few seconds" for a rate-limited call, else undefined. */
+export function tooManyMessage(error: Error | null | undefined): string | undefined {
+  return error instanceof ApiError && error.status === 429 ? error.problem?.detail : undefined;
+}
+
 export function problemMessage(error: Error): string {
   if (error instanceof ApiError) {
-    if ((error.status === 400 || error.status === 409) && error.problem?.detail) return error.problem.detail;
+    if ([400, 409, 429].includes(error.status) && error.problem?.detail) return error.problem.detail;
     if (error.status === 404) return "This was deleted somewhere else.";
     return "Something went wrong on the server. Try again in a moment.";
   }

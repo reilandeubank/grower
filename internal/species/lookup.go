@@ -54,15 +54,27 @@ func (l *Lookup) Provider(source string) Provider {
 	return nil
 }
 
+// Cached reports whether every provider would answer q from the cache, so Search would
+// call none of them.
+func (l *Lookup) Cached(q string) bool {
+	q = normalize(q)
+	for _, p := range l.providers {
+		if _, ok := l.get(cacheKey(p, q)); !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // Search asks every provider concurrently and returns their results in provider
 // order. Only successful answers are cached.
 func (l *Lookup) Search(ctx context.Context, q string) []Result {
-	q = strings.Join(strings.Fields(strings.ToLower(q)), " ")
+	q = normalize(q)
 	results := make([]Result, len(l.providers))
 	var wg sync.WaitGroup
 	for i, p := range l.providers {
 		results[i].Provider = p
-		key := p.Source() + "\x00" + q
+		key := cacheKey(p, q)
 		if c, ok := l.get(key); ok {
 			results[i].Candidates = c
 			continue
@@ -78,6 +90,10 @@ func (l *Lookup) Search(ctx context.Context, q string) []Result {
 	wg.Wait()
 	return results
 }
+
+func normalize(q string) string { return strings.Join(strings.Fields(strings.ToLower(q)), " ") }
+
+func cacheKey(p Provider, q string) string { return p.Source() + "\x00" + q }
 
 func (l *Lookup) get(key string) ([]Candidate, bool) {
 	l.mu.Lock()

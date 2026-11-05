@@ -36,6 +36,7 @@ type env struct {
 	db      *db.DB
 	clock   *fakeClock
 	cfg     config.Config
+	auth    *auth.Service
 	// pushService receives every notification the server sends.
 	pushService *pushtest.Service
 }
@@ -92,7 +93,7 @@ func newEnv(t *testing.T, opts envOptions) *env {
 	fake := pushtest.New(t)
 	pusher := &push.Sender{DB: d, Keys: keys, Subject: "http://grower.test", Client: fake.Client(), Now: clock.Now, Log: log}
 	h := New(Deps{Config: cfg, DB: d, Auth: svc, Push: pusher, Species: species.NewLookup(clock.Now, opts.species...), Identify: opts.plantnet, SPA: spa, Log: log})
-	return &env{t: t, handler: h, db: d, clock: clock, cfg: cfg, pushService: fake}
+	return &env{t: t, handler: h, db: d, clock: clock, cfg: cfg, auth: svc, pushService: fake}
 }
 
 // request describes one call; zero values give a same-origin JSON request.

@@ -1,6 +1,6 @@
 import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Check, Globe, LoaderCircle, Plus } from "lucide-react";
-import { problemMessage, type Species, type SpeciesCandidate } from "../api/client";
+import { problemMessage, tooManyMessage, type Species, type SpeciesCandidate } from "../api/client";
 import { ErrorText } from "../design";
 import { Field, fieldStyles } from "../design/Field";
 import { useDebounced } from "../lib/useDebounced";
@@ -102,7 +102,11 @@ export function SpeciesPicker({ text, speciesId, onChange }: SpeciesPickerProps)
   };
 
   const failure = importer.error ?? create.error;
-  const notes = online?.data ? lookupNotes(online.data) : online?.isError ? ["Couldn't search online. Try again."] : [];
+  const notes = online?.data
+    ? lookupNotes(online.data)
+    : online?.isError
+      ? [tooManyMessage(online.error) ?? "Couldn't search online. Try again."]
+      : [];
 
   const row = (o: Option, i: number) => (
     <li

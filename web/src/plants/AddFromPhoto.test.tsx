@@ -135,6 +135,16 @@ describe("Add from photo", () => {
     expect(organs).toEqual(["auto", "flower"]);
   });
 
+  it("passes on the server's message when identifying too often", async () => {
+    const detail = "Too many identifications. Try again in a few seconds.";
+    setup(() => ({}), {
+      "POST /api/v1/identify": () => json(429, { title: "Too Many Requests", status: 429, detail }),
+    });
+    await addFromPhoto();
+    expect(await screen.findByText(detail)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Continue without a species" })).toBeTruthy();
+  });
+
   it("prefills a saved species and links it", async () => {
     const { writes } = setup(() => suggestions);
     const { router } = await addFromPhoto();
