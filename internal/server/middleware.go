@@ -124,6 +124,28 @@ func noStore(next http.Handler) http.Handler {
 	})
 }
 
+// afterWrites calls onChange after a request that may have changed data: any method but
+// GET, HEAD and OPTIONS that didn't fail. A nil onChange disables it.
+func afterWrites(onChange func()) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		if onChange == nil {
+			return next
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet, http.MethodHead, http.MethodOptions:
+				next.ServeHTTP(w, r)
+				return
+			}
+			rec := &statusRecorder{ResponseWriter: w}
+			next.ServeHTTP(rec, r)
+			if rec.status != 0 && rec.status < http.StatusBadRequest {
+				onChange()
+			}
+		})
+	}
+}
+
 // limitBody caps request bodies so a client cannot stream unbounded data. Uploads get
 // the larger cap.
 func limitBody(isUpload func(*http.Request) bool, n, upload int64) func(http.Handler) http.Handler {

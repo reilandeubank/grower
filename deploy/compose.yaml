@@ -14,6 +14,10 @@ services:
       # GROWER_OPENPLANTBOOK_CLIENT_SECRET: CHANGE
       # GROWER_PERENUAL_API_KEY: CHANGE
       # GROWER_PLANTNET_API_KEY: CHANGE
+      # Optional Home Assistant devices over MQTT (docs/home-assistant.md, "MQTT with discovery").
+      # GROWER_MQTT_URL: mqtt://homeassistant.local:1883 # CHANGE
+      # GROWER_MQTT_USERNAME: CHANGE
+      # GROWER_MQTT_PASSWORD: CHANGE
     volumes:
       - ./data:/data # CHANGE: where grower keeps its database, photos and backups
     ports:

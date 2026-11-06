@@ -97,6 +97,10 @@ Each user can identify about once every 5 seconds (five in a row).
 The photo is forwarded and never stored by grower; Pl@ntNet's terms say submitted images aren't kept either.
 Suggestions only fill in the name: care defaults still come from the providers above or from you.
 
+## Home Assistant (optional)
+
+grower can feed Home Assistant through a REST sensor or as MQTT devices with buttons; setup and settings (`GROWER_MQTT_*`) are in [home-assistant.md](home-assistant.md).
+
 ## TrueNAS SCALE and Nginx Proxy Manager
 
 A walkthrough for TrueNAS SCALE 24.10 or newer (Docker-based apps) with Nginx Proxy Manager (NPM) already running.
