@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -19,13 +20,21 @@ const (
 	// (secret scanners, log reviews) and can't be mistaken for a session cookie.
 	TokenPrefix = "grower_"
 	// ScopeRead lets a token read; it is the only scope handed out for now.
+	// TODO: when a route takes the reserved "write" scope, have requireAuth check the
+	// token's scope against the route's, not only the route allowlist.
 	ScopeRead = "read"
+	// MaxTokens caps each user's tokens.
+	MaxTokens = 25
 	// tokenTouchAfter limits last-used writes: Home Assistant polls every 30 s by default.
 	tokenTouchAfter = time.Hour
 )
 
-// ErrNoToken means the API token is unknown or revoked.
-var ErrNoToken = errors.New("no valid api token")
+var (
+	// ErrNoToken means the API token is unknown or revoked.
+	ErrNoToken = errors.New("no valid api token")
+	// ErrTooManyTokens means the user already has MaxTokens tokens.
+	ErrTooManyTokens = errors.New("too many api tokens")
+)
 
 // APIToken is a token as listed in Settings. The secret is never part of it.
 type APIToken struct {
@@ -41,23 +50,31 @@ type APIToken struct {
 type APITokens struct {
 	db  *db.DB
 	now Clock
+	log *slog.Logger
 }
 
 // NewAPITokens returns a token store backed by d.
-func NewAPITokens(d *db.DB, now Clock) *APITokens {
-	return &APITokens{db: d, now: now}
+func NewAPITokens(d *db.DB, now Clock, log *slog.Logger) *APITokens {
+	return &APITokens{db: d, now: now, log: log}
 }
 
 // Create makes a read-only token for userID and returns it with its secret. The
 // secret can't be recovered later: only its SHA-256 is stored, as for sessions.
 func (t *APITokens) Create(ctx context.Context, userID, label string) (APIToken, string, error) {
+	n, err := t.db.Reader().CountUserAPITokens(ctx, userID)
+	if err != nil {
+		return APIToken{}, "", fmt.Errorf("count api tokens: %w", err)
+	}
+	if n >= MaxTokens {
+		return APIToken{}, "", ErrTooManyTokens
+	}
 	raw := make([]byte, tokenBytes)
 	if _, err := rand.Read(raw); err != nil {
 		return APIToken{}, "", fmt.Errorf("generate api token: %w", err)
 	}
 	secret := TokenPrefix + base64.RawURLEncoding.EncodeToString(raw)
 	tok := APIToken{ID: db.NewID(), Label: label, Scope: ScopeRead, CreatedAt: t.now().UTC().Truncate(time.Second)}
-	err := t.db.Writer().CreateAPIToken(ctx, dbgen.CreateAPITokenParams{
+	err = t.db.Writer().CreateAPIToken(ctx, dbgen.CreateAPITokenParams{
 		ID:         tok.ID,
 		UserID:     userID,
 		Label:      label,
@@ -96,7 +113,7 @@ func (t *APITokens) List(ctx context.Context, userID string) ([]APIToken, error)
 }
 
 // Lookup resolves a secret into its owner. The token's last use is recorded at most
-// once an hour.
+// once an hour; that is bookkeeping, so failing to record it is logged, not returned.
 func (t *APITokens) Lookup(ctx context.Context, secret string) (Principal, error) {
 	if !strings.HasPrefix(secret, TokenPrefix) {
 		return Principal{}, ErrNoToken
@@ -119,7 +136,7 @@ func (t *APITokens) Lookup(ctx context.Context, secret string) (Principal, error
 	}
 	if stale {
 		if err := t.db.Writer().TouchAPIToken(ctx, dbgen.TouchAPITokenParams{LastUsedAt: sql.NullString{String: db.FormatTime(now), Valid: true}, ID: row.ID}); err != nil {
-			return Principal{}, fmt.Errorf("record api token use: %w", err)
+			t.log.WarnContext(ctx, "record api token use", "token_id", row.ID, "err", err)
 		}
 	}
 	return Principal{UserID: row.UserID, Username: row.Username, TokenID: row.ID, TokenScope: row.Scope}, nil

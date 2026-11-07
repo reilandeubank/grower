@@ -161,7 +161,7 @@ export interface paths {
         /** The current user's API tokens, oldest first. Secrets are never returned again. */
         get: operations["listApiTokens"];
         put?: never;
-        /** Create a read-only API token. The secret is in this response only. */
+        /** Create a read-only API token (at most 25 per user). The secret is in this response only. */
         post: operations["createApiToken"];
         delete?: never;
         options?: never;

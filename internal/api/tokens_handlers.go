@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"unicode/utf8"
@@ -44,6 +45,9 @@ func (h *Handler) CreateApiToken(ctx context.Context, req apigen.CreateApiTokenR
 		return apigen.CreateApiToken400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest("Use a name of at most 64 characters.")}, nil
 	}
 	t, secret, err := h.auth.Tokens().Create(ctx, p.UserID, label)
+	if errors.Is(err, auth.ErrTooManyTokens) {
+		return apigen.CreateApiToken400ApplicationProblemPlusJSONResponse{ProblemApplicationProblemPlusJSONResponse: badRequest(fmt.Sprintf("You can have up to %d API tokens. Revoke one you no longer use first.", auth.MaxTokens))}, nil
+	}
 	if err != nil {
 		return nil, err
 	}

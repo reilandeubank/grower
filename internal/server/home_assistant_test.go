@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/reilandeubank/grower/internal/apigen"
+	"github.com/reilandeubank/grower/internal/auth"
 )
 
 const haPath = "/api/v1/integrations/home-assistant"
@@ -86,6 +87,35 @@ func TestAPITokensLifecycle(t *testing.T) {
 	}
 	expectProblem(t, resp, http.StatusUnauthorized)
 	expectProblem(t, e.call(c, http.MethodDelete, "/api/v1/api-tokens/"+created.Token.Id, ""), http.StatusNotFound)
+}
+
+// Recording last use is bookkeeping: if the write fails, the request still succeeds.
+func TestAPITokenTouchFailureIsNotFatal(t *testing.T) {
+	e := newEnv(t, envOptions{})
+	tok := e.newToken(e.loginCookie(), "HA")
+	if _, err := e.db.Write.Exec(`CREATE TRIGGER fail_touch BEFORE UPDATE ON api_tokens BEGIN SELECT RAISE(ABORT, 'busy'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if resp := e.withBearer(tok.Secret, http.MethodGet, haPath); resp.StatusCode != http.StatusOK {
+		t.Errorf("status %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestAPITokenLimit(t *testing.T) {
+	e := newEnv(t, envOptions{})
+	c := e.loginCookie()
+	var first apigen.ApiTokenCreated
+	for i := range auth.MaxTokens {
+		tok := e.newToken(c, "HA")
+		if i == 0 {
+			first = tok
+		}
+	}
+	expectProblem(t, e.call(c, http.MethodPost, "/api/v1/api-tokens", `{"label":"one more"}`), http.StatusBadRequest)
+	e.call(c, http.MethodDelete, "/api/v1/api-tokens/"+first.Token.Id, "")
+	e.newToken(c, "after revoking one")
+	// The cap is per user.
+	e.newToken(e.otherUser(), "HA")
 }
 
 func TestAPITokenValidationAndOwnership(t *testing.T) {

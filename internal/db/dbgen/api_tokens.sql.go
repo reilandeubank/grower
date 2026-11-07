@@ -10,6 +10,17 @@ import (
 	"database/sql"
 )
 
+const countUserAPITokens = `-- name: CountUserAPITokens :one
+SELECT count(*) FROM api_tokens WHERE user_id = ?
+`
+
+func (q *Queries) CountUserAPITokens(ctx context.Context, userID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUserAPITokens, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createAPIToken = `-- name: CreateAPIToken :exec
 INSERT INTO api_tokens (id, user_id, label, secret_hash, scope, created_at)
 VALUES (?, ?, ?, ?, ?, ?)

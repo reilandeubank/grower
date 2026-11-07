@@ -18,20 +18,19 @@ var TestMessage = Message{Title: "grower", Body: "Notifications are working.", U
 // Fern and 1 more", overdue tasks first, each task as Phrases words it. ok is false when
 // nothing is due.
 func DigestMessage(a care.Agenda, rooms map[string]string) (m Message, ok bool) {
-	items := slices.Concat(a.Overdue, a.Due)
-	if len(items) == 0 {
+	phrases := Phrases(a, rooms)
+	if len(phrases) == 0 {
 		return Message{}, false
 	}
-	phrases := Phrases(a, rooms)
 	plants := map[string]bool{}
 	names := make([]string, 0, listed+1)
-	for i, it := range items {
-		plants[it.Plant.ID] = true
+	for i, ph := range phrases {
+		plants[ph.Item.Plant.ID] = true
 		if i < listed {
-			names = append(names, phrases[i])
+			names = append(names, ph.Text)
 		}
 	}
-	if more := len(items) - listed; more > 0 {
+	if more := len(phrases) - listed; more > 0 {
 		names = append(names, fmt.Sprintf("%d more", more))
 	}
 	title := "1 plant needs care"
@@ -41,18 +40,24 @@ func DigestMessage(a care.Agenda, rooms map[string]string) (m Message, ok bool) 
 	return Message{Title: title, Body: joinAnd(names), URL: "/", Tag: "digest"}, true
 }
 
-// Phrases words the overdue then due tasks, in that order, the way the reminder names
-// them: "Water Monstera", "Check soil for Fern". Plants that share a name are told apart
-// by their room from rooms (location ID to name): "Water Pothos (Office)".
-func Phrases(a care.Agenda, rooms map[string]string) []string {
+// Phrase is an overdue or due task with the words the reminder names it by.
+type Phrase struct {
+	Item care.Item
+	Text string
+}
+
+// Phrases words the overdue then due tasks, in that order: "Water Monstera", "Check soil
+// for Fern". Plants that share a name are told apart by their room from rooms (location
+// ID to name): "Water Pothos (Office)".
+func Phrases(a care.Agenda, rooms map[string]string) []Phrase {
 	shared := sharedNames(a)
-	out := make([]string, 0, len(a.Overdue)+len(a.Due))
+	out := make([]Phrase, 0, len(a.Overdue)+len(a.Due))
 	for _, it := range slices.Concat(a.Overdue, a.Due) {
 		name := it.PlantName
 		if room := rooms[it.Plant.LocationID.String]; shared[strings.ToLower(name)] && it.Plant.LocationID.Valid && room != "" {
 			name += " (" + room + ")"
 		}
-		out = append(out, taskPhrase(it, name))
+		out = append(out, Phrase{Item: it, Text: taskPhrase(it, name)})
 	}
 	return out
 }

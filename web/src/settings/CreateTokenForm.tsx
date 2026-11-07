@@ -8,8 +8,8 @@ import own from "./ApiTokensSection.module.css";
 const MAX_LABEL = 64;
 
 /**
- * Names a new token, then shows its secret once. Mounted only while the sheet is open, so
- * the secret is gone from the page as soon as the sheet closes.
+ * Names a new token, then shows its secret once. The sheet unmounts this when it closes,
+ * which drops the secret from the page and (see useCreateApiToken) from the query cache.
  */
 export function CreateTokenForm({ onDone }: { onDone: () => void }) {
   const [label, setLabel] = useState("Home Assistant");

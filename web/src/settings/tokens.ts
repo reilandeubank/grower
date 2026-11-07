@@ -14,10 +14,14 @@ export function useApiTokens() {
   });
 }
 
-/** Creates a read-only token. The secret is only in this response, so the caller shows it once. */
+/**
+ * Creates a read-only token. The secret is only in this response, so the caller shows it
+ * once; gcTime 0 drops it from the mutation cache as soon as the caller unmounts.
+ */
 export function useCreateApiToken() {
   const queryClient = useQueryClient();
   return useMutation<ApiTokenCreated, Error, string>({
+    gcTime: 0,
     mutationFn: async (label) => unwrap(await api.POST("/api-tokens", { body: { label } })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: apiTokensKey }),
   });
@@ -35,7 +39,7 @@ export function useRevokeApiToken() {
   });
 }
 
-/** "Today", "Yesterday" or "Oct 12", on the device's calendar. */
+/** "today", "yesterday" or "Oct 12", on the device's calendar. */
 function dayWord(at: string, now: Date): string {
   const today = deviceToday(now);
   const day = deviceToday(new Date(at));

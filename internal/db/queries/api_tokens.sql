@@ -19,3 +19,6 @@ UPDATE api_tokens SET last_used_at = ? WHERE id = ?;
 
 -- name: DeleteUserAPIToken :execrows
 DELETE FROM api_tokens WHERE id = ? AND user_id = ?;
+
+-- name: CountUserAPITokens :one
+SELECT count(*) FROM api_tokens WHERE user_id = ?;

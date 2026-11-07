@@ -45,7 +45,7 @@ describe("API tokens in Settings", () => {
       "GET /api/v1/api-tokens": () => json(200, { items: tokens }),
       "POST /api/v1/api-tokens": created,
     });
-    renderApp("/settings");
+    const { queryClient } = renderApp("/settings");
 
     await userEvent.click(await screen.findByRole("button", { name: "Create API token" }));
     const sheet = await screen.findByRole("dialog", { name: "Create API token" });
@@ -71,6 +71,9 @@ describe("API tokens in Settings", () => {
     await waitFor(() => expect(screen.queryByText("grower_s3cret")).toBeNull());
     expect(await screen.findByRole("button", { name: /Kitchen tablet/ })).toBeTruthy();
     expect(screen.queryByDisplayValue("grower_s3cret")).toBeNull();
+    // Nor is it kept in the query cache once the sheet has closed.
+    const cached = () => JSON.stringify(queryClient.getMutationCache().getAll().map((m) => m.state.data));
+    await waitFor(() => expect(cached()).not.toContain("grower_s3cret"));
   });
 
   it("revokes a token after asking", async () => {

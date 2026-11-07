@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/reilandeubank/grower/internal/db"
@@ -28,6 +29,8 @@ type Options struct {
 	HashParams HashParams
 	RateLimits RateLimits
 	Now        Clock
+	// Log gets problems that don't fail the request; nil means slog.Default().
+	Log *slog.Logger
 }
 
 // Service implements login and user management on top of the database.
@@ -56,6 +59,9 @@ func NewService(d *db.DB, opts Options) (*Service, error) {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
+	if opts.Log == nil {
+		opts.Log = slog.Default()
+	}
 	dummy, err := HashPassword("grower-dummy-password", opts.HashParams)
 	if err != nil {
 		return nil, err
@@ -63,7 +69,7 @@ func NewService(d *db.DB, opts Options) (*Service, error) {
 	return &Service{
 		db:         d,
 		sessions:   NewSessions(d, opts.Now),
-		tokens:     NewAPITokens(d, opts.Now),
+		tokens:     NewAPITokens(d, opts.Now, opts.Log),
 		limiter:    NewLoginLimiter(opts.RateLimits, opts.Now),
 		hashParams: opts.HashParams,
 		now:        opts.Now,

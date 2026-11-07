@@ -1242,7 +1242,7 @@ type ServerInterface interface {
 	// ListApiTokens The current user's API tokens, oldest first. Secrets are never returned again.
 	// (GET /api-tokens)
 	ListApiTokens(w http.ResponseWriter, r *http.Request)
-	// CreateApiToken Create a read-only API token. The secret is in this response only.
+	// CreateApiToken Create a read-only API token (at most 25 per user). The secret is in this response only.
 	// (POST /api-tokens)
 	CreateApiToken(w http.ResponseWriter, r *http.Request)
 	// DeleteApiToken Revoke one of the current user's API tokens. It stops working immediately.
@@ -5539,7 +5539,7 @@ type StrictServerInterface interface {
 	// ListApiTokens The current user's API tokens, oldest first. Secrets are never returned again.
 	// (GET /api-tokens)
 	ListApiTokens(ctx context.Context, request ListApiTokensRequestObject) (ListApiTokensResponseObject, error)
-	// CreateApiToken Create a read-only API token. The secret is in this response only.
+	// CreateApiToken Create a read-only API token (at most 25 per user). The secret is in this response only.
 	// (POST /api-tokens)
 	CreateApiToken(ctx context.Context, request CreateApiTokenRequestObject) (CreateApiTokenResponseObject, error)
 	// DeleteApiToken Revoke one of the current user's API tokens. It stops working immediately.

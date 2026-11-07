@@ -44,7 +44,7 @@ func cmdServe(args []string) error {
 	}
 	defer d.Close()
 
-	authSvc, err := auth.NewService(d, auth.Options{})
+	authSvc, err := auth.NewService(d, auth.Options{Log: log})
 	if err != nil {
 		return err
 	}

@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"github.com/reilandeubank/grower/internal/apigen"
 	"github.com/reilandeubank/grower/internal/care"
@@ -33,28 +32,28 @@ func (h *Handler) GetHomeAssistantSummary(ctx context.Context, _ apigen.GetHomeA
 }
 
 func homeAssistantSummary(a care.Agenda, rooms map[string]string) apigen.HomeAssistantSummary {
-	items := slices.Concat(a.Overdue, a.Due)
 	phrases := push.Phrases(a, rooms)
 	res := apigen.HomeAssistantSummary{
 		Date:      apiDate(a.Date),
-		NeedsCare: len(items),
+		NeedsCare: len(phrases),
 		Overdue:   len(a.Overdue),
 		Due:       len(a.Due),
 		Upcoming:  len(a.Upcoming),
-		Items:     make([]apigen.HomeAssistantItem, len(items)),
+		Items:     make([]apigen.HomeAssistantItem, len(phrases)),
 	}
 	if m, ok := push.DigestMessage(a, rooms); ok {
 		res.Title, res.Message = m.Title, m.Body
 	}
 	plants := map[string]bool{}
-	for i, it := range items {
+	for i, ph := range phrases {
+		it := ph.Item
 		plants[it.Plant.ID] = true
 		item := apigen.HomeAssistantItem{
 			PlantId:     it.Plant.ID,
 			Plant:       it.PlantName,
 			TaskId:      it.Task.ID,
 			Task:        it.Task.Kind,
-			Label:       phrases[i],
+			Label:       ph.Text,
 			DaysOverdue: it.DaysOverdue,
 		}
 		if room, ok := rooms[it.Plant.LocationID.String]; ok && it.Plant.LocationID.Valid {
