@@ -7,6 +7,8 @@ export type Settings = components["schemas"]["Settings"];
 export type StorageUse = components["schemas"]["Storage"];
 export type PotType = components["schemas"]["PotType"];
 export type Problem = components["schemas"]["Problem"];
+export type ApiToken = components["schemas"]["ApiToken"];
+export type ApiTokenCreated = components["schemas"]["ApiTokenCreated"];
 
 /** Typed client for the grower API. The session cookie rides along automatically. */
 export const api = createClient<paths>({

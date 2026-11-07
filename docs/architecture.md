@@ -159,6 +159,11 @@ Levels: low < medium < bright_indirect < direct.
 - **Sessions:** 32-byte random token, stored as SHA-256.
   Cookie `__Host-grower_session` over https, `grower_session` over plain http (local development); `HttpOnly; Secure; SameSite=Lax`.
   90-day sliding expiry.
+- **API tokens:** per-user, for clients that can't keep the cookie, such as Home Assistant ([home-assistant.md](home-assistant.md)).
+  A `grower_` prefix and 32 random bytes, stored as SHA-256 like sessions, shown once; no expiry, at most 25 per user, revoked in Settings, deleted with their user.
+  Sent as `Authorization: Bearer`; routes opt in (`isTokenOperation`, which a test keeps in step with the spec's `apiToken` security), and today only the read-only Home Assistant summary does, so a leaked token can't reach the rest of the API.
+  Tokens can't create or revoke tokens. `last_used_at` is written at most once an hour, best effort: a failed write is logged and the request goes on.
+  Every token is scope `read`; `write` is reserved for a future endpoint that marks tasks done, and `requireAuth` will need to check scopes then.
 - **CSRF:** SameSite=Lax.
   Mutating requests must match `GROWER_BASE_URL`'s origin (or send `Sec-Fetch-Site: same-origin` without an Origin header) and use JSON bodies.
   Multipart endpoints (photo upload, identification) rely on the origin checks only.

@@ -28,6 +28,7 @@ It's a single container with SQLite, made to be installed as an app on your phon
 - **Species data (optional):** care defaults from Open Plantbook and Perenual, and identification from a photo with Pl@ntNet.
   Each needs a free API key, and grower works fully without them.
 - **Daily reminder** by web push, at a time you choose, with a button to send it again later in the day.
+- **Home Assistant:** a read-only API token and a summary endpoint for a REST sensor, so care can show up on dashboards and in automations.
 - **Your data stays yours:** nightly database backups, a documented export format, and an import for moving servers.
 - Light and dark themes, offline read-only mode, accessible on small screens.
 
@@ -68,7 +69,7 @@ All configuration is environment variables:
 
 ## Documentation
 
-- **Running it:** [deploy](docs/deploy.md) · [update](docs/update.md) · [backup and restore](docs/backup.md) · [export format](docs/export-format.md) · [changelog](CHANGELOG.md)
+- **Running it:** [deploy](docs/deploy.md) · [update](docs/update.md) · [backup and restore](docs/backup.md) · [export format](docs/export-format.md) · [Home Assistant](docs/home-assistant.md) · [changelog](CHANGELOG.md)
 - **Working on it:** [development](docs/development.md) · [architecture](docs/architecture.md) · [contributing](CONTRIBUTING.md) · [visual design rules](design/README.md)
 
 The stack is a Go server with an embedded React + TypeScript SPA, typed end to end from [api/openapi.yaml](api/openapi.yaml).
