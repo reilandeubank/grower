@@ -31,6 +31,35 @@ func (q *Queries) CreateSettings(ctx context.Context, arg CreateSettingsParams) 
 	return err
 }
 
+const getHouseholdSettings = `-- name: GetHouseholdSettings :one
+SELECT settings.user_id, settings.timezone, settings.hemisphere, settings.digest_local_time, settings.created_at, settings.updated_at, settings.later_local_time
+FROM settings
+JOIN users ON users.id = settings.user_id
+ORDER BY users.created_at, users.id
+LIMIT 1
+`
+
+type GetHouseholdSettingsRow struct {
+	Setting Setting
+}
+
+// The first account's settings: the time zone and hemisphere that household-wide
+// integrations (MQTT) keep their calendar in.
+func (q *Queries) GetHouseholdSettings(ctx context.Context) (GetHouseholdSettingsRow, error) {
+	row := q.db.QueryRowContext(ctx, getHouseholdSettings)
+	var i GetHouseholdSettingsRow
+	err := row.Scan(
+		&i.Setting.UserID,
+		&i.Setting.Timezone,
+		&i.Setting.Hemisphere,
+		&i.Setting.DigestLocalTime,
+		&i.Setting.CreatedAt,
+		&i.Setting.UpdatedAt,
+		&i.Setting.LaterLocalTime,
+	)
+	return i, err
+}
+
 const getSettings = `-- name: GetSettings :one
 SELECT user_id, timezone, hemisphere, digest_local_time, created_at, updated_at, later_local_time FROM settings WHERE user_id = ?
 `

@@ -52,6 +52,8 @@ type envOptions struct {
 	// firstRun starts with no users and the setup window open, as `serve` does on a
 	// fresh data dir.
 	firstRun bool
+	// onChange is Deps.OnChange.
+	onChange func()
 }
 
 func newEnv(t *testing.T, opts envOptions) *env {
@@ -93,7 +95,7 @@ func newEnv(t *testing.T, opts envOptions) *env {
 	}
 	fake := pushtest.New(t)
 	pusher := &push.Sender{DB: d, Keys: keys, Subject: "http://grower.test", Client: fake.Client(), Now: clock.Now, Log: log}
-	h := New(Deps{Config: cfg, DB: d, Auth: svc, Push: pusher, Species: species.NewLookup(clock.Now, opts.species...), Identify: opts.plantnet, SPA: spa, Log: log})
+	h := New(Deps{Config: cfg, DB: d, Auth: svc, Push: pusher, Species: species.NewLookup(clock.Now, opts.species...), Identify: opts.plantnet, SPA: spa, Log: log, OnChange: opts.onChange})
 	return &env{t: t, handler: h, db: d, clock: clock, cfg: cfg, auth: svc, pushService: fake}
 }
 

@@ -39,6 +39,19 @@ type Config struct {
 	PerenualAPIKey            string
 	// Pl@ntNet plant identification (M9), also optional.
 	PlantNetAPIKey string
+	// MQTT is the Home Assistant MQTT publisher's broker; nil when GROWER_MQTT_URL is unset.
+	MQTT *MQTT
+}
+
+// MQTT is where the Home Assistant publisher connects, and the topics it uses.
+type MQTT struct {
+	// Broker is the paho server URL (tcp://, ssl://, ws:// or wss://) with a port and
+	// without credentials, so it is safe to log.
+	Broker *url.URL
+	// Username and Password are secrets: never log Password.
+	Username, Password string
+	// Topic prefixes grower's own topics; DiscoveryPrefix is Home Assistant's.
+	Topic, DiscoveryPrefix string
 }
 
 // Load parses the environment through getenv (os.Getenv in production). It returns
@@ -88,6 +101,14 @@ func Load(getenv func(string) string) (Config, error) {
 		if err := cfg.LogLevel.UnmarshalText([]byte(raw)); err != nil {
 			errs = append(errs, fmt.Errorf("GROWER_LOG_LEVEL: must be debug, info, warn or error, got %q", raw))
 		}
+	}
+
+	if raw := strings.TrimSpace(getenv("GROWER_MQTT_URL")); raw != "" {
+		m, err := parseMQTT(raw, getenv)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		cfg.MQTT = m
 	}
 
 	if (cfg.OpenPlantbookClientID == "") != (cfg.OpenPlantbookClientSecret == "") {
@@ -195,4 +216,57 @@ func orDefault(v, def string) string {
 		return def
 	}
 	return v
+}
+
+// mqttSchemes maps the schemes GROWER_MQTT_URL takes to paho's, with their default ports.
+var mqttSchemes = map[string]struct {
+	paho, port string
+}{
+	"mqtt": {"tcp", "1883"}, "tcp": {"tcp", "1883"},
+	"mqtts": {"ssl", "8883"}, "ssl": {"ssl", "8883"},
+	"ws": {"ws", "80"}, "wss": {"wss", "443"},
+}
+
+// parseMQTT reads GROWER_MQTT_URL and the settings that go with it. Credentials may be
+// in the URL or in GROWER_MQTT_USERNAME and GROWER_MQTT_PASSWORD, which win.
+func parseMQTT(raw string, getenv func(string) string) (*MQTT, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return nil, fmt.Errorf("GROWER_MQTT_URL: %w", redactURLError(err))
+	}
+	scheme, ok := mqttSchemes[strings.ToLower(u.Scheme)]
+	if !ok || u.Hostname() == "" {
+		return nil, errors.New("GROWER_MQTT_URL: must look like mqtt://host:1883, mqtts://host:8883, ws://host/mqtt or wss://host/mqtt")
+	}
+	m := &MQTT{
+		Topic:           strings.Trim(orDefault(strings.TrimSpace(getenv("GROWER_MQTT_TOPIC")), "grower"), "/"),
+		DiscoveryPrefix: strings.Trim(orDefault(strings.TrimSpace(getenv("GROWER_MQTT_DISCOVERY_PREFIX")), "homeassistant"), "/"),
+		Username:        orDefault(getenv("GROWER_MQTT_USERNAME"), u.User.Username()),
+		Password:        getenv("GROWER_MQTT_PASSWORD"),
+	}
+	if pw, set := u.User.Password(); set && m.Password == "" {
+		m.Password = pw
+	}
+	port := u.Port()
+	if port == "" {
+		port = scheme.port
+	}
+	m.Broker = &url.URL{Scheme: scheme.paho, Host: net.JoinHostPort(u.Hostname(), port), Path: u.Path}
+	var errs []error
+	for _, t := range []struct{ name, topic string }{{"GROWER_MQTT_TOPIC", m.Topic}, {"GROWER_MQTT_DISCOVERY_PREFIX", m.DiscoveryPrefix}} {
+		name, topic := t.name, t.topic
+		if topic == "" || strings.ContainsAny(topic, "+#\x00") {
+			errs = append(errs, fmt.Errorf("%s: must be a topic without + or #, got %q", name, topic))
+		}
+	}
+	return m, errors.Join(errs...)
+}
+
+// redactURLError drops the URL from a parse error, since it may hold a password.
+func redactURLError(err error) error {
+	var uerr *url.Error
+	if errors.As(err, &uerr) {
+		return uerr.Err
+	}
+	return err
 }

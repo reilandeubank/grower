@@ -35,6 +35,9 @@ type Deps struct {
 	// SPA is the built frontend (the contents of web/dist).
 	SPA fs.FS
 	Log *slog.Logger
+	// OnChange, if set, is called after each API request that may have changed data
+	// (a successful POST, PUT, PATCH or DELETE). It must not block.
+	OnChange func()
 }
 
 // maxJSONBody bounds API request bodies; JSON payloads here are tiny.
@@ -75,6 +78,7 @@ func New(d Deps) http.Handler {
 	}
 	apiHandler := chain(apiMux,
 		noStore,
+		afterWrites(d.OnChange),
 		limitBody(isUpload, maxJSONBody, api.MaxUploadBytes),
 		csrf(d.Config.Origin(), isUpload),
 		withSession,
