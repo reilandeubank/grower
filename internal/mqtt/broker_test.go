@@ -36,6 +36,8 @@ func TestBroker(t *testing.T) {
 	fern := f.plant("Fern", "")
 	today := time.Now().In(mustLoad(t, "America/Chicago")).Format(time.DateOnly)
 	mist := f.task(fern, "mist", "", today, false)
+	tomorrow := time.Now().In(mustLoad(t, "America/Chicago")).AddDate(0, 0, 1).Format(time.DateOnly)
+	soil := f.task(fern, "water", "", tomorrow, true) // Not due yet, so the mist press clears needs-care.
 	f.p = NewPublisher(f.d, NewTopics(cfg.MQTT.Topic, cfg.MQTT.DiscoveryPrefix), "https://grower.test", "test", time.Now, f.p.Log)
 	topics := f.p.Topics
 
@@ -87,6 +89,15 @@ func TestBroker(t *testing.T) {
 	})
 	if n := f.countEvents(mist); n != 1 {
 		t.Errorf("done events = %d", n)
+	}
+
+	// Setting the soil reading logs a check, and the reading comes back as its state.
+	ha.Publish(topics.TaskReading(soil), 1, false, "2").Wait()
+	waitFor("Fern's reading", func(m map[string]string) bool {
+		return strings.Contains(m[topics.PlantState(fern)], `"reading":2`) && strings.Contains(m[topics.PlantState(fern)], `"needs_water":true`)
+	})
+	if n := f.countKind(soil, "checked"); n != 1 {
+		t.Errorf("checked events = %d", n)
 	}
 
 	// A change in the app shows up after a poke.

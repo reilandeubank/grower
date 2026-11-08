@@ -122,8 +122,13 @@ func (f *fixture) exec(query string, args ...any) {
 
 func (f *fixture) countEvents(taskID string) int {
 	f.t.Helper()
+	return f.countKind(taskID, "done")
+}
+
+func (f *fixture) countKind(taskID, kind string) int {
+	f.t.Helper()
 	var n int
-	must(f.t, f.d.Read.QueryRow(`SELECT count(*) FROM care_events WHERE task_id = ? AND kind = 'done'`, taskID).Scan(&n))
+	must(f.t, f.d.Read.QueryRow(`SELECT count(*) FROM care_events WHERE task_id = ? AND kind = ?`, taskID, kind).Scan(&n))
 	return n
 }
 
@@ -237,8 +242,22 @@ func TestSyncPublishesDevicesAndState(t *testing.T) {
 		lp.Components[soil+"_due"]["name"] != "Next soil check" {
 		t.Errorf("living pothos = %+v", lp)
 	}
-	if s := f.state(livingPothos); s.Moisture == nil || *s.Moisture != 6 || s.LastWatered != nil {
+	if s := f.state(livingPothos); s.Moisture == nil || *s.Moisture != 6 || s.LastWatered != nil || s.NeedsWater ||
+		s.Tasks[soil].Reading == nil || *s.Tasks[soil].Reading != 6 {
 		t.Errorf("living pothos state = %+v", s)
+	}
+	// It also takes a reading, and says when it needs water.
+	reading := lp.Components[soil+"_reading"]
+	if reading["platform"] != "number" || reading["name"] != "Soil reading" || reading["command_topic"] != "grower/task/"+soil+"/reading" ||
+		reading["min"] != 1.0 || reading["max"] != 10.0 || reading["step"] != 1.0 || reading["state_topic"] != "grower/plant/"+livingPothos+"/state" {
+		t.Errorf("reading = %v", reading)
+	}
+	if lp.Components["needs_water"]["platform"] != "binary_sensor" {
+		t.Errorf("needs_water = %v", lp.Components["needs_water"])
+	}
+	// Tasks that aren't soil checks get neither.
+	if op.Components[water+"_reading"] != nil || op.Components["needs_water"] != nil || f.state(officePothos).Tasks[water].Reading != nil {
+		t.Error("a plain watering got a reading")
 	}
 
 	// Fern: no watering, so no last-watered sensor; a custom task is named by its label.
@@ -268,7 +287,7 @@ func TestButtonMarksTaskDone(t *testing.T) {
 	ctx := context.Background()
 	press := func(topic string, retained bool) bool {
 		t.Helper()
-		changed, err := f.p.Pressed(ctx, topic, retained)
+		changed, err := f.p.Command(ctx, topic, []byte(pressPayload), retained)
 		must(t, err)
 		return changed
 	}
@@ -299,6 +318,66 @@ func TestButtonMarksTaskDone(t *testing.T) {
 	f.now = f.now.Add(7 * 24 * time.Hour)
 	if press("grower/task/"+mist+"/done", false) || f.countEvents(mist) != 1 {
 		t.Error("pressed an archived plant's task")
+	}
+}
+
+func TestSoilReadingLogsACheck(t *testing.T) {
+	f := newFixture(t)
+	fern := f.plant("Fern", "")
+	soil := f.task(fern, "water", "", "2026-05-01", true) // Water at 3 or below.
+	mist := f.task(fern, "mist", "", "2026-05-01", false)
+	f.sync()
+	ctx := context.Background()
+	send := func(task, cmd, payload string, retained bool) bool {
+		t.Helper()
+		changed, err := f.p.Command(ctx, "grower/task/"+task+"/"+cmd, []byte(payload), retained)
+		must(t, err)
+		return changed
+	}
+	if s := f.state(fern); s.Tasks[soil].Reading != nil || s.NeedsWater || !s.NeedsCare {
+		t.Fatalf("state before a reading = %+v", s)
+	}
+
+	// Retained, malformed or out-of-range readings, and readings for a task that isn't a
+	// soil check, log nothing.
+	ignored := send(soil, "reading", "6", true)
+	for _, payload := range []string{"", "wet", "0", "11", "4.5", "-3"} {
+		ignored = send(soil, "reading", payload, false) || ignored
+	}
+	if ignored || send(mist, "reading", "6", false) || f.countKind(soil, "checked")+f.countKind(mist, "checked") != 0 {
+		t.Fatal("an ignored reading logged a check")
+	}
+
+	// A moist reading (Home Assistant may send it as a float) logs a check and moves the
+	// next check out; nothing needs doing today.
+	if !send(soil, "reading", " 6.0\n", false) || f.countKind(soil, "checked") != 1 {
+		t.Fatal("reading didn't log a check")
+	}
+	f.sync()
+	if s := f.state(fern); s.Tasks[soil].Reading == nil || *s.Tasks[soil].Reading != 6 || s.Moisture == nil || *s.Moisture != 6 ||
+		s.NeedsWater || s.Tasks[soil].NextDue <= "2026-05-01" || s.Tasks[soil].DaysOverdue >= 0 {
+		t.Errorf("state after a moist reading = %+v", s)
+	}
+	// The same reading again the same day does nothing; a different one corrects it.
+	if send(soil, "reading", "6", false) || f.countKind(soil, "checked") != 1 {
+		t.Error("the same reading logged twice")
+	}
+
+	// A dry reading says to water, and asks again tomorrow if it isn't.
+	if !send(soil, "reading", "2", false) || f.countKind(soil, "checked") != 2 {
+		t.Fatal("a corrected reading wasn't logged")
+	}
+	f.sync()
+	if s := f.state(fern); !s.NeedsWater || *s.Tasks[soil].Reading != 2 || s.Tasks[soil].NextDue != "2026-05-02" {
+		t.Errorf("state after a dry reading = %+v", s)
+	}
+	// Watering the same day clears it.
+	if !send(soil, "done", pressPayload, false) {
+		t.Fatal("watered press didn't log")
+	}
+	f.sync()
+	if s := f.state(fern); s.NeedsWater || s.LastWatered == nil || *s.LastWatered != "2026-05-01" {
+		t.Errorf("state after watering = %+v", s)
 	}
 }
 
@@ -442,6 +521,21 @@ func TestTopics(t *testing.T) {
 	}
 	if tp.stateTopicOf("home_plants_01ABC") != "home/plants/plant/01ABC/state" || tp.stateTopicOf("home_plants") != "home/plants/summary" {
 		t.Error("stateTopicOf")
+	}
+	for _, tt := range []struct {
+		topic, id, cmd string
+		ok             bool
+	}{
+		{"home/plants/task/01ABC/done", "01ABC", "done", true},
+		{"home/plants/task/01ABC/reading", "01ABC", "reading", true},
+		{"home/plants/task/01ABC/undo", "", "", false},
+		{"home/plants/task/01ABC/reading/x", "", "", false},
+		{"home/plants/task//done", "", "", false},
+		{"other/task/01ABC/done", "", "", false},
+	} {
+		if id, cmd, ok := tp.commandOf(tt.topic); id != tt.id || cmd != tt.cmd || ok != tt.ok {
+			t.Errorf("commandOf(%s) = %q %q %v", tt.topic, id, cmd, ok)
+		}
 	}
 }
 

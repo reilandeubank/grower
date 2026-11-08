@@ -69,7 +69,7 @@ func (p *Publisher) Run(ctx context.Context, cfg *config.MQTT) {
 			p.Log.Warn("mqtt: lost the broker connection; reconnecting", "err", err)
 		}).
 		SetOnConnectHandler(func(c paho.Client) {
-			subs := map[string]byte{p.Topics.TaskDone("+"): 1, p.Topics.HAStatus(): 1, p.Topics.DeviceConfigs(): 1}
+			subs := map[string]byte{p.Topics.TaskDone("+"): 1, p.Topics.TaskReading("+"): 1, p.Topics.HAStatus(): 1, p.Topics.DeviceConfigs(): 1}
 			if tok := c.SubscribeMultiple(subs, receive); !tok.WaitTimeout(publishTimeout) || tok.Error() != nil {
 				p.Log.Error("mqtt: subscribe failed", "err", tok.Error())
 			}
@@ -128,9 +128,9 @@ func (p *Publisher) Run(ctx context.Context, cfg *config.MQTT) {
 			case p.Discovered(m.topic, m.payload):
 				sync()
 			default:
-				changed, err := p.Pressed(ctx, m.topic, m.retained)
+				changed, err := p.Command(ctx, m.topic, m.payload, m.retained)
 				if err != nil {
-					p.Log.Error("mqtt: button press failed", "topic", m.topic, "err", err)
+					p.Log.Error("mqtt: command failed", "topic", m.topic, "err", err)
 				}
 				if changed {
 					sync()
