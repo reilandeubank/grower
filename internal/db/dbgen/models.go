@@ -8,6 +8,16 @@ import (
 	"database/sql"
 )
 
+type ApiToken struct {
+	ID         string
+	UserID     string
+	Label      string
+	SecretHash string
+	Scope      string
+	CreatedAt  string
+	LastUsedAt sql.NullString
+}
+
 type CareEvent struct {
 	ID          string
 	TaskID      string

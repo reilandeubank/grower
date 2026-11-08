@@ -39,6 +39,9 @@ type Principal struct {
 	SessionHash string
 	// ExpiresAt is the session expiry after any refresh.
 	ExpiresAt time.Time
+	// TokenID is set instead of SessionHash when the request carried an API token,
+	// and TokenScope is that token's scope.
+	TokenID, TokenScope string
 }
 
 // Sessions creates, looks up and revokes server-side sessions.

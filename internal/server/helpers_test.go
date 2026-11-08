@@ -70,6 +70,7 @@ func newEnv(t *testing.T, opts envOptions) *env {
 		HashParams: auth.HashParams{MemoryKiB: 64, Iterations: 1, Parallelism: 1, SaltLen: 16, KeyLen: 32},
 		RateLimits: opts.limits,
 		Now:        clock.Now,
+		Log:        slog.New(slog.DiscardHandler),
 	})
 	if err != nil {
 		t.Fatal(err)

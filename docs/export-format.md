@@ -46,7 +46,7 @@ Rules:
 
 - IDs are the app's own ULIDs and are stable across exports, so references (`plant_id`, `task_id`, `location_id`, `species_id`, `cover_photo_id`, `photo_id`) resolve within the file.
 - Dates are `YYYY-MM-DD` civil dates, and timestamps are RFC 3339 in UTC.
-- Accounts, password hashes, sessions and push subscriptions are never exported.
+- Accounts, password hashes, sessions, API tokens and push subscriptions are never exported.
 - A breaking change bumps `version`.
   Additive fields don't, so readers must ignore unknown keys.
 
