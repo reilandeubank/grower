@@ -15,6 +15,7 @@ import (
 	"github.com/reilandeubank/grower/internal/buildinfo"
 	"github.com/reilandeubank/grower/internal/config"
 	"github.com/reilandeubank/grower/internal/media"
+	"github.com/reilandeubank/grower/internal/mqtt"
 	"github.com/reilandeubank/grower/internal/push"
 	"github.com/reilandeubank/grower/internal/server"
 	"github.com/reilandeubank/grower/internal/species"
@@ -66,8 +67,17 @@ func cmdServe(args []string) error {
 	backups := &backup.Runner{DB: d, DataDir: cfg.DataDir, Loc: cfg.Location, Now: time.Now, Log: log}
 	digest := &push.Digest{DB: d, Sender: pusher, Now: time.Now, Log: log}
 	sweeper := &media.Sweeper{Store: media.New(cfg.DataDir), PhotoIDs: d.Reader().ListPhotoIDs, Now: time.Now, Log: log}
+	runs := []func(context.Context){backups.Run, digest.Run, sweeper.Run}
+	// The Home Assistant MQTT publisher, only when a broker is configured; API writes
+	// poke it to publish the change.
+	var onChange func()
+	if cfg.MQTT != nil {
+		publisher := mqtt.NewPublisher(d, mqtt.NewTopics(cfg.MQTT.Topic, cfg.MQTT.DiscoveryPrefix), cfg.BaseURL.String(), buildinfo.Version, time.Now, log)
+		runs = append(runs, func(ctx context.Context) { publisher.Run(ctx, cfg.MQTT) })
+		onChange = publisher.Poke
+	}
 	var runners sync.WaitGroup
-	for _, run := range []func(context.Context){backups.Run, digest.Run, sweeper.Run} {
+	for _, run := range runs {
 		runners.Go(func() { run(ctx) })
 	}
 	defer func() {
@@ -81,8 +91,8 @@ func cmdServe(args []string) error {
 		identify = species.NewPlantNet(cfg.PlantNetAPIKey)
 	}
 	log.Info("starting grower", "version", buildinfo.Version, "data_dir", cfg.DataDir,
-		"base_url", cfg.BaseURL.String(), "trusted_proxies", len(cfg.TrustedProxies), "species_providers", speciesSources(lookup), "plant_identification", identify != nil)
-	h := server.New(server.Deps{Config: cfg, DB: d, Auth: authSvc, Push: pusher, Species: lookup, Identify: identify, SPA: web.FS(), Log: log})
+		"base_url", cfg.BaseURL.String(), "trusted_proxies", len(cfg.TrustedProxies), "species_providers", speciesSources(lookup), "plant_identification", identify != nil, "mqtt", cfg.MQTT != nil)
+	h := server.New(server.Deps{Config: cfg, DB: d, Auth: authSvc, Push: pusher, Species: lookup, Identify: identify, SPA: web.FS(), Log: log, OnChange: onChange})
 	return server.Run(ctx, cfg.Listen, h, log)
 }
 

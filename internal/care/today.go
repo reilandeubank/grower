@@ -61,35 +61,17 @@ type Agenda struct {
 
 // Today sorts every task of an active plant into the agenda for cal.Today.
 func Today(ctx context.Context, q *dbgen.Queries, cal Calendar) (Agenda, error) {
-	date := cal.Today
-	// Three queries in all: tasks with their plants, the events their schedules depend on,
-	// and the species labels that name unnamed plants. (Rarely a fourth per soil-check task:
-	// see loadEvents.)
-	rows, err := q.ListActiveTasks(ctx)
-	if err != nil {
-		return Agenda{}, fmt.Errorf("list active tasks: %w", err)
-	}
-	names, err := LoadNames(ctx, q)
+	items, err := Tasks(ctx, q, cal)
 	if err != nil {
 		return Agenda{}, err
 	}
-	// The query orders each plant's tasks; re-sort by the name shown, which for an
-	// unnamed plant isn't its name column, keeping plants that share a name apart.
-	slices.SortStableFunc(rows, func(a, b dbgen.ListActiveTasksRow) int {
-		return cmp.Or(CompareNames(names.Name(a.Plant), names.Name(b.Plant)), cmp.Compare(a.Plant.ID, b.Plant.ID))
-	})
-	events, err := loadEvents(ctx, q, rows)
-	if err != nil {
-		return Agenda{}, err
-	}
+	return Split(cal.Today, items), nil
+}
 
-	a := Agenda{Date: date, TaskCount: len(rows), Overdue: []Item{}, Due: []Item{}, Upcoming: []Item{}}
-	for _, r := range rows {
-		dates, err := Schedule(r.CareTask, events[r.CareTask.ID], cal)
-		if err != nil {
-			return Agenda{}, err
-		}
-		item := Item{Task: r.CareTask, Plant: r.Plant, PlantName: names.Name(r.Plant), Dates: dates, DaysOverdue: date.Sub(dates.Next)}
+// Split sorts items, as Tasks returns them for date, into the agenda.
+func Split(date schedule.Date, items []Item) Agenda {
+	a := Agenda{Date: date, TaskCount: len(items), Overdue: []Item{}, Due: []Item{}, Upcoming: []Item{}}
+	for _, item := range items {
 		switch {
 		case item.DaysOverdue > 0:
 			a.Overdue = append(a.Overdue, item)
@@ -99,12 +81,46 @@ func Today(ctx context.Context, q *dbgen.Queries, cal Calendar) (Agenda, error) 
 			a.Upcoming = append(a.Upcoming, item)
 		}
 	}
-	// Most overdue or soonest first. Rows were sorted by plant name, and the sort is
+	// Most overdue or soonest first. Items are sorted by plant name, and the sort is
 	// stable, so that breaks ties.
 	byDays := func(a, b Item) int { return b.DaysOverdue - a.DaysOverdue }
 	slices.SortStableFunc(a.Overdue, byDays)
 	slices.SortStableFunc(a.Upcoming, byDays)
-	return a, nil
+	return a
+}
+
+// Tasks schedules every task of an active plant for cal.Today, however far off it is
+// due, sorted by the name each plant is shown by and then by the plant's task order.
+func Tasks(ctx context.Context, q *dbgen.Queries, cal Calendar) ([]Item, error) {
+	// Three queries in all: tasks with their plants, the events their schedules depend on,
+	// and the species labels that name unnamed plants. (Rarely a fourth per soil-check task:
+	// see loadEvents.)
+	rows, err := q.ListActiveTasks(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list active tasks: %w", err)
+	}
+	names, err := LoadNames(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	// The query orders each plant's tasks; re-sort by the name shown, which for an
+	// unnamed plant isn't its name column, keeping plants that share a name apart.
+	slices.SortStableFunc(rows, func(a, b dbgen.ListActiveTasksRow) int {
+		return cmp.Or(CompareNames(names.Name(a.Plant), names.Name(b.Plant)), cmp.Compare(a.Plant.ID, b.Plant.ID))
+	})
+	events, err := loadEvents(ctx, q, rows)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]Item, 0, len(rows))
+	for _, r := range rows {
+		dates, err := Schedule(r.CareTask, events[r.CareTask.ID], cal)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, Item{Task: r.CareTask, Plant: r.Plant, PlantName: names.Name(r.Plant), Dates: dates, DaysOverdue: cal.Today.Sub(dates.Next)})
+	}
+	return items, nil
 }
 
 // loadEvents returns the events each task's schedule depends on (ListScheduleEvents),

@@ -28,7 +28,7 @@ It's a single container with SQLite, made to be installed as an app on your phon
 - **Species data (optional):** care defaults from Open Plantbook and Perenual, and identification from a photo with Pl@ntNet.
   Each needs a free API key, and grower works fully without them.
 - **Daily reminder** by web push, at a time you choose, with a button to send it again later in the day.
-- **Home Assistant:** a read-only API token and a summary endpoint for a REST sensor, so care can show up on dashboards and in automations.
+- **Home Assistant:** a device per plant over MQTT discovery, with buttons that mark tasks done, or a REST sensor with a read-only API token, so care can show up on dashboards and in automations.
 - **Your data stays yours:** nightly database backups, a documented export format, and an import for moving servers.
 - Light and dark themes, offline read-only mode, accessible on small screens.
 

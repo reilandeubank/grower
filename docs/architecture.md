@@ -18,6 +18,7 @@ Code comments refer to the sections below by name.
 | Styling      | CSS custom-property tokens + CSS Modules; Radix primitives for dialogs and sheets | Accessible overlays without a component framework.                     |
 | PWA          | `vite-plugin-pwa` (injectManifest, hand-written service worker)                   | Push and notification-click handling stay in our code.                 |
 | Push         | `webpush-go`                                                                      | VAPID web push, pure Go.                                               |
+| MQTT         | `paho.mqtt.golang`                                                                | Optional Home Assistant publisher; MQTT 3.1.1 with auto-reconnect.     |
 | Images       | stdlib `image/jpeg`, `golang.org/x/image/draw`, own EXIF orientation reader       | Pure Go. No pure-Go WebP/AVIF encoder, so thumbnails are JPEG. HEIC is converted to JPEG in the browser. |
 | Logging      | `log/slog`                                                                        |                                                                        |
 
@@ -164,6 +165,8 @@ Levels: low < medium < bright_indirect < direct.
   Sent as `Authorization: Bearer`; routes opt in (`isTokenOperation`, which a test keeps in step with the spec's `apiToken` security), and today only the read-only Home Assistant summary does, so a leaked token can't reach the rest of the API.
   Tokens can't create or revoke tokens. `last_used_at` is written at most once an hour, best effort: a failed write is logged and the request goes on.
   Every token is scope `read`; `write` is reserved for a future endpoint that marks tasks done, and `requireAuth` will need to check scopes then.
+- **MQTT buttons** (`internal/mqtt`) mark tasks done without a token: being able to publish to the broker is the authorisation, and the broker's accounts guard it.
+  They are off with the rest of MQTT unless `GROWER_MQTT_URL` is set. Retained presses are ignored, and a task already done today ignores a press.
 - **CSRF:** SameSite=Lax.
   Mutating requests must match `GROWER_BASE_URL`'s origin (or send `Sec-Fetch-Site: same-origin` without an Origin header) and use JSON bodies.
   Multipart endpoints (photo upload, identification) rely on the origin checks only.
@@ -177,6 +180,23 @@ Levels: low < medium < bright_indirect < direct.
   Restore from `backups/` ([backup.md](backup.md)).
 - **Species providers:** implement `Provider`.
   Optional, called on demand only, with daily budgets below each free tier and per-user rate limits (`429` with `Retry-After`) in front of them.
+
+## Home Assistant MQTT
+
+`internal/mqtt` is optional, running only when `GROWER_MQTT_URL` is set (setup in [home-assistant.md](home-assistant.md)).
+One goroutine owns the publisher's state; paho's callbacks only hand it messages.
+
+- **What it publishes** is a function of the database: `care.Tasks` (every task of an active plant, however far off) in the household calendar, `hass.Rooms`, and the REST endpoint's summary (`hass.Summary`), so the summary topic and `GET /integrations/home-assistant` match.
+  The household calendar is the first account's time zone and hemisphere, since plants are household-wide.
+- **When:** after each API write (`server.Deps.OnChange`, via the `afterWrites` middleware; pokes coalesce), every minute (new days, CLI changes), on (re)connect, and when Home Assistant announces itself on `<prefix>/status`.
+  A sync builds the whole snapshot but publishes only topics whose payload changed since last sent; a reconnect or Home Assistant restart forgets what was sent and republishes everything.
+- **Discovery** uses device-based discovery (`<prefix>/device/<object id>/config`, one message per device with its `components`).
+  Everything is retained at QoS 1; `<topic>/status` is the availability topic and the last will.
+- **Removals:** the publisher tracks, per device, the components Home Assistant has.
+  A component that went away is published once as a removal stub (just its `platform`); a device that went away gets empty retained config and state.
+  It also subscribes to `<prefix>/device/+/config`, so the broker's retained copies, which outlive a restart, teach it about devices and components deleted while grower was down.
+  Only messages with grower's origin and object ID prefix count.
+- **Buttons** log a `done` event for today through the same query as the API, then sync. See the auth notes above for what guards them.
 
 ## Tests
 
