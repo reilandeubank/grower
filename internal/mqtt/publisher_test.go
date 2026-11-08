@@ -10,9 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/reilandeubank/grower/internal/care"
 	"github.com/reilandeubank/grower/internal/db"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
 	"github.com/reilandeubank/grower/internal/db/dbtest"
+	"github.com/reilandeubank/grower/internal/schedule"
 )
 
 const stamp = "2026-01-01T00:00:00Z"
@@ -252,6 +254,11 @@ func TestSyncPublishesDevicesAndState(t *testing.T) {
 		reading["min"] != 1.0 || reading["max"] != 10.0 || reading["step"] != 1.0 || reading["state_topic"] != "grower/plant/"+livingPothos+"/state" {
 		t.Errorf("reading = %v", reading)
 	}
+	if reading["json_attributes_topic"] != "grower/plant/"+livingPothos+"/state" ||
+		!strings.Contains(reading["json_attributes_template"].(string), "tasks['"+soil+"'].level") ||
+		!strings.Contains(lp.Components["moisture"]["json_attributes_template"].(string), "moisture_level") {
+		t.Errorf("level attributes: reading = %v, moisture = %v", reading, lp.Components["moisture"])
+	}
 	if lp.Components["needs_water"]["platform"] != "binary_sensor" {
 		t.Errorf("needs_water = %v", lp.Components["needs_water"])
 	}
@@ -355,7 +362,8 @@ func TestSoilReadingLogsACheck(t *testing.T) {
 	}
 	f.sync()
 	if s := f.state(fern); s.Tasks[soil].Reading == nil || *s.Tasks[soil].Reading != 6 || s.Moisture == nil || *s.Moisture != 6 ||
-		s.NeedsWater || s.Tasks[soil].NextDue <= "2026-05-01" || s.Tasks[soil].DaysOverdue >= 0 {
+		s.NeedsWater || s.Tasks[soil].NextDue <= "2026-05-01" || s.Tasks[soil].DaysOverdue >= 0 ||
+		s.Tasks[soil].Level == nil || *s.Tasks[soil].Level != "Moist" || s.MoistureLevel == nil || *s.MoistureLevel != "Moist" {
 		t.Errorf("state after a moist reading = %+v", s)
 	}
 	// The same reading again the same day does nothing; a different one corrects it.
@@ -368,7 +376,7 @@ func TestSoilReadingLogsACheck(t *testing.T) {
 		t.Fatal("a corrected reading wasn't logged")
 	}
 	f.sync()
-	if s := f.state(fern); !s.NeedsWater || *s.Tasks[soil].Reading != 2 || s.Tasks[soil].NextDue != "2026-05-02" {
+	if s := f.state(fern); !s.NeedsWater || *s.Tasks[soil].Reading != 2 || *s.Tasks[soil].Level != "Dry" || s.Tasks[soil].NextDue != "2026-05-02" {
 		t.Errorf("state after a dry reading = %+v", s)
 	}
 	// Watering the same day clears it.
@@ -376,8 +384,55 @@ func TestSoilReadingLogsACheck(t *testing.T) {
 		t.Fatal("watered press didn't log")
 	}
 	f.sync()
-	if s := f.state(fern); s.NeedsWater || s.LastWatered == nil || *s.LastWatered != "2026-05-01" {
+	// After watering the soil reads wet, not the dry reading taken before it.
+	if s := f.state(fern); s.NeedsWater || s.LastWatered == nil || *s.LastWatered != "2026-05-01" ||
+		*s.Tasks[soil].Reading != 10 || *s.Tasks[soil].Level != "Wet" || *s.Moisture != 10 || *s.MoistureLevel != "Wet" {
 		t.Errorf("state after watering = %+v", s)
+	}
+	// The next reading replaces it.
+	f.now = f.now.Add(3 * 24 * time.Hour)
+	if !send(soil, "reading", "5", false) {
+		t.Fatal("reading after watering wasn't logged")
+	}
+	f.sync()
+	if s := f.state(fern); *s.Tasks[soil].Reading != 5 || *s.Tasks[soil].Level != "Moist" || *s.Moisture != 5 {
+		t.Errorf("state after the next reading = %+v", s)
+	}
+}
+
+func TestSoilNow(t *testing.T) {
+	day := func(s string) schedule.Date {
+		d, err := schedule.Parse(s)
+		must(t, err)
+		return d
+	}
+	soil := dbgen.CareTask{MoistureCheck: 1, WaterAt: 3}
+	for _, tt := range []struct {
+		name    string
+		task    dbgen.CareTask
+		dates   care.Dates
+		reading int
+		on      string
+		ok      bool
+	}{
+		{"not a soil check", dbgen.CareTask{}, care.Dates{LastReading: schedule.Event{Kind: schedule.Checked, On: day("2026-05-01"), Reading: 4}}, 0, "", false},
+		{"nothing yet", soil, care.Dates{}, 0, "", false},
+		{"a reading", soil, care.Dates{LastReading: schedule.Event{Kind: schedule.Checked, On: day("2026-05-01"), Reading: 4}}, 4, "2026-05-01", true},
+		{"watered, no reading", soil, care.Dates{HasLast: true, Last: day("2026-05-01")}, 10, "2026-05-01", true},
+		{"watered after the reading", soil, care.Dates{HasLast: true, Last: day("2026-05-02"), LastReading: schedule.Event{Kind: schedule.Checked, On: day("2026-05-01"), Reading: 2}}, 10, "2026-05-02", true},
+		{"watered the day of the reading", soil, care.Dates{HasLast: true, Last: day("2026-05-01"), LastReading: schedule.Event{Kind: schedule.Checked, On: day("2026-05-01"), Reading: 2}}, 10, "2026-05-01", true},
+		{"reading taken with the watering", soil, care.Dates{HasLast: true, Last: day("2026-05-01"), LastReading: schedule.Event{Kind: schedule.Done, On: day("2026-05-01"), Reading: 2}}, 10, "2026-05-01", true},
+		{"read after watering", soil, care.Dates{HasLast: true, Last: day("2026-05-01"), LastReading: schedule.Event{Kind: schedule.Checked, On: day("2026-05-04"), Reading: 6}}, 6, "2026-05-04", true},
+	} {
+		reading, on, ok := soilNow(care.Item{Task: tt.task, Dates: tt.dates})
+		if reading != tt.reading || ok != tt.ok || (ok && on.String() != tt.on) {
+			t.Errorf("%s: soilNow = %d %s %v, want %d %s %v", tt.name, reading, on, ok, tt.reading, tt.on, tt.ok)
+		}
+	}
+	for reading, want := range map[int]string{1: "Dry", 3: "Dry", 4: "Moist", 7: "Moist", 8: "Wet", 10: "Wet"} {
+		if got := moistureLevel(reading); got != want {
+			t.Errorf("moistureLevel(%d) = %s, want %s", reading, got, want)
+		}
 	}
 }
 

@@ -5,6 +5,8 @@ Versions follow [semantic versioning](https://semver.org/); every release's data
 
 ## Unreleased
 
+- Home Assistant over MQTT: after watering, a soil-check plant's **Soil moisture** and **Soil reading** show 10 (wet) until the next reading, instead of the dry reading taken before watering.
+  Both carry a `level` attribute (Dry, Moist or Wet) for dashboards.
 - Home Assistant over MQTT: soil-check plants get a **Soil reading** number to log a meter reading from Home Assistant, as saving one in the app does, and a **Needs water** sensor that turns on when the latest reading says to water.
 - Home Assistant: create read-only API tokens in Settings → Integrations, and point a REST sensor at `/api/v1/integrations/home-assistant` for what needs care today, in the daily reminder's words.
   Tokens are shown once, stored hashed, work on that endpoint only and can be revoked at any time.
