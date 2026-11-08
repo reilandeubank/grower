@@ -11,6 +11,7 @@ import (
 	"github.com/reilandeubank/grower/internal/apigen"
 	"github.com/reilandeubank/grower/internal/care"
 	"github.com/reilandeubank/grower/internal/db/dbgen"
+	"github.com/reilandeubank/grower/internal/schedule"
 )
 
 // supportURL is where Home Assistant's device page links for help with the integration.
@@ -48,6 +49,10 @@ func (t Topics) PlantState(plantID string) string { return t.Base + "/plant/" + 
 // TaskDone is the command topic a task's button publishes to.
 func (t Topics) TaskDone(taskID string) string { return t.Base + "/task/" + taskID + "/done" }
 
+// TaskReading is the command topic a soil-check task's reading publishes to: the meter's
+// value, 1 to 10.
+func (t Topics) TaskReading(taskID string) string { return t.Base + "/task/" + taskID + "/reading" }
+
 // HAStatus is where Home Assistant announces it has (re)started.
 func (t Topics) HAStatus() string { return t.Discovery + "/status" }
 
@@ -84,14 +89,23 @@ func (t Topics) stateTopicOf(objectID string) string {
 	return t.PlantState(strings.TrimPrefix(objectID, t.ID+"_"))
 }
 
-// taskIDOf returns the task of a button's command topic.
-func (t Topics) taskIDOf(topic string) (string, bool) {
+// Commands a task's entities send.
+const (
+	cmdDone    = "done"
+	cmdReading = "reading"
+)
+
+// commandOf returns the task and command (cmdDone or cmdReading) of a command topic.
+func (t Topics) commandOf(topic string) (taskID, cmd string, ok bool) {
 	rest, ok := strings.CutPrefix(topic, t.Base+"/task/")
 	if !ok {
-		return "", false
+		return "", "", false
 	}
-	id, ok := strings.CutSuffix(rest, "/done")
-	return id, ok && id != "" && !strings.Contains(id, "/")
+	id, cmd, ok := strings.Cut(rest, "/")
+	if !ok || id == "" || (cmd != cmdDone && cmd != cmdReading) {
+		return "", "", false
+	}
+	return id, cmd, true
 }
 
 // component is one entity's discovery config; "platform" says which kind it is.
@@ -113,18 +127,24 @@ type snapshot struct {
 // plantState is what a plant's state topic carries. Dates are YYYY-MM-DD; nulls mean
 // never (Home Assistant shows them as unknown).
 type plantState struct {
-	NeedsCare   bool                 `json:"needs_care"`
-	NextDue     string               `json:"next_due"`
-	DaysOverdue int                  `json:"days_overdue"`
-	LastWatered *string              `json:"last_watered"`
-	Moisture    *int                 `json:"moisture"`
-	Tasks       map[string]taskState `json:"tasks"`
+	NeedsCare   bool    `json:"needs_care"`
+	NextDue     string  `json:"next_due"`
+	DaysOverdue int     `json:"days_overdue"`
+	LastWatered *string `json:"last_watered"`
+	Moisture    *int    `json:"moisture"`
+	// NeedsWater is true when a soil check's latest reading was at or below its water-at
+	// level and the plant hasn't been watered since: the app's "time to water".
+	NeedsWater bool                 `json:"needs_water"`
+	Tasks      map[string]taskState `json:"tasks"`
 }
 
 type taskState struct {
 	NextDue     string  `json:"next_due"`
 	DaysOverdue int     `json:"days_overdue"`
 	LastDone    *string `json:"last_done"`
+	// Reading is a soil-check task's latest meter reading; null for other tasks, or
+	// before the first reading.
+	Reading *int `json:"reading"`
 }
 
 // build works out the snapshot for every scheduled task of an active plant (care.Tasks)
@@ -226,7 +246,6 @@ func build(t Topics, items []care.Item, rooms map[string]string, summary apigen.
 					lastWatered = last
 				}
 			}
-			state.Tasks[it.Task.ID] = ts
 			if it.DaysOverdue >= 0 {
 				state.NeedsCare = true
 			}
@@ -234,11 +253,18 @@ func build(t Topics, items []care.Item, rooms map[string]string, summary apigen.
 			if i == 0 || ts.NextDue < state.NextDue {
 				state.NextDue = ts.NextDue
 			}
-			if r := d.LastReading; it.Task.MoistureCheck == 1 && r.Reading > 0 && r.On.String() >= moistureOn {
-				moistureOn = r.On.String()
+			if r := d.LastReading; it.Task.MoistureCheck == 1 && r.Reading > 0 {
 				reading := r.Reading
-				state.Moisture = &reading
+				ts.Reading = &reading
+				if r.On.String() >= moistureOn {
+					moistureOn = r.On.String()
+					state.Moisture = &reading
+				}
+				if needsWater(it) {
+					state.NeedsWater = true
+				}
 			}
+			state.Tasks[it.Task.ID] = ts
 
 			due, done := taskNames(it.Task)
 			comps[it.Task.ID+"_due"] = component{
@@ -248,6 +274,15 @@ func build(t Topics, items []care.Item, rooms map[string]string, summary apigen.
 			comps[it.Task.ID+"_done"] = component{
 				"platform": "button", "name": done, "unique_id": obj + "_" + it.Task.ID + "_done", "icon": "mdi:check",
 				"command_topic": t.TaskDone(it.Task.ID), "payload_press": pressPayload,
+			}
+			if it.Task.MoistureCheck == 1 {
+				comps[it.Task.ID+"_reading"] = component{
+					"platform": "number", "name": "Soil reading", "unique_id": obj + "_" + it.Task.ID + "_reading",
+					"icon": "mdi:gauge", "min": 1, "max": 10, "step": 1, "mode": "box",
+					"command_topic": t.TaskReading(it.Task.ID), "state_topic": stateTopic,
+					// A task with no reading yet renders None, which Home Assistant reads as unknown.
+					"value_template": "{{ value_json.tasks['" + it.Task.ID + "'].reading }}",
+				}
 			}
 		}
 		if lastWatered != "" {
@@ -263,6 +298,10 @@ func build(t Topics, items []care.Item, rooms map[string]string, summary apigen.
 			comps["moisture"] = component{
 				"platform": "sensor", "name": "Soil moisture", "unique_id": obj + "_moisture", "icon": "mdi:water-percent",
 				"state_class": "measurement", "state_topic": stateTopic, "value_template": "{{ value_json.moisture }}",
+			}
+			comps["needs_water"] = component{
+				"platform": "binary_sensor", "name": "Needs water", "unique_id": obj + "_needs_water", "icon": "mdi:watering-can",
+				"state_topic": stateTopic, "value_template": "{{ 'ON' if value_json.needs_water else 'OFF' }}",
 			}
 		}
 		payload, err := json.Marshal(state)
@@ -352,6 +391,17 @@ func hasKind(items []care.Item, kind string) bool {
 		}
 	}
 	return false
+}
+
+// needsWater reports whether a soil-check task's latest reading said to water (at or
+// below its water-at level, as the app's verdict) with no watering logged since. A
+// watering logged the same day as the reading counts as after it.
+func needsWater(it care.Item) bool {
+	r := it.Dates.LastReading
+	if it.Task.MoistureCheck != 1 || r.Kind != schedule.Checked || r.Reading <= 0 || int64(r.Reading) > it.Task.WaterAt {
+		return false
+	}
+	return !it.Dates.HasLast || it.Dates.Last.Before(r.On)
 }
 
 func hasSoilCheck(items []care.Item) bool {

@@ -147,6 +147,8 @@ Each plant device has:
 | Days overdue | How late its latest task is; 0 when nothing is late. |
 | Last watered (date) | Only for plants with a watering task. |
 | Soil moisture | The latest meter reading (1–10), only for plants with a soil-check watering. |
+| Needs water | On when the latest soil reading was at or below the task's "water at" level and the plant hasn't been watered since: the app's "time to water". Only for plants with a soil-check watering. |
+| Soil reading (number) | Enter a meter reading (1–10) to log a soil check, as saving a reading in grower does. Only for soil-check waterings. |
 | *Task* due (date) | Each task's next due date: "Water due", "Fertilize due", "Prune due", "Next soil check". |
 | *Task* done (button) | Marks that task done today, as tapping it in grower does: "Water done", or "Watered" for a soil check. |
 
@@ -183,6 +185,10 @@ If the broker can't be reached, grower runs normally, keeps trying, and logs a w
 - Plants are household-wide, so the dates use the time zone and hemisphere of the first account (the one made at setup).
 - A button press logs the task done today. A second press the same day does nothing, so a double tap or an automation firing twice doesn't log twice.
   Undo it in grower if you pressed by mistake.
+- Setting **Soil reading** logs a soil check with that reading, and grower reschedules as it does in the app.
+  At or below the task's "water at" level, **Needs water** turns on and the next check is tomorrow; press **Watered** once you have.
+  Above it, the next check moves out by how fast the soil has been drying.
+  The same reading again the same day does nothing; a different one is logged as a new check.
 - Archiving or deleting a plant removes its device; deleting a task removes its entities. This also works for changes made while grower was stopped.
 - While grower is stopped, its entities show as unavailable.
 
@@ -194,8 +200,9 @@ grower's messages are retained, so Home Assistant has them after a restart:
 
 - `grower/status`: `online` or `offline` (the broker sets `offline` if grower disappears).
 - `grower/summary`: the REST sensor's JSON.
-- `grower/plant/<plant id>/state`: `needs_care`, `next_due`, `days_overdue`, `last_watered`, `moisture`, and `tasks` by task ID with each one's `next_due`, `days_overdue` and `last_done`.
+- `grower/plant/<plant id>/state`: `needs_care`, `next_due`, `days_overdue`, `last_watered`, `moisture`, `needs_water`, and `tasks` by task ID with each one's `next_due`, `days_overdue`, `last_done` and `reading` (the latest, for soil checks).
 - `grower/task/<task id>/done`: publish anything (not retained) to mark the task done.
+- `grower/task/<task id>/reading`: publish a whole number from 1 to 10 (not retained) to log a soil check on a soil-check task.
 - `homeassistant/device/grower…/config`: discovery.
 
 An example automation that uses a plant's entity:

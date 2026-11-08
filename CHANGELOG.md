@@ -5,6 +5,7 @@ Versions follow [semantic versioning](https://semver.org/); every release's data
 
 ## Unreleased
 
+- Home Assistant over MQTT: soil-check plants get a **Soil reading** number to log a meter reading from Home Assistant, as saving one in the app does, and a **Needs water** sensor that turns on when the latest reading says to water.
 - Home Assistant: create read-only API tokens in Settings → Integrations, and point a REST sensor at `/api/v1/integrations/home-assistant` for what needs care today, in the daily reminder's words.
   Tokens are shown once, stored hashed, work on that endpoint only and can be revoked at any time.
   Setup and example automations are in [docs/home-assistant.md](docs/home-assistant.md).
