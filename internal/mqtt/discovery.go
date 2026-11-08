@@ -132,6 +132,8 @@ type plantState struct {
 	DaysOverdue int     `json:"days_overdue"`
 	LastWatered *string `json:"last_watered"`
 	Moisture    *int    `json:"moisture"`
+	// MoistureLevel names Moisture: Dry, Moist or Wet.
+	MoistureLevel *string `json:"moisture_level"`
 	// NeedsWater is true when a soil check's latest reading was at or below its water-at
 	// level and the plant hasn't been watered since: the app's "time to water".
 	NeedsWater bool                 `json:"needs_water"`
@@ -142,9 +144,11 @@ type taskState struct {
 	NextDue     string  `json:"next_due"`
 	DaysOverdue int     `json:"days_overdue"`
 	LastDone    *string `json:"last_done"`
-	// Reading is a soil-check task's latest meter reading; null for other tasks, or
-	// before the first reading.
+	// Reading is a soil-check task's soil moisture now (soilNow): its latest reading, or
+	// wet after a watering. Null for other tasks, or before the first reading or watering.
 	Reading *int `json:"reading"`
+	// Level names Reading: Dry, Moist or Wet.
+	Level *string `json:"level"`
 }
 
 // build works out the snapshot for every scheduled task of an active plant (care.Tasks)
@@ -253,12 +257,12 @@ func build(t Topics, items []care.Item, rooms map[string]string, summary apigen.
 			if i == 0 || ts.NextDue < state.NextDue {
 				state.NextDue = ts.NextDue
 			}
-			if r := d.LastReading; it.Task.MoistureCheck == 1 && r.Reading > 0 {
-				reading := r.Reading
-				ts.Reading = &reading
-				if r.On.String() >= moistureOn {
-					moistureOn = r.On.String()
-					state.Moisture = &reading
+			if reading, on, ok := soilNow(it); ok {
+				level := moistureLevel(reading)
+				ts.Reading, ts.Level = &reading, &level
+				if on.String() >= moistureOn {
+					moistureOn = on.String()
+					state.Moisture, state.MoistureLevel = &reading, &level
 				}
 				if needsWater(it) {
 					state.NeedsWater = true
@@ -281,7 +285,9 @@ func build(t Topics, items []care.Item, rooms map[string]string, summary apigen.
 					"icon": "mdi:gauge", "min": 1, "max": 10, "step": 1, "mode": "box",
 					"command_topic": t.TaskReading(it.Task.ID), "state_topic": stateTopic,
 					// A task with no reading yet renders None, which Home Assistant reads as unknown.
-					"value_template": "{{ value_json.tasks['" + it.Task.ID + "'].reading }}",
+					"value_template":           "{{ value_json.tasks['" + it.Task.ID + "'].reading }}",
+					"json_attributes_topic":    stateTopic,
+					"json_attributes_template": "{{ {'level': value_json.tasks['" + it.Task.ID + "'].level} | tojson }}",
 				}
 			}
 		}
@@ -298,6 +304,7 @@ func build(t Topics, items []care.Item, rooms map[string]string, summary apigen.
 			comps["moisture"] = component{
 				"platform": "sensor", "name": "Soil moisture", "unique_id": obj + "_moisture", "icon": "mdi:water-percent",
 				"state_class": "measurement", "state_topic": stateTopic, "value_template": "{{ value_json.moisture }}",
+				"json_attributes_topic": stateTopic, "json_attributes_template": "{{ {'level': value_json.moisture_level} | tojson }}",
 			}
 			comps["needs_water"] = component{
 				"platform": "binary_sensor", "name": "Needs water", "unique_id": obj + "_needs_water", "icon": "mdi:watering-can",
@@ -391,6 +398,40 @@ func hasKind(items []care.Item, kind string) bool {
 		}
 	}
 	return false
+}
+
+// wetReading is the top of the meter's scale: what soil reads just after watering.
+const wetReading = 10
+
+// soilNow is a soil-check task's soil moisture now, and the day it was known: its latest
+// reading, or wet once it has been watered since. A watering logged the same day as the
+// reading counts as after it (read, then water), as does a reading taken with the
+// watering itself, which was taken just before. ok is false for other tasks, and before
+// the first reading or watering.
+func soilNow(it care.Item) (reading int, on schedule.Date, ok bool) {
+	if it.Task.MoistureCheck != 1 {
+		return 0, schedule.Date{}, false
+	}
+	r, d := it.Dates.LastReading, it.Dates
+	if d.HasLast && (r.Reading <= 0 || r.Kind == schedule.Done || !d.Last.Before(r.On)) {
+		return wetReading, d.Last, true
+	}
+	if r.Reading <= 0 {
+		return 0, schedule.Date{}, false
+	}
+	return r.Reading, r.On, true
+}
+
+// moistureLevel names a reading with the app's moisture scale: Dry 1–3, Moist 4–7, Wet 8–10.
+func moistureLevel(reading int) string {
+	switch {
+	case reading <= 3:
+		return "Dry"
+	case reading <= 7:
+		return "Moist"
+	default:
+		return "Wet"
+	}
 }
 
 // needsWater reports whether a soil-check task's latest reading said to water (at or

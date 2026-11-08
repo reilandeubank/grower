@@ -146,9 +146,9 @@ Each plant device has:
 | Next care (date) | The plant's soonest due date. |
 | Days overdue | How late its latest task is; 0 when nothing is late. |
 | Last watered (date) | Only for plants with a watering task. |
-| Soil moisture | The latest meter reading (1–10), only for plants with a soil-check watering. |
+| Soil moisture | The soil now (1–10): the latest meter reading, or 10 once the plant has been watered since. Its `level` attribute names it Dry (1–3), Moist (4–7) or Wet (8–10), as the app's moisture scale does. Only for plants with a soil-check watering. |
 | Needs water | On when the latest soil reading was at or below the task's "water at" level and the plant hasn't been watered since: the app's "time to water". Only for plants with a soil-check watering. |
-| Soil reading (number) | Enter a meter reading (1–10) to log a soil check, as saving a reading in grower does. Only for soil-check waterings. |
+| Soil reading (number) | Shows the soil now, like **Soil moisture** (with the same `level` attribute); enter a meter reading (1–10) to log a soil check, as saving a reading in grower does. Only for soil-check waterings. |
 | *Task* due (date) | Each task's next due date: "Water due", "Fertilize due", "Prune due", "Next soil check". |
 | *Task* done (button) | Marks that task done today, as tapping it in grower does: "Water done", or "Watered" for a soil check. |
 
@@ -189,6 +189,8 @@ If the broker can't be reached, grower runs normally, keeps trying, and logs a w
   At or below the task's "water at" level, **Needs water** turns on and the next check is tomorrow; press **Watered** once you have.
   Above it, the next check moves out by how fast the soil has been drying.
   The same reading again the same day does nothing; a different one is logged as a new check.
+- After **Watered**, **Soil moisture** and **Soil reading** show 10 (wet) until the next reading, not the dry reading taken before watering.
+  A watering logged the same day as a reading counts as after it.
 - Archiving or deleting a plant removes its device; deleting a task removes its entities. This also works for changes made while grower was stopped.
 - While grower is stopped, its entities show as unavailable.
 
@@ -200,7 +202,7 @@ grower's messages are retained, so Home Assistant has them after a restart:
 
 - `grower/status`: `online` or `offline` (the broker sets `offline` if grower disappears).
 - `grower/summary`: the REST sensor's JSON.
-- `grower/plant/<plant id>/state`: `needs_care`, `next_due`, `days_overdue`, `last_watered`, `moisture`, `needs_water`, and `tasks` by task ID with each one's `next_due`, `days_overdue`, `last_done` and `reading` (the latest, for soil checks).
+- `grower/plant/<plant id>/state`: `needs_care`, `next_due`, `days_overdue`, `last_watered`, `moisture`, `moisture_level`, `needs_water`, and `tasks` by task ID with each one's `next_due`, `days_overdue`, `last_done`, and for soil checks `reading` and `level`.
 - `grower/task/<task id>/done`: publish anything (not retained) to mark the task done.
 - `grower/task/<task id>/reading`: publish a whole number from 1 to 10 (not retained) to log a soil check on a soil-check task.
 - `homeassistant/device/grower…/config`: discovery.
